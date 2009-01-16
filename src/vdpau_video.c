@@ -48,6 +48,7 @@
 #define BUFFER_ID_OFFSET	0x08000000
 #define OUTPUT_ID_OFFSET	0x10000000
 
+
 /* ====================================================================== */
 /* === Helpers                                                        === */
 /* ====================================================================== */
@@ -2157,14 +2158,14 @@ vdpau_PutSurface(VADriverContextP ctx,
 	return get_VAStatus(vdp_status);
 
     VdpRect source_rect, output_rect, display_rect;
-    source_rect.x0 = srcx;
-    source_rect.y0 = srcy;
-    source_rect.x1 = source_rect.x0 + srcw;
-    source_rect.y1 = source_rect.y0 + srch;
-    output_rect.x0 = 0;
-    output_rect.y0 = 0;
-    output_rect.x1 = obj_output->output_surface_width;
-    output_rect.y1 = obj_output->output_surface_height;
+    source_rect.x0  = srcx;
+    source_rect.y0  = srcy;
+    source_rect.x1  = source_rect.x0 + srcw;
+    source_rect.y1  = source_rect.y0 + srch;
+    output_rect.x0  = 0;
+    output_rect.y0  = 0;
+    output_rect.x1  = obj_output->output_surface_width;
+    output_rect.y1  = obj_output->output_surface_height;
     display_rect.x0 = destx;
     display_rect.y0 = desty;
     display_rect.x1 = display_rect.x0 + destw;
@@ -2315,62 +2316,61 @@ vdpau_Initialize(VADriverContextP ctx)
 		VDPAU_STR_DRIVER_NAME,
 		VDPAU_STR_DRIVER_VERSION);
 
-    ctx->version_major = VA_MAJOR_VERSION;
-    ctx->version_minor = VA_MINOR_VERSION;
-    ctx->max_profiles = VDPAU_MAX_PROFILES;
-    ctx->max_entrypoints = VDPAU_MAX_ENTRYPOINTS;
-    ctx->max_attributes = VDPAU_MAX_CONFIG_ATTRIBUTES;
-    ctx->max_image_formats = VDPAU_MAX_IMAGE_FORMATS;
-    ctx->max_subpic_formats = VDPAU_MAX_SUBPIC_FORMATS;
-    ctx->max_display_attributes = VDPAU_MAX_DISPLAY_ATTRIBUTES;
-    ctx->str_vendor = vendor;
+    ctx->version_major		= VA_MAJOR_VERSION;
+    ctx->version_minor		= VA_MINOR_VERSION;
+    ctx->max_profiles		= VDPAU_MAX_PROFILES;
+    ctx->max_entrypoints	= VDPAU_MAX_ENTRYPOINTS;
+    ctx->max_attributes		= VDPAU_MAX_CONFIG_ATTRIBUTES;
+    ctx->max_image_formats	= VDPAU_MAX_IMAGE_FORMATS;
+    ctx->max_subpic_formats	= VDPAU_MAX_SUBPIC_FORMATS;
+    ctx->max_display_attributes	= VDPAU_MAX_DISPLAY_ATTRIBUTES;
+    ctx->str_vendor		= vendor;
 
-    ctx->vtable.vaTerminate = vdpau_Terminate;
-    ctx->vtable.vaQueryConfigEntrypoints = vdpau_QueryConfigEntrypoints;
-    ctx->vtable.vaQueryConfigProfiles = vdpau_QueryConfigProfiles;
-    ctx->vtable.vaQueryConfigEntrypoints = vdpau_QueryConfigEntrypoints;
-    ctx->vtable.vaQueryConfigAttributes = vdpau_QueryConfigAttributes;
-    ctx->vtable.vaCreateConfig = vdpau_CreateConfig;
-    ctx->vtable.vaDestroyConfig = vdpau_DestroyConfig;
-    ctx->vtable.vaGetConfigAttributes = vdpau_GetConfigAttributes;
-    ctx->vtable.vaCreateSurfaces = vdpau_CreateSurfaces;
-    ctx->vtable.vaDestroySurfaces = vdpau_DestroySurfaces;
-    ctx->vtable.vaCreateContext = vdpau_CreateContext;
-    ctx->vtable.vaDestroyContext = vdpau_DestroyContext;
-    ctx->vtable.vaCreateBuffer = vdpau_CreateBuffer;
-    ctx->vtable.vaBufferSetNumElements = vdpau_BufferSetNumElements;
-    ctx->vtable.vaMapBuffer = vdpau_MapBuffer;
-    ctx->vtable.vaUnmapBuffer = vdpau_UnmapBuffer;
-    ctx->vtable.vaDestroyBuffer = vdpau_DestroyBuffer;
-    ctx->vtable.vaBeginPicture = vdpau_BeginPicture;
-    ctx->vtable.vaRenderPicture = vdpau_RenderPicture;
-    ctx->vtable.vaEndPicture = vdpau_EndPicture;
-    ctx->vtable.vaSyncSurface = vdpau_SyncSurface;
-    ctx->vtable.vaQuerySurfaceStatus = vdpau_QuerySurfaceStatus;
-    ctx->vtable.vaPutSurface = vdpau_PutSurface;
-    ctx->vtable.vaQueryImageFormats = vdpau_QueryImageFormats;
-    ctx->vtable.vaCreateImage = vdpau_CreateImage;
-    ctx->vtable.vaDeriveImage = vdpau_DeriveImage;
-    ctx->vtable.vaDestroyImage = vdpau_DestroyImage;
-    ctx->vtable.vaSetImagePalette = vdpau_SetImagePalette;
-    ctx->vtable.vaGetImage = vdpau_GetImage;
-    ctx->vtable.vaPutImage = vdpau_PutImage;
-    ctx->vtable.vaPutImage2 = vdpau_PutImage2;
-    ctx->vtable.vaQuerySubpictureFormats = vdpau_QuerySubpictureFormats;
-    ctx->vtable.vaCreateSubpicture = vdpau_CreateSubpicture;
-    ctx->vtable.vaDestroySubpicture = vdpau_DestroySubpicture;
-    ctx->vtable.vaSetSubpictureImage = vdpau_SetSubpictureImage;
-    ctx->vtable.vaSetSubpicturePalette = vdpau_SetSubpicturePalette;
-    ctx->vtable.vaSetSubpictureChromakey = vdpau_SetSubpictureChromakey;
-    ctx->vtable.vaSetSubpictureGlobalAlpha = vdpau_SetSubpictureGlobalAlpha;
-    ctx->vtable.vaAssociateSubpicture = vdpau_AssociateSubpicture;
-    ctx->vtable.vaAssociateSubpicture2 = vdpau_AssociateSubpicture2;
-    ctx->vtable.vaDeassociateSubpicture = vdpau_DeassociateSubpicture;
-    ctx->vtable.vaQueryDisplayAttributes = vdpau_QueryDisplayAttributes;
-    ctx->vtable.vaGetDisplayAttributes = vdpau_GetDisplayAttributes;
-    ctx->vtable.vaSetDisplayAttributes = vdpau_SetDisplayAttributes;
-
-    ctx->vtable.vaDbgCopySurfaceToBuffer = vdpau_DbgCopySurfaceToBuffer;
+    ctx->vtable.vaTerminate			= vdpau_Terminate;
+    ctx->vtable.vaQueryConfigEntrypoints	= vdpau_QueryConfigEntrypoints;
+    ctx->vtable.vaQueryConfigProfiles		= vdpau_QueryConfigProfiles;
+    ctx->vtable.vaQueryConfigEntrypoints	= vdpau_QueryConfigEntrypoints;
+    ctx->vtable.vaQueryConfigAttributes		= vdpau_QueryConfigAttributes;
+    ctx->vtable.vaCreateConfig			= vdpau_CreateConfig;
+    ctx->vtable.vaDestroyConfig			= vdpau_DestroyConfig;
+    ctx->vtable.vaGetConfigAttributes		= vdpau_GetConfigAttributes;
+    ctx->vtable.vaCreateSurfaces		= vdpau_CreateSurfaces;
+    ctx->vtable.vaDestroySurfaces		= vdpau_DestroySurfaces;
+    ctx->vtable.vaCreateContext			= vdpau_CreateContext;
+    ctx->vtable.vaDestroyContext		= vdpau_DestroyContext;
+    ctx->vtable.vaCreateBuffer			= vdpau_CreateBuffer;
+    ctx->vtable.vaBufferSetNumElements		= vdpau_BufferSetNumElements;
+    ctx->vtable.vaMapBuffer			= vdpau_MapBuffer;
+    ctx->vtable.vaUnmapBuffer			= vdpau_UnmapBuffer;
+    ctx->vtable.vaDestroyBuffer			= vdpau_DestroyBuffer;
+    ctx->vtable.vaBeginPicture			= vdpau_BeginPicture;
+    ctx->vtable.vaRenderPicture			= vdpau_RenderPicture;
+    ctx->vtable.vaEndPicture			= vdpau_EndPicture;
+    ctx->vtable.vaSyncSurface			= vdpau_SyncSurface;
+    ctx->vtable.vaQuerySurfaceStatus		= vdpau_QuerySurfaceStatus;
+    ctx->vtable.vaPutSurface			= vdpau_PutSurface;
+    ctx->vtable.vaQueryImageFormats		= vdpau_QueryImageFormats;
+    ctx->vtable.vaCreateImage			= vdpau_CreateImage;
+    ctx->vtable.vaDeriveImage			= vdpau_DeriveImage;
+    ctx->vtable.vaDestroyImage			= vdpau_DestroyImage;
+    ctx->vtable.vaSetImagePalette		= vdpau_SetImagePalette;
+    ctx->vtable.vaGetImage			= vdpau_GetImage;
+    ctx->vtable.vaPutImage			= vdpau_PutImage;
+    ctx->vtable.vaPutImage2			= vdpau_PutImage2;
+    ctx->vtable.vaQuerySubpictureFormats	= vdpau_QuerySubpictureFormats;
+    ctx->vtable.vaCreateSubpicture		= vdpau_CreateSubpicture;
+    ctx->vtable.vaDestroySubpicture		= vdpau_DestroySubpicture;
+    ctx->vtable.vaSetSubpictureImage		= vdpau_SetSubpictureImage;
+    ctx->vtable.vaSetSubpicturePalette		= vdpau_SetSubpicturePalette;
+    ctx->vtable.vaSetSubpictureChromakey	= vdpau_SetSubpictureChromakey;
+    ctx->vtable.vaSetSubpictureGlobalAlpha	= vdpau_SetSubpictureGlobalAlpha;
+    ctx->vtable.vaAssociateSubpicture		= vdpau_AssociateSubpicture;
+    ctx->vtable.vaAssociateSubpicture2		= vdpau_AssociateSubpicture2;
+    ctx->vtable.vaDeassociateSubpicture		= vdpau_DeassociateSubpicture;
+    ctx->vtable.vaQueryDisplayAttributes	= vdpau_QueryDisplayAttributes;
+    ctx->vtable.vaGetDisplayAttributes		= vdpau_GetDisplayAttributes;
+    ctx->vtable.vaSetDisplayAttributes		= vdpau_SetDisplayAttributes;
+    ctx->vtable.vaDbgCopySurfaceToBuffer	= vdpau_DbgCopySurfaceToBuffer;
 
     driver_data = (struct vdpau_driver_data *)calloc(1, sizeof(*driver_data));
     if (driver_data == NULL)
