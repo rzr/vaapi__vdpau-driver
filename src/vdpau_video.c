@@ -18,12 +18,9 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "config.h"
+#include "sysdeps.h"
 #include "vdpau_video.h"
 #include <va_backend.h>
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
 #include <stdarg.h>
 
 #define DEBUG 1
@@ -56,13 +53,6 @@
 #define SURFACE_ID_OFFSET	0x04000000
 #define BUFFER_ID_OFFSET	0x08000000
 #define OUTPUT_ID_OFFSET	0x10000000
-
-#ifndef MIN
-#define MIN(x, y)		(((x) < (y)) ? (x) : (y))
-#endif
-#ifndef MAX
-#define MAX(x, y)		(((x) > (y)) ? (x) : (y))
-#endif
 
 /* ====================================================================== */
 /* === Helpers                                                        === */

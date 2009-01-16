@@ -18,12 +18,8 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "sysdeps.h"
 #include "object_heap.h"
-
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 
 /* This code is:
  * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
