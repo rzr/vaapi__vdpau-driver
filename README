@@ -23,3 +23,6 @@ Requirements
 
 You need libva >= 0.29.0-sds2. That's the API version, not the version
 of the packages.
+
+mplayer-vaapi >= 20090116 patchset is also needed if you intend to use
+MPlayer.
