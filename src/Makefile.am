@@ -14,4 +14,4 @@ nvidia_drv_video_la_LDFLAGS = $(LDADD)
 noinst_HEADERS = vdpau_video.h object_heap.h
 
 # Extra clean files so that maintainer-clean removes *everything*
-MAINTAINERCLEANFILES = Makefile.in
+MAINTAINERCLEANFILES = Makefile.in config.h.in
