@@ -2311,10 +2311,12 @@ vdpau_Initialize(VADriverContextP ctx)
     VdpStatus vdp_status;
 
     if (vendor[0] == '\0')
-	sprintf(vendor, "%s %s - %s",
+	sprintf(vendor, "%s %s - %d.%d.%d",
 		VDPAU_STR_DRIVER_VENDOR,
 		VDPAU_STR_DRIVER_NAME,
-		VDPAU_STR_DRIVER_VERSION);
+		VDPAU_VIDEO_MAJOR_VERSION,
+		VDPAU_VIDEO_MINOR_VERSION,
+		VDPAU_VIDEO_MICRO_VERSION);
 
     ctx->version_major		= VA_MAJOR_VERSION;
     ctx->version_minor		= VA_MINOR_VERSION;

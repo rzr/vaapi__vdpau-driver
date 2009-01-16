@@ -15,6 +15,13 @@ AM_INIT_AUTOMAKE
 
 AM_CONFIG_HEADER([src/config.h])
 
+VDPAU_VIDEO_MAJOR_VERSION=vdpau_video_major_version
+VDPAU_VIDEO_MINOR_VERSION=vdpau_video_minor_version
+VDPAU_VIDEO_MICRO_VERSION=vdpau_video_micro_version
+AC_DEFINE([VDPAU_VIDEO_MAJOR_VERSION], [vdpau_video_major_version], [Major version of the driver])
+AC_DEFINE([VDPAU_VIDEO_MINOR_VERSION], [vdpau_video_minor_version], [Minor version of the driver])
+AC_DEFINE([VDPAU_VIDEO_MICRO_VERSION], [vdpau_video_micro_version], [Micro version of the driver])
+
 VDPAU_VIDEO_LT_LDFLAGS="-avoid-version"
 AC_SUBST(VDPAU_VIDEO_LT_LDFLAGS)
 

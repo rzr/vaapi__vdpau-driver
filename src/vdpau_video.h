@@ -34,7 +34,6 @@
 #define VDPAU_MAX_DISPLAY_ATTRIBUTES	4
 #define VDPAU_STR_DRIVER_VENDOR		"Splitted-Desktop Systems"
 #define VDPAU_STR_DRIVER_NAME		"VDPAU backend for VA API"
-#define VDPAU_STR_DRIVER_VERSION	"0.1.0" /* XXX: configure generated */
 
 typedef enum {
     VDP_CODEC_MPEG1 = 1,
