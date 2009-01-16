@@ -1,0 +1,26 @@
+
+  vaapi-backend-vdpau
+  A VDPAU-based backend for VA API
+
+  Copyright (C) 2009 Splitted-Desktop Systems SAS
+
+
+License
+-------
+
+vaapi-backend-vdpau is available under the terms of the GNU General
+Public License.
+
+
+Overview
+--------
+
+vaapi-backend-vdpau consists in a VDPAU-based backend for VA API.
+
+
+Requirements
+------------
+
+You need libva >= 0.29.0-sds2. That's the API version, not the version
+of the packages.
+
