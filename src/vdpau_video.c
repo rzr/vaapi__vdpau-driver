@@ -995,280 +995,251 @@ vdpau_QueryImageFormats(VADriverContextP ctx,
 			int *num_formats)		/* out */
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaCreateImage
-VAStatus vdpau_CreateImage(
-	VADriverContextP ctx,
-	VAImageFormat *format,
-	int width,
-	int height,
-	VAImage *image     /* out */
-)
+static VAStatus
+vdpau_CreateImage(VADriverContextP ctx,
+		  VAImageFormat *format,
+		  int width,
+		  int height,
+		  VAImage *image)			/* out */
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaDeriveImage
-VAStatus vdpau_DeriveImage(
-	VADriverContextP ctx,
-	VASurfaceID surface,
-	VAImage *image     /* out */
-)
+static VAStatus
+vdpau_DeriveImage(VADriverContextP ctx,
+		  VASurfaceID surface,
+		  VAImage *image)			/* out */
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaDestroyImage
-VAStatus vdpau_DestroyImage(
-	VADriverContextP ctx,
-	VAImageID image
-)
+static VAStatus
+vdpau_DestroyImage(VADriverContextP ctx,
+		   VAImageID image)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaSetImagePalette
-VAStatus vdpau_SetImagePalette(
-	VADriverContextP ctx,
-	VAImageID image,
-	unsigned char *palette
-)
+static VAStatus
+vdpau_SetImagePalette(VADriverContextP ctx,
+		      VAImageID image,
+		      unsigned char *palette)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaGetImage
-VAStatus vdpau_GetImage(
-	VADriverContextP ctx,
-	VASurfaceID surface,
-	int x,     /* coordinates of the upper left source pixel */
-	int y,
-	unsigned int width, /* width and height of the region */
-	unsigned int height,
-	VAImageID image
-)
+static VAStatus
+vdpau_GetImage(VADriverContextP ctx,
+	       VASurfaceID surface,
+	       int x,     /* coordinates of the upper left source pixel */
+	       int y,
+	       unsigned int width, /* width and height of the region */
+	       unsigned int height,
+	       VAImageID image)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaPutImage
-VAStatus vdpau_PutImage(
-	VADriverContextP ctx,
-	VASurfaceID surface,
-	VAImageID image,
-	int src_x,
-	int src_y,
-	unsigned int width,
-	unsigned int height,
-	int dest_x,
-	int dest_y 
-)
+static VAStatus
+vdpau_PutImage(VADriverContextP ctx,
+	       VASurfaceID surface,
+	       VAImageID image,
+	       int src_x,
+	       int src_y,
+	       unsigned int width,
+	       unsigned int height,
+	       int dest_x,
+	       int dest_y)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaPutImage2
-VAStatus vdpau_PutImage2(
-	VADriverContextP ctx,
-	VASurfaceID surface,
-	VAImageID image,
-	int src_x,
-	int src_y,
-	unsigned int src_width,
-	unsigned int src_height,
-	int dest_x,
-	int dest_y,
-	unsigned int dest_width,
-	unsigned int dest_height
-)
+static VAStatus
+vdpau_PutImage2(VADriverContextP ctx,
+		VASurfaceID surface,
+		VAImageID image,
+		int src_x,
+		int src_y,
+		unsigned int src_width,
+		unsigned int src_height,
+		int dest_x,
+		int dest_y,
+		unsigned int dest_width,
+		unsigned int dest_height)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaQuerySubpictureFormats
-VAStatus vdpau_QuerySubpictureFormats(
-	VADriverContextP ctx,
-	VAImageFormat *format_list,        /* out */
-	unsigned int *flags,       /* out */
-	unsigned int *num_formats  /* out */
-)
+static VAStatus
+vdpau_QuerySubpictureFormats(VADriverContextP ctx,
+			     VAImageFormat *format_list,/* out */
+			     unsigned int *flags,	/* out */
+			     unsigned int *num_formats)	/* out */
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaCreateSubpicture
-VAStatus vdpau_CreateSubpicture(
-	VADriverContextP ctx,
-	VAImageID image,
-	VASubpictureID *subpicture   /* out */
-)
+static VAStatus
+vdpau_CreateSubpicture(VADriverContextP ctx,
+		       VAImageID image,
+		       VASubpictureID *subpicture)	/* out */
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaDestroySubpicture
-VAStatus vdpau_DestroySubpicture(
-	VADriverContextP ctx,
-	VASubpictureID subpicture
-)
+static VAStatus
+vdpau_DestroySubpicture(VADriverContextP ctx,
+			VASubpictureID subpicture)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaSetSubpictureImage
-VAStatus vdpau_SetSubpictureImage(
-        VADriverContextP ctx,
-        VASubpictureID subpicture,
-        VAImageID image
-)
+static VAStatus
+vdpau_SetSubpictureImage(VADriverContextP ctx,
+			 VASubpictureID subpicture,
+			 VAImageID image)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
-VAStatus vdpau_SetSubpicturePalette(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	/*
-	 * pointer to an array holding the palette data.  The size of the array is
-	 * num_palette_entries * entry_bytes in size.  The order of the components
-	 * in the palette is described by the component_order in VASubpicture struct
-	 */
-	unsigned char *palette
-)
+// vaSetSubpicturePalette (not a PUBLIC interface)
+static VAStatus
+vdpau_SetSubpicturePalette(VADriverContextP ctx,
+			   VASubpictureID subpicture,
+			   unsigned char *palette)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaSetSubpictureChromaKey
-VAStatus vdpau_SetSubpictureChromakey(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	unsigned int chromakey_min,
-	unsigned int chromakey_max,
-	unsigned int chromakey_mask
-)
+static VAStatus
+vdpau_SetSubpictureChromakey(VADriverContextP ctx,
+			     VASubpictureID subpicture,
+			     unsigned int chromakey_min,
+			     unsigned int chromakey_max,
+			     unsigned int chromakey_mask)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaSetSubpictureGlobalAlpha
-VAStatus vdpau_SetSubpictureGlobalAlpha(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	float global_alpha 
-)
+static VAStatus
+vdpau_SetSubpictureGlobalAlpha(VADriverContextP ctx,
+			       VASubpictureID subpicture,
+			       float global_alpha)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaAssociateSubpicture
-VAStatus vdpau_AssociateSubpicture(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	VASurfaceID *target_surfaces,
-	int num_surfaces,
-	short src_x, /* upper left offset in subpicture */
-	short src_y,
-	short dest_x, /* upper left offset in surface */
-	short dest_y,
-	unsigned short width,
-	unsigned short height,
-	/*
-	 * whether to enable chroma-keying or global-alpha
-	 * see VA_SUBPICTURE_XXX values
-	 */
-	unsigned int flags
-)
+static VAStatus
+vdpau_AssociateSubpicture(VADriverContextP ctx,
+			  VASubpictureID subpicture,
+			  VASurfaceID *target_surfaces,
+			  int num_surfaces,
+			  short src_x, /* upper left offset in subpicture */
+			  short src_y,
+			  short dest_x, /* upper left offset in surface */
+			  short dest_y,
+			  unsigned short width,
+			  unsigned short height,
+			  unsigned int flags)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaAssociateSubpicture2
-VAStatus vdpau_AssociateSubpicture2(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	VASurfaceID *target_surfaces,
-	int num_surfaces,
-	short src_x, /* upper left offset in subpicture */
-	short src_y,
-	unsigned short src_width,
-	unsigned short src_height,
-	short dest_x, /* upper left offset in surface */
-	short dest_y,
-	unsigned short dest_width,
-	unsigned short dest_height,
-	/*
-	 * whether to enable chroma-keying or global-alpha
-	 * see VA_SUBPICTURE_XXX values
-	 */
-	unsigned int flags
-)
+static VAStatus
+vdpau_AssociateSubpicture2(VADriverContextP ctx,
+			   VASubpictureID subpicture,
+			   VASurfaceID *target_surfaces,
+			   int num_surfaces,
+			   short src_x, /* upper left offset in subpicture */
+			   short src_y,
+			   unsigned short src_width,
+			   unsigned short src_height,
+			   short dest_x, /* upper left offset in surface */
+			   short dest_y,
+			   unsigned short dest_width,
+			   unsigned short dest_height,
+			   unsigned int flags)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
 
 // vaDeassociateSubpicture
-VAStatus vdpau_DeassociateSubpicture(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	VASurfaceID *target_surfaces,
-	int num_surfaces
-)
+static VAStatus
+vdpau_DeassociateSubpicture(VADriverContextP ctx,
+			    VASubpictureID subpicture,
+			    VASurfaceID *target_surfaces,
+			    int num_surfaces)
 {
     INIT_DRIVER_DATA;
-    
+
     /* TODO */
     return VA_STATUS_SUCCESS;
 }
@@ -2085,11 +2056,10 @@ vdpau_SyncSurface(VADriverContextP ctx,
 }
 
 // vaQuerySurfaceStatus
-VAStatus vdpau_QuerySurfaceStatus(
-		VADriverContextP ctx,
-		VASurfaceID render_target,
-		VASurfaceStatus *status	/* out */
-	)
+static VAStatus
+vdpau_QuerySurfaceStatus(VADriverContextP ctx,
+			 VASurfaceID render_target,
+			 VASurfaceStatus *status)	/* out */
 {
     INIT_DRIVER_DATA;
     VAStatus va_status = VA_STATUS_SUCCESS;
@@ -2234,68 +2204,50 @@ vdpau_PutSurface(VADriverContextP ctx,
     return VA_STATUS_SUCCESS;
 }
 
-/* 
- * Query display attributes 
- * The caller must provide a "attr_list" array that can hold at
- * least vaMaxNumDisplayAttributes() entries. The actual number of attributes
- * returned in "attr_list" is returned in "num_attributes".
- */
-VAStatus vdpau_QueryDisplayAttributes (
-		VADriverContextP ctx,
-		VADisplayAttribute *attr_list,	/* out */
-		int *num_attributes		/* out */
-	)
+// vaQueryDisplayAttributes
+static VAStatus
+vdpau_QueryDisplayAttributes(VADriverContextP ctx,
+			     VADisplayAttribute *attr_list,	/* out */
+			     int *num_attributes)		/* out */
 {
     /* TODO */
     return VA_STATUS_ERROR_UNKNOWN;
 }
 
-/* 
- * Get display attributes 
- * This function returns the current attribute values in "attr_list".
- * Only attributes returned with VA_DISPLAY_ATTRIB_GETTABLE set in the "flags" field
- * from vaQueryDisplayAttributes() can have their values retrieved.  
- */
-VAStatus vdpau_GetDisplayAttributes (
-		VADriverContextP ctx,
-		VADisplayAttribute *attr_list,	/* in/out */
-		int num_attributes
-	)
+// vaGetDisplayAttributes
+static VAStatus
+vdpau_GetDisplayAttributes(VADriverContextP ctx,
+			   VADisplayAttribute *attr_list,	/* in/out */
+			   int num_attributes)
 {
     /* TODO */
     return VA_STATUS_ERROR_UNKNOWN;
 }
 
-/* 
- * Set display attributes 
- * Only attributes returned with VA_DISPLAY_ATTRIB_SETTABLE set in the "flags" field
- * from vaQueryDisplayAttributes() can be set.  If the attribute is not settable or 
- * the value is out of range, the function returns VA_STATUS_ERROR_ATTR_NOT_SUPPORTED
- */
-VAStatus vdpau_SetDisplayAttributes (
-		VADriverContextP ctx,
-		VADisplayAttribute *attr_list,
-		int num_attributes
-	)
+// vaSetDisplayAttributes
+static VAStatus
+vdpau_SetDisplayAttributes(VADriverContextP ctx,
+			   VADisplayAttribute *attr_list,
+			   int num_attributes)
 {
     /* TODO */
     return VA_STATUS_ERROR_UNKNOWN;
 }
 
-
-VAStatus vdpau_DbgCopySurfaceToBuffer(
-		VADriverContextP ctx,
-		VASurfaceID surface,
-		void **buffer, /* out */
-		unsigned int *stride /* out */
-	)
+// vaDbgCopySurfaceToBuffer (not a PUBLIC interface)
+static VAStatus
+vdpau_DbgCopySurfaceToBuffer(VADriverContextP ctx,
+			     VASurfaceID surface,
+			     void **buffer,		/* out */
+			     unsigned int *stride)	/* out */
 {
     /* TODO */
     return VA_STATUS_ERROR_UNKNOWN;
 }
 
 // vaTerminate
-static VAStatus vdpau_Terminate(VADriverContextP ctx)
+static VAStatus
+vdpau_Terminate(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     object_buffer_p obj_buffer;
@@ -2348,7 +2300,8 @@ static inline VAStatus vdpau_Terminate_with_status(VADriverContextP ctx, VAStatu
 }
 
 // vaInitialize
-static VAStatus vdpau_Initialize(VADriverContextP ctx)
+static VAStatus
+vdpau_Initialize(VADriverContextP ctx)
 {
     struct vdpau_driver_data *driver_data;
     static char vendor[256] = {0, };

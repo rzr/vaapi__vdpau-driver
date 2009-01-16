@@ -34,4 +34,10 @@
 #undef  MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
+#ifdef HAVE_VISIBILITY_ATTRIBUTE
+# define attribute_hidden __attribute__((__visibility__("hidden")))
+#else
+# define attribute_hidden
+#endif
+
 #endif /* SYSDEPS_H */

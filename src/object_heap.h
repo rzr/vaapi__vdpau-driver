@@ -46,40 +46,47 @@ typedef int object_heap_iterator;
 /*
  * Return 0 on success, -1 on error
  */
-int object_heap_init(object_heap_p heap, int object_size, int id_offset);
+int object_heap_init(object_heap_p heap, int object_size, int id_offset)
+     attribute_hidden;
 
 /*
  * Allocates an object
  * Returns the object ID on success, returns -1 on error
  */
-int object_heap_allocate(object_heap_p heap);
+int object_heap_allocate(object_heap_p heap)
+     attribute_hidden;
 
 /*
  * Lookup an allocated object by object ID
  * Returns a pointer to the object on success, returns NULL on error
  */
-object_base_p object_heap_lookup(object_heap_p heap, int id);
+object_base_p object_heap_lookup(object_heap_p heap, int id)
+     attribute_hidden;
 
 /*
  * Iterate over all objects in the heap.
  * Returns a pointer to the first object on the heap, returns NULL if heap is empty.
  */
-object_base_p object_heap_first(object_heap_p heap, object_heap_iterator *iter);
+object_base_p object_heap_first(object_heap_p heap, object_heap_iterator *iter)
+     attribute_hidden;
 
 /*
  * Iterate over all objects in the heap.
  * Returns a pointer to the next object on the heap, returns NULL if heap is empty.
  */
-object_base_p object_heap_next(object_heap_p heap, object_heap_iterator *iter);
+object_base_p object_heap_next(object_heap_p heap, object_heap_iterator *iter)
+     attribute_hidden;
 
 /*
  * Frees an object
  */
-void object_heap_free(object_heap_p heap, object_base_p obj);
+void object_heap_free(object_heap_p heap, object_base_p obj)
+     attribute_hidden;
 
 /*
  * Destroys a heap, the heap must be empty.
  */
-void object_heap_destroy(object_heap_p heap);
+void object_heap_destroy(object_heap_p heap)
+     attribute_hidden;
 
 #endif /* VA_OBJECT_HEAP_H */

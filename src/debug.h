@@ -21,8 +21,11 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-void vdpau_error_message(const char *msg, ...);
-void vdpau_information_message(const char *msg, ...);
+void vdpau_error_message(const char *msg, ...)
+     attribute_hidden;
+
+void vdpau_information_message(const char *msg, ...)
+     attribute_hidden;
 
 #if DEBUG
 # define D(x) x
