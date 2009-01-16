@@ -24,13 +24,7 @@
 #include <stdarg.h>
 
 #define DEBUG 1
-
-#if DEBUG
-#define D(x) x
-#define bug vdpau_information_message
-#else
-#define D(x)
-#endif
+#include "debug.h"
 
 #define ASSERT assert
 
@@ -57,26 +51,6 @@
 /* ====================================================================== */
 /* === Helpers                                                        === */
 /* ====================================================================== */
-
-static void vdpau_error_message(const char *msg, ...)
-{
-    va_list args;
-
-    fprintf(stderr, "nvidia_drv_video error: ");
-    va_start(args, msg);
-    vfprintf(stderr, msg, args);
-    va_end(args);
-}
-
-static void vdpau_information_message(const char *msg, ...)
-{
-    va_list args;
-
-    fprintf(stderr, "nvidia_drv_video: ");
-    va_start(args, msg);
-    vfprintf(stderr, msg, args);
-    va_end(args);
-}
 
 // Returns X drawable dimensions
 static void get_drawable_size(Display  *display,
