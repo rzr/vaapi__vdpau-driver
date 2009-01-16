@@ -2,7 +2,7 @@
   vaapi-backend-vdpau
   A VDPAU-based backend for VA API
 
-  Copyright (C) 2009 Splitted-Desktop Systems SAS
+  Copyright (C) 2009 Splitted-Desktop Systems
 
 
 License
@@ -23,4 +23,3 @@ Requirements
 
 You need libva >= 0.29.0-sds2. That's the API version, not the version
 of the packages.
-
