@@ -1,5 +1,9 @@
-vdpau-video NEWS -- summary of changes.  2009-01-16
+vdpau-video NEWS -- summary of changes.  2009-01-23
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.2.0 - 23.Jan.2009
+* Add support for VC-1
+* Relax size requirements in vaPutSurface()
 
 Version 0.1.0 - 16.Jan.2009
 * Initial public release
