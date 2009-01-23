@@ -1486,6 +1486,14 @@ vdpau_translate_VASurfaceID(vdpau_driver_data_t *driver_data,
 }
 
 static int
+vdpau_translate_nothing(vdpau_driver_data_t *driver_data,
+			object_context_p     obj_context,
+			object_buffer_p      obj_buffer)
+{
+    return 1;
+}
+
+static int
 vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
 				  object_context_p     obj_context,
 				  object_buffer_p      obj_buffer)
@@ -1752,6 +1760,95 @@ vdpau_translate_VASliceParameterBufferH264(vdpau_driver_data_t *driver_data,
     return 1;
 }
 
+static int
+vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
+					    object_context_p     obj_context,
+					    object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoVC1 * const pinfo = &obj_context->vdp_picture_info.vc1;
+    VAPictureParameterBufferVC1 * const pic_param = obj_buffer->buffer_data;
+    int picture_type;
+
+    if (!vdpau_translate_VASurfaceID(driver_data,
+				     pic_param->forward_reference_picture,
+				     &pinfo->forward_reference))
+	return 0;
+    if (!vdpau_translate_VASurfaceID(driver_data,
+				     pic_param->backward_reference_picture,
+				     &pinfo->backward_reference))
+	return 0;
+
+    if (obj_context->vdp_profile == VDP_DECODER_PROFILE_VC1_ADVANCED) {
+	switch (pic_param->picture_type) {
+	case 0: picture_type = 0; break; /* I */
+	case 1: picture_type = 1; break; /* P */
+	case 2: picture_type = 3; break; /* B */
+	case 3: picture_type = 4; break; /* BI */
+	default: ASSERT(!pic_param->picture_type); return 0;
+	}
+    }
+    else {
+	if (pic_param->max_b_frames == 0) {
+	    switch (pic_param->picture_type) {
+	    case 0: picture_type = 0; break; /* I */
+	    case 1: picture_type = 1; break; /* P */
+	    default: ASSERT(!pic_param->picture_type); return 0;
+	    }
+	}
+	else {
+	    switch (pic_param->picture_type) {
+	    case 0: picture_type = 1; break; /* P */
+	    case 1: picture_type = 0; break; /* I */
+	    case 2: picture_type = 3; break; /* XXX: B or BI */
+	    default: ASSERT(!pic_param->picture_type); return 0;
+	    }
+	}
+    }
+
+    pinfo->picture_type		= picture_type;
+    pinfo->frame_coding_mode	= pic_param->frame_coding_mode;
+    pinfo->postprocflag		= pic_param->post_processing != 0;
+    pinfo->pulldown		= pic_param->pulldown;
+    pinfo->interlace		= pic_param->interlace;
+    pinfo->tfcntrflag		= pic_param->frame_counter_flag;
+    pinfo->finterpflag		= pic_param->frame_interpolation_flag;
+    pinfo->psf			= pic_param->progressive_segment_frame;
+    pinfo->dquant		= pic_param->dquant;
+    pinfo->panscan_flag		= pic_param->panscan_flag;
+    pinfo->refdist_flag		= pic_param->reference_distance_flag;
+    pinfo->quantizer		= pic_param->quantizer;
+    pinfo->extended_mv		= pic_param->extended_mv_flag;
+    pinfo->extended_dmv		= pic_param->extended_dmv_flag;
+    pinfo->overlap		= pic_param->overlap;
+    pinfo->vstransform		= pic_param->variable_sized_transform_flag;
+    pinfo->loopfilter		= pic_param->loopfilter;
+    pinfo->fastuvmc		= pic_param->fast_uvmc_flag;
+    pinfo->range_mapy_flag	= pic_param->range_mapping_luma_flag;
+    pinfo->range_mapy		= pic_param->range_mapping_luma;
+    pinfo->range_mapuv_flag	= pic_param->range_mapping_chroma_flag;
+    pinfo->range_mapuv		= pic_param->range_mapping_chroma;
+    pinfo->multires		= pic_param->multires;
+    pinfo->syncmarker		= pic_param->syncmarker;
+    pinfo->rangered		= pic_param->rangered;
+    pinfo->maxbframes		= pic_param->max_b_frames;
+    pinfo->deblockEnable	= 0; /* XXX: fill */
+    pinfo->pquant		= 0; /* XXX: fill */
+    return 1;
+}
+
+static int
+vdpau_translate_VASliceParameterBufferVC1(vdpau_driver_data_t *driver_data,
+					  object_context_p     obj_context,
+					  object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoVC1 * const pinfo = &obj_context->vdp_picture_info.vc1;
+    VASliceParameterBufferVC1 * const slice_params = obj_buffer->buffer_data;
+    VASliceParameterBufferVC1 * const slice_param = &slice_params[obj_buffer->num_elements - 1];
+
+    pinfo->slice_count			= obj_buffer->num_elements;
+    return 1;
+}
+
 typedef int (*vdpau_translate_buffer_func_t)(vdpau_driver_data_t *driver_data,
 					     object_context_p     obj_context,
 					     object_buffer_p      obj_buffer);
@@ -1778,7 +1875,10 @@ vdpau_translate_buffer(vdpau_driver_data_t *driver_data,
 	_(H264, PictureParameter),
 	_(H264, IQMatrix),
 	_(H264, SliceParameter),
+	_(VC1, PictureParameter),
+	_(VC1, SliceParameter),
 #undef _
+	{ VDP_CODEC_VC1, VABitPlaneBufferType, vdpau_translate_nothing },
 	{ 0, VASliceDataBufferType, vdpau_translate_VASliceDataBuffer },
 	{ 0, 0, NULL }
     };
