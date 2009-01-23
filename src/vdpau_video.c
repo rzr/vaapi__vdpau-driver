@@ -2141,8 +2141,6 @@ vdpau_PutSurface(VADriverContextP ctx,
 	    return get_VAStatus(vdp_status);
     }
     ASSERT(obj_output->drawable == draw);
-    ASSERT(obj_output->width == width);
-    ASSERT(obj_output->height == height);
     ASSERT(obj_output->vdp_flip_queue != VDP_INVALID_HANDLE);
     ASSERT(obj_output->vdp_flip_target != VDP_INVALID_HANDLE);
 
