@@ -1934,6 +1934,7 @@ vdpau_CreateBuffer(VADriverContextP ctx,
     case VAIQMatrixBufferType:
     case VASliceParameterBufferType:
     case VASliceDataBufferType:
+    case VABitPlaneBufferType:
 	/* Ok */
 	break;
     default:
