@@ -101,6 +101,14 @@ if test "$ac_cv_libva_sds_extensions" = "no"; then
     AC_MSG_ERROR([Your VA API SDK does not include SDS extensions])
 fi
 
+AC_MSG_CHECKING([for VA drivers path])
+LIBVA_DRIVERS_PATH=`$PKG_CONFIG libva-$LIBVA_API_VERSION --variable driverdir`
+if test -z "$LIBVA_DRIVERS_PATH"; then
+    LIBVA_DRIVERS_PATH="/usr/lib/xorg/modules/drivers"
+fi
+AC_MSG_RESULT([$LIBVA_DRIVERS_PATH])
+AC_SUBST(LIBVA_DRIVERS_PATH)
+
 AC_OUTPUT([
 	Makefile
 	src/Makefile
