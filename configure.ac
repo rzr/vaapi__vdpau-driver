@@ -116,5 +116,4 @@ AC_SUBST(LIBVA_DRIVERS_PATH)
 AC_OUTPUT([
 	Makefile
 	src/Makefile
-	debian/control
 ])

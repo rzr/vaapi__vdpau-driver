@@ -9,7 +9,7 @@ Standards-Version: 3.7.2
 
 Package: vdpau-video
 Section: libs
-Architecture: all
+Architecture: any
 Depends: libva-@LIBVA_API_VERSION@-0 (>= @LIBVA_SDS_PACKAGE_VERSION@),
 	 ${shlibs:Depends}, ${misc:Depends}
 Description: VDPAU-based backend for VA API
@@ -17,7 +17,7 @@ Description: VDPAU-based backend for VA API
 
 Package: vdpau-video-dbg
 Section: libdevel
-Architecture: all
+Architecture: any
 Depends: vdpau-video (= ${Source-Version})
 Description: VDPAU-based backend for VA API
  Video decode driver for NVIDIA chipsets (VDPAU implementation).
