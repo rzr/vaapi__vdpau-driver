@@ -1,0 +1,25 @@
+Source: vdpau-video
+Section: libs
+Priority: optional
+Maintainer: Gwenole Beauchesne <gbeauchesne@splitted-desktop.com>
+Build-Depends: debhelper (>= 5),
+	       cdbs,
+	       libva-@LIBVA_API_VERSION@-dev (>= @LIBVA_SDS_PACKAGE_VERSION@)
+Standards-Version: 3.7.2
+
+Package: vdpau-video
+Section: libs
+Architecture: all
+Depends: libva-@LIBVA_API_VERSION@-0 (>= @LIBVA_SDS_PACKAGE_VERSION@),
+	 ${shlibs:Depends}, ${misc:Depends}
+Description: VDPAU-based backend for VA API
+ Video decode driver for NVIDIA chipsets (VDPAU implementation).
+
+Package: vdpau-video-dbg
+Section: libdevel
+Architecture: all
+Depends: vdpau-video (= ${Source-Version})
+Description: VDPAU-based backend for VA API
+ Video decode driver for NVIDIA chipsets (VDPAU implementation).
+ .
+ This package contains the debug files.

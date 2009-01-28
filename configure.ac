@@ -8,6 +8,7 @@ m4_define([vdpau_video_version],
 # libva package version number
 m4_define([libva_api_version], [0.29])
 m4_define([libva_sds_version], [4])
+m4_define([libva_sds_package_version], [0.29-2+sds8])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])
@@ -18,6 +19,9 @@ AM_CONFIG_HEADER([src/config.h])
 
 LIBVA_API_VERSION=libva_api_version
 LIBVA_SDS_VERSION=libva_sds_version
+LIBVA_SDS_PACKAGE_VERSION=libva_sds_package_version
+AC_SUBST(LIBVA_API_VERSION)
+AC_SUBST(LIBVA_SDS_PACKAGE_VERSION)
 
 VDPAU_VIDEO_MAJOR_VERSION=vdpau_video_major_version
 VDPAU_VIDEO_MINOR_VERSION=vdpau_video_minor_version
@@ -112,4 +116,5 @@ AC_SUBST(LIBVA_DRIVERS_PATH)
 AC_OUTPUT([
 	Makefile
 	src/Makefile
+	debian/control
 ])
