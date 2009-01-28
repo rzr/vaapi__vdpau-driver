@@ -7,6 +7,7 @@ m4_define([vdpau_video_version],
 
 # libva package version number
 m4_define([libva_api_version], [0.29])
+m4_define([libva_sds_version], [4])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])
@@ -14,6 +15,9 @@ AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE
 
 AM_CONFIG_HEADER([src/config.h])
+
+LIBVA_API_VERSION=libva_api_version
+LIBVA_SDS_VERSION=libva_sds_version
 
 VDPAU_VIDEO_MAJOR_VERSION=vdpau_video_major_version
 VDPAU_VIDEO_MINOR_VERSION=vdpau_video_minor_version
@@ -73,6 +77,29 @@ VDPAU_VIDEO_CFLAGS="$LIBVA_DEPS_CFLAGS"
 VDPAU_VIDEO_LIBS="$LIBVA_DEPS_LIBS"
 AC_SUBST(VDPAU_VIDEO_CFLAGS)
 AC_SUBST(VDPAU_VIDEO_LIBS)
+
+dnl Check for SDS extensions to VA API
+AC_CACHE_CHECK([for VA API],
+  ac_cv_libva_sds_extensions, [
+  saved_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS $LIBVA_DEPS_CFLAGS"
+  AC_TRY_COMPILE([
+    #include <va_version.h>
+    #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 29
+    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION)
+    #  error "VA API version >= 0.29.0-sds$LIBVA_SDS_VERSION is required"
+    # endif
+    #elif !VA_CHECK_VERSION(0,50,0)
+    # error "VA API version >= 0.50 is required"
+    #endif
+  ], [],
+  [ac_cv_libva_sds_extensions="yes"],
+  [ac_cv_libva_sds_extensions="no"])
+  CFLAGS="$saved_CFLAGS"
+])
+if test "$ac_cv_libva_sds_extensions" = "no"; then
+    AC_MSG_ERROR([Your VA API SDK does not include SDS extensions])
+fi
 
 AC_OUTPUT([
 	Makefile
