@@ -1778,31 +1778,12 @@ vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
 				     &pinfo->backward_reference))
 	return 0;
 
-    if (obj_context->vdp_profile == VDP_DECODER_PROFILE_VC1_ADVANCED) {
-	switch (pic_param->picture_type) {
-	case 0: picture_type = 0; break; /* I */
-	case 1: picture_type = 1; break; /* P */
-	case 2: picture_type = 3; break; /* B */
-	case 3: picture_type = 4; break; /* BI */
-	default: ASSERT(!pic_param->picture_type); return 0;
-	}
-    }
-    else {
-	if (pic_param->max_b_frames == 0) {
-	    switch (pic_param->picture_type) {
-	    case 0: picture_type = 0; break; /* I */
-	    case 1: picture_type = 1; break; /* P */
-	    default: ASSERT(!pic_param->picture_type); return 0;
-	    }
-	}
-	else {
-	    switch (pic_param->picture_type) {
-	    case 0: picture_type = 1; break; /* P */
-	    case 1: picture_type = 0; break; /* I */
-	    case 2: picture_type = 3; break; /* XXX: B or BI */
-	    default: ASSERT(!pic_param->picture_type); return 0;
-	    }
-	}
+    switch (pic_param->picture_type) {
+    case 0: picture_type = 0; break; /* I */
+    case 1: picture_type = 1; break; /* P */
+    case 2: picture_type = 3; break; /* B */
+    case 3: picture_type = 4; break; /* BI */
+    default: ASSERT(!pic_param->picture_type); return 0;
     }
 
     pinfo->picture_type		= picture_type;

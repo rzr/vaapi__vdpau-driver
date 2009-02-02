@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-01-28
+vdpau-video NEWS -- summary of changes.  2009-02-DD
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.2.2 - DD.Feb.2009
+* Fix VC-1 decoding of bitstreams with B-frames.
 
 Version 0.2.1 - 28.Jan.2009
 * Fix VC-1 decoding
