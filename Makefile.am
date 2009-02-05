@@ -10,6 +10,10 @@ DEBIANFILES = \
 	debian/rules \
 	debian/vdpau-video.install
 
+DEBIANGENFILES = \
+	debian/control \
+	debian/changelog
+
 EXTRA_DIST = \
 	$(DEBIANFILES)
 
@@ -25,8 +29,9 @@ deb: dist
 	tar zxvf ../$(PACKAGE)-$(VERSION).tar.gz && \
 	cd $(PACKAGE)-$(VERSION) && dpkg-buildpackage -rfakeroot -uc -us
 
-debian/control: debian/control.in
+$(DEBIANGENFILES): debian/%: debian/%.in Makefile
 	-sed \
+	  -e 's|\@PACKAGE_VERSION\@|$(PACKAGE_VERSION)|' \
 	  -e 's|\@LIBVA_API_VERSION\@|$(LIBVA_API_VERSION)|' \
 	  -e 's|\@LIBVA_SDS_PACKAGE_VERSION\@|$(LIBVA_SDS_PACKAGE_VERSION)|' \
 	  $< > $@
