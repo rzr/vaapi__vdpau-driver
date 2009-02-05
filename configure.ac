@@ -7,8 +7,8 @@ m4_define([vdpau_video_version],
 
 # libva package version number
 m4_define([libva_api_version], [0.29])
-m4_define([libva_sds_version], [4])
-m4_define([libva_sds_package_version], [0.29-2+sds8])
+m4_define([libva_sds_version], [6])
+m4_define([libva_sds_package_version], [0.29-2+sds9])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])

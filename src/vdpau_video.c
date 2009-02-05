@@ -110,13 +110,6 @@ static VAStatus get_VAStatus(VdpStatus status)
     return va_status;
 }
 
-// Determines whether VAPictureH264 is used a reference
-static inline int get_VAPictureH264_is_reference(const VAPictureH264 *va_pic)
-{
-    return (va_pic->flags & (VA_PICTURE_H264_LONG_TERM_REFERENCE|
-			     VA_PICTURE_H264_SHORT_TERM_REFERENCE)) != 0;
-}
-
 // Returns string representation of VdpCodec
 static const char *string_of_VdpCodec(VdpCodec codec)
 {
@@ -1677,7 +1670,7 @@ vdpau_translate_VAPictureParameterBufferH264(vdpau_driver_data_t *driver_data,
 
     pinfo->field_order_cnt[0]		= CurrPic->TopFieldOrderCnt;
     pinfo->field_order_cnt[1]		= CurrPic->BottomFieldOrderCnt;
-    pinfo->is_reference			= get_VAPictureH264_is_reference(CurrPic);
+    pinfo->is_reference			= pic_param->reference_pic_flag;
 
     pinfo->frame_num			= pic_param->frame_num;
     pinfo->field_pic_flag		= pic_param->field_pic_flag;
