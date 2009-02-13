@@ -571,6 +571,420 @@ vdpau_get_surface_size_max(vdpau_driver_data_t *driver_data,
 
 
 /* ====================================================================== */
+/* === VA API to VDPAU thunks                                         === */
+/* ====================================================================== */
+
+static int
+vdpau_translate_VASurfaceID(vdpau_driver_data_t *driver_data,
+			    VASurfaceID          va_surface,
+			    VdpVideoSurface     *vdp_surface)
+{
+    if (va_surface == 0xffffffff) {
+	*vdp_surface = VDP_INVALID_HANDLE;
+	return 1;
+    }
+    object_surface_p obj_surface = SURFACE(va_surface);
+    ASSERT(obj_surface);
+    if (obj_surface == NULL)
+	return 0;
+    *vdp_surface = obj_surface->vdp_surface;
+    return 1;
+}
+
+static int
+vdpau_translate_nothing(vdpau_driver_data_t *driver_data,
+			object_context_p     obj_context,
+			object_buffer_p      obj_buffer)
+{
+    return 1;
+}
+
+static int
+vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
+				  object_context_p     obj_context,
+				  object_buffer_p      obj_buffer)
+{
+    VdpBitstreamBuffer * const vdp_bitstream_buffer = &obj_context->vdp_bitstream_buffer;
+    vdp_bitstream_buffer->struct_version  = VDP_BITSTREAM_BUFFER_VERSION;
+    vdp_bitstream_buffer->bitstream	  = obj_buffer->buffer_data;
+    vdp_bitstream_buffer->bitstream_bytes = obj_buffer->buffer_size;
+    return 1;
+}
+
+static int
+vdpau_translate_VAPictureParameterBufferMPEG2(vdpau_driver_data_t *driver_data,
+					      object_context_p     obj_context,
+					      object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoMPEG1Or2 * const pinfo = &obj_context->vdp_picture_info.mpeg2;
+    VAPictureParameterBufferMPEG2 * const pic_param = obj_buffer->buffer_data;
+    if (!vdpau_translate_VASurfaceID(driver_data,
+				     pic_param->forward_reference_picture,
+				     &pinfo->forward_reference))
+	return 0;
+    if (!vdpau_translate_VASurfaceID(driver_data,
+				     pic_param->backward_reference_picture,
+				     &pinfo->backward_reference))
+	return 0;
+    pinfo->picture_structure		= pic_param->picture_structure;
+    pinfo->picture_coding_type		= pic_param->picture_coding_type;
+    pinfo->intra_dc_precision		= pic_param->intra_dc_precision;
+    pinfo->frame_pred_frame_dct		= pic_param->frame_pred_frame_dct;
+    pinfo->concealment_motion_vectors	= pic_param->concealment_motion_vectors;
+    pinfo->intra_vlc_format		= pic_param->intra_vlc_format;
+    pinfo->alternate_scan		= pic_param->alternate_scan;
+    pinfo->q_scale_type			= pic_param->q_scale_type;
+    pinfo->top_field_first		= pic_param->top_field_first;
+    pinfo->full_pel_forward_vector	= 0;
+    pinfo->full_pel_backward_vector	= 0;
+    pinfo->f_code[0][0]			= (pic_param->f_code >> 12) & 0xf;
+    pinfo->f_code[0][1]			= (pic_param->f_code >>  8) & 0xf;
+    pinfo->f_code[1][0]			= (pic_param->f_code >>  4) & 0xf;
+    pinfo->f_code[1][1]			= pic_param->f_code & 0xf;
+    return 1;
+}
+
+static const uint8_t ff_identity[64] = {
+    0,   1,  2,  3,  4,  5,  6,  7,
+    8,   9, 10, 11, 12, 13, 14, 15,
+    16, 17, 18, 19, 20, 21, 22, 23,
+    24, 25, 26, 27, 28, 29, 30, 31,
+    32, 33, 34, 35, 36, 37, 38, 39,
+    40, 41, 42, 43, 44, 45, 46, 47,
+    48, 49, 50, 51, 52, 53, 54, 55,
+    56, 57, 58, 59, 60, 61, 62, 63
+};
+
+static const uint8_t ff_zigzag_direct[64] = {
+    0,   1,  8, 16,  9,  2,  3, 10,
+    17, 24, 32, 25, 18, 11,  4,  5,
+    12, 19, 26, 33, 40, 48, 41, 34,
+    27, 20, 13,  6,  7, 14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63
+};
+
+static const uint8_t ff_mpeg1_default_intra_matrix[64] = {
+     8, 16, 19, 22, 26, 27, 29, 34,
+    16, 16, 22, 24, 27, 29, 34, 37,
+    19, 22, 26, 27, 29, 34, 34, 38,
+    22, 22, 26, 27, 29, 34, 37, 40,
+    22, 26, 27, 29, 32, 35, 40, 48,
+    26, 27, 29, 32, 35, 40, 48, 58,
+    26, 27, 29, 34, 38, 46, 56, 69,
+    27, 29, 35, 38, 46, 56, 69, 83
+};
+
+static const uint8_t ff_mpeg1_default_non_intra_matrix[64] = {
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16
+};
+
+static int
+vdpau_translate_VAIQMatrixBufferMPEG2(vdpau_driver_data_t *driver_data,
+				      object_context_p     obj_context,
+				      object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoMPEG1Or2 * const pinfo = &obj_context->vdp_picture_info.mpeg2;
+    VAIQMatrixBufferMPEG2 * const iq_matrix = obj_buffer->buffer_data;
+
+    const uint8_t *intra_matrix;
+    const uint8_t *intra_matrix_lookup;
+    const uint8_t *inter_matrix;
+    const uint8_t *inter_matrix_lookup;
+    if (iq_matrix->load_intra_quantiser_matrix) {
+	intra_matrix = iq_matrix->intra_quantiser_matrix;
+	intra_matrix_lookup = ff_zigzag_direct;
+    }
+    else {
+	intra_matrix = ff_mpeg1_default_intra_matrix;
+	intra_matrix_lookup = ff_identity;
+    }
+    if (iq_matrix->load_non_intra_quantiser_matrix) {
+	inter_matrix = iq_matrix->non_intra_quantiser_matrix;
+	inter_matrix_lookup = ff_zigzag_direct;
+    }
+    else {
+	inter_matrix = ff_mpeg1_default_non_intra_matrix;
+	inter_matrix_lookup = ff_identity;
+    }
+
+    int i;
+    for (i = 0; i < 64; i++) {
+	pinfo->intra_quantizer_matrix[intra_matrix_lookup[i]] =
+	    intra_matrix[i];
+	pinfo->non_intra_quantizer_matrix[inter_matrix_lookup[i]] =
+	    inter_matrix[i];
+    }
+    return 1;
+}
+
+static int
+vdpau_translate_VASliceParameterBufferMPEG2(vdpau_driver_data_t *driver_data,
+					    object_context_p     obj_context,
+					    object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoMPEG1Or2 * const pinfo = &obj_context->vdp_picture_info.mpeg2;
+    pinfo->slice_count = obj_buffer->num_elements;
+    return 1;
+}
+
+static int
+vdpau_translate_VAPictureH264(vdpau_driver_data_t   *driver_data,
+			      const VAPictureH264   *va_pic,
+			      VdpReferenceFrameH264 *rf)
+{
+    // Handle invalid surfaces specifically
+    if (va_pic->picture_id == 0xffffffff) {
+	rf->surface		= VDP_INVALID_HANDLE;
+	rf->is_long_term	= VDP_FALSE;
+	rf->top_is_reference	= VDP_FALSE;
+	rf->bottom_is_reference	= VDP_FALSE;
+	rf->field_order_cnt[0]	= 0;
+	rf->field_order_cnt[1]	= 0;
+	rf->frame_idx		= 0;
+	return 1;
+    }
+
+    if (!vdpau_translate_VASurfaceID(driver_data, va_pic->picture_id, &rf->surface))
+	return 0;
+    rf->is_long_term		= (va_pic->flags & VA_PICTURE_H264_LONG_TERM_REFERENCE) != 0;
+    if ((va_pic->flags & (VA_PICTURE_H264_TOP_FIELD|VA_PICTURE_H264_BOTTOM_FIELD)) == 0) {
+	rf->top_is_reference	= VDP_TRUE;
+	rf->bottom_is_reference	= VDP_TRUE;
+    }
+    else {
+	rf->top_is_reference	= (va_pic->flags & VA_PICTURE_H264_TOP_FIELD) != 0;
+	rf->bottom_is_reference	= (va_pic->flags & VA_PICTURE_H264_BOTTOM_FIELD) != 0;
+    }
+    rf->field_order_cnt[0]	= va_pic->TopFieldOrderCnt;
+    rf->field_order_cnt[1]	= va_pic->BottomFieldOrderCnt;
+    rf->frame_idx		= va_pic->frame_idx;
+    return 1;
+}
+
+static int
+vdpau_translate_VAPictureParameterBufferH264(vdpau_driver_data_t *driver_data,
+					     object_context_p     obj_context,
+					     object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
+    VAPictureParameterBufferH264 * const pic_param = obj_buffer->buffer_data;
+    VAPictureH264 * const CurrPic = &pic_param->CurrPic;
+    int i;
+
+    pinfo->field_order_cnt[0]		= CurrPic->TopFieldOrderCnt;
+    pinfo->field_order_cnt[1]		= CurrPic->BottomFieldOrderCnt;
+    pinfo->is_reference			= pic_param->reference_pic_flag;
+
+    pinfo->frame_num			= pic_param->frame_num;
+    pinfo->field_pic_flag		= pic_param->field_pic_flag;
+    pinfo->bottom_field_flag		= pic_param->field_pic_flag && (CurrPic->flags & VA_PICTURE_H264_BOTTOM_FIELD) != 0;
+    pinfo->num_ref_frames		= pic_param->num_ref_frames;
+    pinfo->mb_adaptive_frame_field_flag	= pic_param->mb_adaptive_frame_field_flag;
+    pinfo->constrained_intra_pred_flag	= pic_param->constrained_intra_pred_flag;
+    pinfo->weighted_pred_flag		= pic_param->weighted_pred_flag;
+    pinfo->weighted_bipred_idc		= pic_param->weighted_bipred_idc;
+    pinfo->frame_mbs_only_flag		= pic_param->frame_mbs_only_flag;
+    pinfo->transform_8x8_mode_flag	= pic_param->transform_8x8_mode_flag;
+    pinfo->chroma_qp_index_offset	= pic_param->chroma_qp_index_offset;
+    pinfo->second_chroma_qp_index_offset= pic_param->second_chroma_qp_index_offset;
+    pinfo->pic_init_qp_minus26		= pic_param->pic_init_qp_minus26;
+    pinfo->log2_max_frame_num_minus4	= pic_param->log2_max_frame_num_minus4;
+    pinfo->pic_order_cnt_type		= pic_param->pic_order_cnt_type;
+    pinfo->log2_max_pic_order_cnt_lsb_minus4 =
+	pic_param->log2_max_pic_order_cnt_lsb_minus4;
+    pinfo->delta_pic_order_always_zero_flag =
+	pic_param->delta_pic_order_always_zero_flag;
+    pinfo->direct_8x8_inference_flag	= pic_param->direct_8x8_inference_flag;
+    pinfo->entropy_coding_mode_flag	= pic_param->entropy_coding_mode_flag;
+    pinfo->pic_order_present_flag	= pic_param->pic_order_present_flag;
+    pinfo->deblocking_filter_control_present_flag =
+	pic_param->deblocking_filter_control_present_flag;
+    pinfo->redundant_pic_cnt_present_flag =
+	pic_param->redundant_pic_cnt_present_flag;
+    for (i = 0; i < 16; i++) {
+	if (!vdpau_translate_VAPictureH264(driver_data,
+					   &pic_param->ReferenceFrames[i],
+					   &pinfo->referenceFrames[i]))
+	    return 0;
+    }
+    return 1;
+}
+
+static int
+vdpau_translate_VAIQMatrixBufferH264(vdpau_driver_data_t *driver_data,
+				      object_context_p     obj_context,
+				      object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
+    VAIQMatrixBufferH264 * const iq_matrix = obj_buffer->buffer_data;
+    int i, j;
+
+    if (sizeof(pinfo->scaling_lists_4x4) == sizeof(iq_matrix->ScalingList4x4))
+	memcpy(pinfo->scaling_lists_4x4, iq_matrix->ScalingList4x4,
+	       sizeof(pinfo->scaling_lists_4x4));
+    else {
+	for (j = 0; j < 6; j++) {
+	    for (i = 0; i < 16; i++)
+		pinfo->scaling_lists_4x4[j][i] = iq_matrix->ScalingList4x4[j][i];
+	}
+    }
+
+    if (sizeof(pinfo->scaling_lists_8x8) == sizeof(iq_matrix->ScalingList8x8))
+	memcpy(pinfo->scaling_lists_8x8, iq_matrix->ScalingList8x8,
+	       sizeof(pinfo->scaling_lists_8x8));
+    else {
+	for (j = 0; j < 2; j++) {
+	    for (i = 0; i < 64; i++)
+		pinfo->scaling_lists_8x8[j][i] = iq_matrix->ScalingList8x8[j][i];
+	}
+    }
+    return 1;
+}
+
+static int
+vdpau_translate_VASliceParameterBufferH264(vdpau_driver_data_t *driver_data,
+					    object_context_p     obj_context,
+					    object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
+    VASliceParameterBufferH264 * const slice_params = obj_buffer->buffer_data;
+    VASliceParameterBufferH264 * const slice_param = &slice_params[obj_buffer->num_elements - 1];
+
+    pinfo->slice_count			= obj_buffer->num_elements;
+    pinfo->num_ref_idx_l0_active_minus1	= slice_param->num_ref_idx_l0_active_minus1;
+    pinfo->num_ref_idx_l1_active_minus1	= slice_param->num_ref_idx_l1_active_minus1;
+    return 1;
+}
+
+static int
+vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
+					    object_context_p     obj_context,
+					    object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoVC1 * const pinfo = &obj_context->vdp_picture_info.vc1;
+    VAPictureParameterBufferVC1 * const pic_param = obj_buffer->buffer_data;
+    int picture_type;
+
+    if (!vdpau_translate_VASurfaceID(driver_data,
+				     pic_param->forward_reference_picture,
+				     &pinfo->forward_reference))
+	return 0;
+    if (!vdpau_translate_VASurfaceID(driver_data,
+				     pic_param->backward_reference_picture,
+				     &pinfo->backward_reference))
+	return 0;
+
+    switch (pic_param->picture_type) {
+    case 0: picture_type = 0; break; /* I */
+    case 1: picture_type = 1; break; /* P */
+    case 2: picture_type = 3; break; /* B */
+    case 3: picture_type = 4; break; /* BI */
+    default: ASSERT(!pic_param->picture_type); return 0;
+    }
+
+    pinfo->picture_type		= picture_type;
+    pinfo->frame_coding_mode	= pic_param->frame_coding_mode;
+    pinfo->postprocflag		= pic_param->post_processing != 0;
+    pinfo->pulldown		= pic_param->pulldown;
+    pinfo->interlace		= pic_param->interlace;
+    pinfo->tfcntrflag		= pic_param->frame_counter_flag;
+    pinfo->finterpflag		= pic_param->frame_interpolation_flag;
+    pinfo->psf			= pic_param->progressive_segment_frame;
+    pinfo->dquant		= pic_param->dquant;
+    pinfo->panscan_flag		= pic_param->panscan_flag;
+    pinfo->refdist_flag		= pic_param->reference_distance_flag;
+    pinfo->quantizer		= pic_param->quantizer;
+    pinfo->extended_mv		= pic_param->extended_mv_flag;
+    pinfo->extended_dmv		= pic_param->extended_dmv_flag;
+    pinfo->overlap		= pic_param->overlap;
+    pinfo->vstransform		= pic_param->variable_sized_transform_flag;
+    pinfo->loopfilter		= pic_param->loopfilter;
+    pinfo->fastuvmc		= pic_param->fast_uvmc_flag;
+    pinfo->range_mapy_flag	= pic_param->range_mapping_luma_flag;
+    pinfo->range_mapy		= pic_param->range_mapping_luma;
+    pinfo->range_mapuv_flag	= pic_param->range_mapping_chroma_flag;
+    pinfo->range_mapuv		= pic_param->range_mapping_chroma;
+    pinfo->multires		= pic_param->multires;
+    pinfo->syncmarker		= pic_param->syncmarker;
+    pinfo->rangered		= pic_param->rangered;
+    pinfo->maxbframes		= pic_param->max_b_frames;
+    pinfo->deblockEnable	= 0; /* XXX: fill */
+    pinfo->pquant		= 0; /* XXX: fill */
+    return 1;
+}
+
+static int
+vdpau_translate_VASliceParameterBufferVC1(vdpau_driver_data_t *driver_data,
+					  object_context_p     obj_context,
+					  object_buffer_p      obj_buffer)
+{
+    VdpPictureInfoVC1 * const pinfo = &obj_context->vdp_picture_info.vc1;
+    VASliceParameterBufferVC1 * const slice_params = obj_buffer->buffer_data;
+    VASliceParameterBufferVC1 * const slice_param = &slice_params[obj_buffer->num_elements - 1];
+
+    pinfo->slice_count			= obj_buffer->num_elements;
+    return 1;
+}
+
+typedef int (*vdpau_translate_buffer_func_t)(vdpau_driver_data_t *driver_data,
+					     object_context_p     obj_context,
+					     object_buffer_p      obj_buffer);
+
+typedef struct vdpau_translate_buffer_info vdpau_translate_buffer_info_t;
+struct vdpau_translate_buffer_info {
+    VdpCodec codec;
+    VABufferType type;
+    vdpau_translate_buffer_func_t func;
+};
+
+static int
+vdpau_translate_buffer(vdpau_driver_data_t *driver_data,
+		       object_context_p     obj_context,
+		       object_buffer_p      obj_buffer)
+{
+    static const vdpau_translate_buffer_info_t translate_info[] = {
+#define _(CODEC, TYPE)					\
+	{ VDP_CODEC_##CODEC, VA##TYPE##BufferType,	\
+	  vdpau_translate_VA##TYPE##Buffer##CODEC }
+	_(MPEG2, PictureParameter),
+	_(MPEG2, IQMatrix),
+	_(MPEG2, SliceParameter),
+	_(H264, PictureParameter),
+	_(H264, IQMatrix),
+	_(H264, SliceParameter),
+	_(VC1, PictureParameter),
+	_(VC1, SliceParameter),
+#undef _
+	{ VDP_CODEC_VC1, VABitPlaneBufferType, vdpau_translate_nothing },
+	{ 0, VASliceDataBufferType, vdpau_translate_VASliceDataBuffer },
+	{ 0, 0, NULL }
+    };
+    const vdpau_translate_buffer_info_t *tbip;
+    for (tbip = translate_info; tbip->func != NULL; tbip++) {
+	if (tbip->codec && tbip->codec != obj_context->vdp_codec)
+	    continue;
+	if (tbip->type != obj_buffer->type)
+	    continue;
+	return tbip->func(driver_data, obj_context, obj_buffer);
+    }
+    D(bug("ERROR: no translate function found for %s%s\n",
+	  string_of_VABufferType(obj_buffer->type),
+	  obj_context->vdp_codec ? string_of_VdpCodec(obj_context->vdp_codec) : NULL));
+    return 0;
+}
+
+
+/* ====================================================================== */
 /* === VA API Implementation with VDPAU                               === */
 /* ====================================================================== */
 
@@ -1459,415 +1873,6 @@ vdpau_schedule_destroy_buffer(object_context_p obj_context,
     ASSERT(obj_context->dead_buffers);
     obj_context->dead_buffers[obj_context->dead_buffers_count] = obj_buffer->base.id;
     obj_context->dead_buffers_count++;
-}
-
-static int
-vdpau_translate_VASurfaceID(vdpau_driver_data_t *driver_data,
-			    VASurfaceID          va_surface,
-			    VdpVideoSurface     *vdp_surface)
-{
-    if (va_surface == 0xffffffff) {
-	*vdp_surface = VDP_INVALID_HANDLE;
-	return 1;
-    }
-    object_surface_p obj_surface = SURFACE(va_surface);
-    ASSERT(obj_surface);
-    if (obj_surface == NULL)
-	return 0;
-    *vdp_surface = obj_surface->vdp_surface;
-    return 1;
-}
-
-static int
-vdpau_translate_nothing(vdpau_driver_data_t *driver_data,
-			object_context_p     obj_context,
-			object_buffer_p      obj_buffer)
-{
-    return 1;
-}
-
-static int
-vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
-				  object_context_p     obj_context,
-				  object_buffer_p      obj_buffer)
-{
-    VdpBitstreamBuffer * const vdp_bitstream_buffer = &obj_context->vdp_bitstream_buffer;
-    vdp_bitstream_buffer->struct_version  = VDP_BITSTREAM_BUFFER_VERSION;
-    vdp_bitstream_buffer->bitstream	  = obj_buffer->buffer_data;
-    vdp_bitstream_buffer->bitstream_bytes = obj_buffer->buffer_size;
-    return 1;
-}
-
-static int
-vdpau_translate_VAPictureParameterBufferMPEG2(vdpau_driver_data_t *driver_data,
-					      object_context_p     obj_context,
-					      object_buffer_p      obj_buffer)
-{
-    VdpPictureInfoMPEG1Or2 * const pinfo = &obj_context->vdp_picture_info.mpeg2;
-    VAPictureParameterBufferMPEG2 * const pic_param = obj_buffer->buffer_data;
-    if (!vdpau_translate_VASurfaceID(driver_data,
-				     pic_param->forward_reference_picture,
-				     &pinfo->forward_reference))
-	return 0;
-    if (!vdpau_translate_VASurfaceID(driver_data,
-				     pic_param->backward_reference_picture,
-				     &pinfo->backward_reference))
-	return 0;
-    pinfo->picture_structure		= pic_param->picture_structure;
-    pinfo->picture_coding_type		= pic_param->picture_coding_type;
-    pinfo->intra_dc_precision		= pic_param->intra_dc_precision;
-    pinfo->frame_pred_frame_dct		= pic_param->frame_pred_frame_dct;
-    pinfo->concealment_motion_vectors	= pic_param->concealment_motion_vectors;
-    pinfo->intra_vlc_format		= pic_param->intra_vlc_format;
-    pinfo->alternate_scan		= pic_param->alternate_scan;
-    pinfo->q_scale_type			= pic_param->q_scale_type;
-    pinfo->top_field_first		= pic_param->top_field_first;
-    pinfo->full_pel_forward_vector	= 0;
-    pinfo->full_pel_backward_vector	= 0;
-    pinfo->f_code[0][0]			= (pic_param->f_code >> 12) & 0xf;
-    pinfo->f_code[0][1]			= (pic_param->f_code >>  8) & 0xf;
-    pinfo->f_code[1][0]			= (pic_param->f_code >>  4) & 0xf;
-    pinfo->f_code[1][1]			= pic_param->f_code & 0xf;
-    return 1;
-}
-
-static const uint8_t ff_identity[64] = {
-    0,   1,  2,  3,  4,  5,  6,  7,
-    8,   9, 10, 11, 12, 13, 14, 15,
-    16, 17, 18, 19, 20, 21, 22, 23,
-    24, 25, 26, 27, 28, 29, 30, 31,
-    32, 33, 34, 35, 36, 37, 38, 39,
-    40, 41, 42, 43, 44, 45, 46, 47,
-    48, 49, 50, 51, 52, 53, 54, 55,
-    56, 57, 58, 59, 60, 61, 62, 63
-};
-
-static const uint8_t ff_zigzag_direct[64] = {
-    0,   1,  8, 16,  9,  2,  3, 10,
-    17, 24, 32, 25, 18, 11,  4,  5,
-    12, 19, 26, 33, 40, 48, 41, 34,
-    27, 20, 13,  6,  7, 14, 21, 28,
-    35, 42, 49, 56, 57, 50, 43, 36,
-    29, 22, 15, 23, 30, 37, 44, 51,
-    58, 59, 52, 45, 38, 31, 39, 46,
-    53, 60, 61, 54, 47, 55, 62, 63
-};
-
-static const uint8_t ff_mpeg1_default_intra_matrix[64] = {
-     8, 16, 19, 22, 26, 27, 29, 34,
-    16, 16, 22, 24, 27, 29, 34, 37,
-    19, 22, 26, 27, 29, 34, 34, 38,
-    22, 22, 26, 27, 29, 34, 37, 40,
-    22, 26, 27, 29, 32, 35, 40, 48,
-    26, 27, 29, 32, 35, 40, 48, 58,
-    26, 27, 29, 34, 38, 46, 56, 69,
-    27, 29, 35, 38, 46, 56, 69, 83
-};
-
-static const uint8_t ff_mpeg1_default_non_intra_matrix[64] = {
-    16, 16, 16, 16, 16, 16, 16, 16,
-    16, 16, 16, 16, 16, 16, 16, 16,
-    16, 16, 16, 16, 16, 16, 16, 16,
-    16, 16, 16, 16, 16, 16, 16, 16,
-    16, 16, 16, 16, 16, 16, 16, 16,
-    16, 16, 16, 16, 16, 16, 16, 16,
-    16, 16, 16, 16, 16, 16, 16, 16,
-    16, 16, 16, 16, 16, 16, 16, 16
-};
-
-static int
-vdpau_translate_VAIQMatrixBufferMPEG2(vdpau_driver_data_t *driver_data,
-				      object_context_p     obj_context,
-				      object_buffer_p      obj_buffer)
-{
-    VdpPictureInfoMPEG1Or2 * const pinfo = &obj_context->vdp_picture_info.mpeg2;
-    VAIQMatrixBufferMPEG2 * const iq_matrix = obj_buffer->buffer_data;
-
-    const uint8_t *intra_matrix;
-    const uint8_t *intra_matrix_lookup;
-    const uint8_t *inter_matrix;
-    const uint8_t *inter_matrix_lookup;
-    if (iq_matrix->load_intra_quantiser_matrix) {
-	intra_matrix = iq_matrix->intra_quantiser_matrix;
-	intra_matrix_lookup = ff_zigzag_direct;
-    }
-    else {
-	intra_matrix = ff_mpeg1_default_intra_matrix;
-	intra_matrix_lookup = ff_identity;
-    }
-    if (iq_matrix->load_non_intra_quantiser_matrix) {
-	inter_matrix = iq_matrix->non_intra_quantiser_matrix;
-	inter_matrix_lookup = ff_zigzag_direct;
-    }
-    else {
-	inter_matrix = ff_mpeg1_default_non_intra_matrix;
-	inter_matrix_lookup = ff_identity;
-    }
-
-    int i;
-    for (i = 0; i < 64; i++) {
-	pinfo->intra_quantizer_matrix[intra_matrix_lookup[i]] =
-	    intra_matrix[i];
-	pinfo->non_intra_quantizer_matrix[inter_matrix_lookup[i]] =
-	    inter_matrix[i];
-    }
-    return 1;
-}
-
-static int
-vdpau_translate_VASliceParameterBufferMPEG2(vdpau_driver_data_t *driver_data,
-					    object_context_p     obj_context,
-					    object_buffer_p      obj_buffer)
-{
-    VdpPictureInfoMPEG1Or2 * const pinfo = &obj_context->vdp_picture_info.mpeg2;
-    pinfo->slice_count = obj_buffer->num_elements;
-    return 1;
-}
-
-static int
-vdpau_translate_VAPictureH264(vdpau_driver_data_t   *driver_data,
-			      const VAPictureH264   *va_pic,
-			      VdpReferenceFrameH264 *rf)
-{
-    // Handle invalid surfaces specifically
-    if (va_pic->picture_id == 0xffffffff) {
-	rf->surface		= VDP_INVALID_HANDLE;
-	rf->is_long_term	= VDP_FALSE;
-	rf->top_is_reference	= VDP_FALSE;
-	rf->bottom_is_reference	= VDP_FALSE;
-	rf->field_order_cnt[0]	= 0;
-	rf->field_order_cnt[1]	= 0;
-	rf->frame_idx		= 0;
-	return 1;
-    }
-
-    if (!vdpau_translate_VASurfaceID(driver_data, va_pic->picture_id, &rf->surface))
-	return 0;
-    rf->is_long_term		= (va_pic->flags & VA_PICTURE_H264_LONG_TERM_REFERENCE) != 0;
-    if ((va_pic->flags & (VA_PICTURE_H264_TOP_FIELD|VA_PICTURE_H264_BOTTOM_FIELD)) == 0) {
-	rf->top_is_reference	= VDP_TRUE;
-	rf->bottom_is_reference	= VDP_TRUE;
-    }
-    else {
-	rf->top_is_reference	= (va_pic->flags & VA_PICTURE_H264_TOP_FIELD) != 0;
-	rf->bottom_is_reference	= (va_pic->flags & VA_PICTURE_H264_BOTTOM_FIELD) != 0;
-    }
-    rf->field_order_cnt[0]	= va_pic->TopFieldOrderCnt;
-    rf->field_order_cnt[1]	= va_pic->BottomFieldOrderCnt;
-    rf->frame_idx		= va_pic->frame_idx;
-    return 1;
-}
-
-static int
-vdpau_translate_VAPictureParameterBufferH264(vdpau_driver_data_t *driver_data,
-					     object_context_p     obj_context,
-					     object_buffer_p      obj_buffer)
-{
-    VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
-    VAPictureParameterBufferH264 * const pic_param = obj_buffer->buffer_data;
-    VAPictureH264 * const CurrPic = &pic_param->CurrPic;
-    int i;
-
-    pinfo->field_order_cnt[0]		= CurrPic->TopFieldOrderCnt;
-    pinfo->field_order_cnt[1]		= CurrPic->BottomFieldOrderCnt;
-    pinfo->is_reference			= pic_param->reference_pic_flag;
-
-    pinfo->frame_num			= pic_param->frame_num;
-    pinfo->field_pic_flag		= pic_param->field_pic_flag;
-    pinfo->bottom_field_flag		= pic_param->field_pic_flag && (CurrPic->flags & VA_PICTURE_H264_BOTTOM_FIELD) != 0;
-    pinfo->num_ref_frames		= pic_param->num_ref_frames;
-    pinfo->mb_adaptive_frame_field_flag	= pic_param->mb_adaptive_frame_field_flag;
-    pinfo->constrained_intra_pred_flag	= pic_param->constrained_intra_pred_flag;
-    pinfo->weighted_pred_flag		= pic_param->weighted_pred_flag;
-    pinfo->weighted_bipred_idc		= pic_param->weighted_bipred_idc;
-    pinfo->frame_mbs_only_flag		= pic_param->frame_mbs_only_flag;
-    pinfo->transform_8x8_mode_flag	= pic_param->transform_8x8_mode_flag;
-    pinfo->chroma_qp_index_offset	= pic_param->chroma_qp_index_offset;
-    pinfo->second_chroma_qp_index_offset= pic_param->second_chroma_qp_index_offset;
-    pinfo->pic_init_qp_minus26		= pic_param->pic_init_qp_minus26;
-    pinfo->log2_max_frame_num_minus4	= pic_param->log2_max_frame_num_minus4;
-    pinfo->pic_order_cnt_type		= pic_param->pic_order_cnt_type;
-    pinfo->log2_max_pic_order_cnt_lsb_minus4 =
-	pic_param->log2_max_pic_order_cnt_lsb_minus4;
-    pinfo->delta_pic_order_always_zero_flag =
-	pic_param->delta_pic_order_always_zero_flag;
-    pinfo->direct_8x8_inference_flag	= pic_param->direct_8x8_inference_flag;
-    pinfo->entropy_coding_mode_flag	= pic_param->entropy_coding_mode_flag;
-    pinfo->pic_order_present_flag	= pic_param->pic_order_present_flag;
-    pinfo->deblocking_filter_control_present_flag =
-	pic_param->deblocking_filter_control_present_flag;
-    pinfo->redundant_pic_cnt_present_flag =
-	pic_param->redundant_pic_cnt_present_flag;
-    for (i = 0; i < 16; i++) {
-	if (!vdpau_translate_VAPictureH264(driver_data,
-					   &pic_param->ReferenceFrames[i],
-					   &pinfo->referenceFrames[i]))
-	    return 0;
-    }
-    return 1;
-}
-
-static int
-vdpau_translate_VAIQMatrixBufferH264(vdpau_driver_data_t *driver_data,
-				      object_context_p     obj_context,
-				      object_buffer_p      obj_buffer)
-{
-    VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
-    VAIQMatrixBufferH264 * const iq_matrix = obj_buffer->buffer_data;
-    int i, j;
-
-    if (sizeof(pinfo->scaling_lists_4x4) == sizeof(iq_matrix->ScalingList4x4))
-	memcpy(pinfo->scaling_lists_4x4, iq_matrix->ScalingList4x4,
-	       sizeof(pinfo->scaling_lists_4x4));
-    else {
-	for (j = 0; j < 6; j++) {
-	    for (i = 0; i < 16; i++)
-		pinfo->scaling_lists_4x4[j][i] = iq_matrix->ScalingList4x4[j][i];
-	}
-    }
-
-    if (sizeof(pinfo->scaling_lists_8x8) == sizeof(iq_matrix->ScalingList8x8))
-	memcpy(pinfo->scaling_lists_8x8, iq_matrix->ScalingList8x8,
-	       sizeof(pinfo->scaling_lists_8x8));
-    else {
-	for (j = 0; j < 2; j++) {
-	    for (i = 0; i < 64; i++)
-		pinfo->scaling_lists_8x8[j][i] = iq_matrix->ScalingList8x8[j][i];
-	}
-    }
-    return 1;
-}
-
-static int
-vdpau_translate_VASliceParameterBufferH264(vdpau_driver_data_t *driver_data,
-					    object_context_p     obj_context,
-					    object_buffer_p      obj_buffer)
-{
-    VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
-    VASliceParameterBufferH264 * const slice_params = obj_buffer->buffer_data;
-    VASliceParameterBufferH264 * const slice_param = &slice_params[obj_buffer->num_elements - 1];
-
-    pinfo->slice_count			= obj_buffer->num_elements;
-    pinfo->num_ref_idx_l0_active_minus1	= slice_param->num_ref_idx_l0_active_minus1;
-    pinfo->num_ref_idx_l1_active_minus1	= slice_param->num_ref_idx_l1_active_minus1;
-    return 1;
-}
-
-static int
-vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
-					    object_context_p     obj_context,
-					    object_buffer_p      obj_buffer)
-{
-    VdpPictureInfoVC1 * const pinfo = &obj_context->vdp_picture_info.vc1;
-    VAPictureParameterBufferVC1 * const pic_param = obj_buffer->buffer_data;
-    int picture_type;
-
-    if (!vdpau_translate_VASurfaceID(driver_data,
-				     pic_param->forward_reference_picture,
-				     &pinfo->forward_reference))
-	return 0;
-    if (!vdpau_translate_VASurfaceID(driver_data,
-				     pic_param->backward_reference_picture,
-				     &pinfo->backward_reference))
-	return 0;
-
-    switch (pic_param->picture_type) {
-    case 0: picture_type = 0; break; /* I */
-    case 1: picture_type = 1; break; /* P */
-    case 2: picture_type = 3; break; /* B */
-    case 3: picture_type = 4; break; /* BI */
-    default: ASSERT(!pic_param->picture_type); return 0;
-    }
-
-    pinfo->picture_type		= picture_type;
-    pinfo->frame_coding_mode	= pic_param->frame_coding_mode;
-    pinfo->postprocflag		= pic_param->post_processing != 0;
-    pinfo->pulldown		= pic_param->pulldown;
-    pinfo->interlace		= pic_param->interlace;
-    pinfo->tfcntrflag		= pic_param->frame_counter_flag;
-    pinfo->finterpflag		= pic_param->frame_interpolation_flag;
-    pinfo->psf			= pic_param->progressive_segment_frame;
-    pinfo->dquant		= pic_param->dquant;
-    pinfo->panscan_flag		= pic_param->panscan_flag;
-    pinfo->refdist_flag		= pic_param->reference_distance_flag;
-    pinfo->quantizer		= pic_param->quantizer;
-    pinfo->extended_mv		= pic_param->extended_mv_flag;
-    pinfo->extended_dmv		= pic_param->extended_dmv_flag;
-    pinfo->overlap		= pic_param->overlap;
-    pinfo->vstransform		= pic_param->variable_sized_transform_flag;
-    pinfo->loopfilter		= pic_param->loopfilter;
-    pinfo->fastuvmc		= pic_param->fast_uvmc_flag;
-    pinfo->range_mapy_flag	= pic_param->range_mapping_luma_flag;
-    pinfo->range_mapy		= pic_param->range_mapping_luma;
-    pinfo->range_mapuv_flag	= pic_param->range_mapping_chroma_flag;
-    pinfo->range_mapuv		= pic_param->range_mapping_chroma;
-    pinfo->multires		= pic_param->multires;
-    pinfo->syncmarker		= pic_param->syncmarker;
-    pinfo->rangered		= pic_param->rangered;
-    pinfo->maxbframes		= pic_param->max_b_frames;
-    pinfo->deblockEnable	= 0; /* XXX: fill */
-    pinfo->pquant		= 0; /* XXX: fill */
-    return 1;
-}
-
-static int
-vdpau_translate_VASliceParameterBufferVC1(vdpau_driver_data_t *driver_data,
-					  object_context_p     obj_context,
-					  object_buffer_p      obj_buffer)
-{
-    VdpPictureInfoVC1 * const pinfo = &obj_context->vdp_picture_info.vc1;
-    VASliceParameterBufferVC1 * const slice_params = obj_buffer->buffer_data;
-    VASliceParameterBufferVC1 * const slice_param = &slice_params[obj_buffer->num_elements - 1];
-
-    pinfo->slice_count			= obj_buffer->num_elements;
-    return 1;
-}
-
-typedef int (*vdpau_translate_buffer_func_t)(vdpau_driver_data_t *driver_data,
-					     object_context_p     obj_context,
-					     object_buffer_p      obj_buffer);
-
-typedef struct vdpau_translate_buffer_info vdpau_translate_buffer_info_t;
-struct vdpau_translate_buffer_info {
-    VdpCodec codec;
-    VABufferType type;
-    vdpau_translate_buffer_func_t func;
-};
-
-static int
-vdpau_translate_buffer(vdpau_driver_data_t *driver_data,
-		       object_context_p     obj_context,
-		       object_buffer_p      obj_buffer)
-{
-    static const vdpau_translate_buffer_info_t translate_info[] = {
-#define _(CODEC, TYPE)					\
-	{ VDP_CODEC_##CODEC, VA##TYPE##BufferType,	\
-	  vdpau_translate_VA##TYPE##Buffer##CODEC }
-	_(MPEG2, PictureParameter),
-	_(MPEG2, IQMatrix),
-	_(MPEG2, SliceParameter),
-	_(H264, PictureParameter),
-	_(H264, IQMatrix),
-	_(H264, SliceParameter),
-	_(VC1, PictureParameter),
-	_(VC1, SliceParameter),
-#undef _
-	{ VDP_CODEC_VC1, VABitPlaneBufferType, vdpau_translate_nothing },
-	{ 0, VASliceDataBufferType, vdpau_translate_VASliceDataBuffer },
-	{ 0, 0, NULL }
-    };
-    const vdpau_translate_buffer_info_t *tbip;
-    for (tbip = translate_info; tbip->func != NULL; tbip++) {
-	if (tbip->codec && tbip->codec != obj_context->vdp_codec)
-	    continue;
-	if (tbip->type != obj_buffer->type)
-	    continue;
-	return tbip->func(driver_data, obj_context, obj_buffer);
-    }
-    D(bug("ERROR: no translate function found for %s%s\n",
-	  string_of_VABufferType(obj_buffer->type),
-	  obj_context->vdp_codec ? string_of_VdpCodec(obj_context->vdp_codec) : NULL));
-    return 0;
 }
 
 // vaDestroyBuffer
