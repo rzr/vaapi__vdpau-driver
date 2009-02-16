@@ -571,6 +571,248 @@ vdpau_get_surface_size_max(vdpau_driver_data_t *driver_data,
 
 
 /* ====================================================================== */
+/* === VDPAU data dumpers                                             === */
+/* ====================================================================== */
+
+#define TRACE			trace_print
+#define INDENT(INC)		trace_indent(INC)
+
+static int g_trace_enabled	= -1;
+static int g_trace_is_new_line	= 1;
+static int g_trace_indent	= 0;
+
+static int check_vdpau_video_debug_env(void)
+{
+    const char *vdpau_video_debug_str = getenv("VDPAU_VIDEO_TRACE");
+    /* XXX: check actual value */
+    return vdpau_video_debug_str != NULL;
+}
+
+static inline int trace_enabled(void)
+{
+    if (g_trace_enabled < 0)
+	g_trace_enabled = check_vdpau_video_debug_env();
+    return g_trace_enabled;
+}
+
+static void trace_print(const char *format, ...)
+{
+    va_list args;
+
+    if (g_trace_is_new_line) {
+	int i;
+	printf("%s: ", PACKAGE_NAME);
+	for (i = 0; i < g_trace_indent; i++)
+	    printf("  ");
+    }
+
+    va_start(args, format);
+    vfprintf(stdout, format, args);
+    va_end(args);
+
+    g_trace_is_new_line = (strchr(format, '\n') != NULL);
+
+    if (g_trace_is_new_line)
+	fflush(stdout);
+}
+
+static void trace_indent(int inc)
+{
+    g_trace_indent += inc;
+}
+#define DUMPx(S, M)		TRACE("." #M " = 0x%08x;\n", S->M)
+#define DUMPi(S, M)		TRACE("." #M " = %d;\n", S->M)
+#define DUMPm(S, M, I, J)	dump_matrix_NxM_1(#M, (uint8_t *)S->M, I, J, I * J)
+#define DUMPm16(S, M, I, J)	dump_matrix_NxM_2(#M, (uint16_t *)S->M, I, J, I * J)
+
+// Dumps matrix[N][M] = N rows x M columns (uint8_t)
+static void dump_matrix_NxM_1(const char *label, uint8_t *matrix, int N, int M, int L)
+{
+    int i, j, n = 0;
+
+    TRACE(".%s = {\n", label);
+    INDENT(1);
+    for (j = 0; j < N; j++) {
+	for (i = 0; i < M; i++, n++) {
+	    if (n >= L)
+		break;
+	    if (i > 0)
+		TRACE(", ");
+	    TRACE("0x%02x", matrix[n]);
+	}
+	if (j < (N - 1))
+	    TRACE(",");
+	TRACE("\n");
+	if (n >= L)
+	    break;
+    }
+    INDENT(-1);
+    TRACE("}\n");
+}
+
+// Dumps matrix[N][M] = N rows x M columns (uint16_t)
+static void dump_matrix_NxM_2(const char *label, uint16_t *matrix, int N, int M, int L)
+{
+    int i, j, n = 0;
+
+    TRACE(".%s = {\n", label);
+    INDENT(1);
+    for (j = 0; j < N; j++) {
+	for (i = 0; i < M; i++, n++) {
+	    if (n >= L)
+		break;
+	    if (i > 0)
+		TRACE(", ");
+	    TRACE("0x%04x", matrix[n]);
+	}
+	if (j < (N - 1))
+	    TRACE(",");
+	TRACE("\n");
+	if (n >= L)
+	    break;
+    }
+    INDENT(-1);
+    TRACE("}\n");
+}
+
+static void dump_VdpPictureInfoMPEG1Or2(VdpPictureInfoMPEG1Or2 *pic_info)
+{
+    INDENT(1);
+    TRACE("VdpPictureInfoMPEG1Or2 = {\n");
+    INDENT(1);
+    DUMPx(pic_info, forward_reference);
+    DUMPx(pic_info, backward_reference);
+    DUMPi(pic_info, slice_count);
+    DUMPi(pic_info, picture_structure);
+    DUMPi(pic_info, picture_coding_type);
+    DUMPi(pic_info, intra_dc_precision);
+    DUMPi(pic_info, frame_pred_frame_dct);
+    DUMPi(pic_info, concealment_motion_vectors);
+    DUMPi(pic_info, intra_vlc_format);
+    DUMPi(pic_info, alternate_scan);
+    DUMPi(pic_info, q_scale_type);
+    DUMPi(pic_info, top_field_first);
+    DUMPi(pic_info, full_pel_forward_vector);
+    DUMPi(pic_info, full_pel_backward_vector);
+    TRACE(".f_code = { { %d, %d }, { %d, %d } };\n",
+	  pic_info->f_code[0][0], pic_info->f_code[0][1],
+	  pic_info->f_code[1][0], pic_info->f_code[1][1]);
+    DUMPm(pic_info, intra_quantizer_matrix, 8, 8);
+    DUMPm(pic_info, non_intra_quantizer_matrix, 8, 8);
+    INDENT(-1);
+    TRACE("};\n");
+    INDENT(-1);
+}
+
+static void dump_VdpReferenceFrameH264(const char *label, VdpReferenceFrameH264 *rf)
+{
+    INDENT(1);
+    TRACE(".%s = {\n", label);
+    INDENT(1);
+    DUMPx(rf, surface);
+    DUMPi(rf, is_long_term);
+    DUMPi(rf, top_is_reference);
+    DUMPi(rf, bottom_is_reference);
+    DUMPi(rf, field_order_cnt[0]);
+    DUMPi(rf, field_order_cnt[1]);
+    DUMPi(rf, frame_idx);
+    INDENT(-1);
+    TRACE("}\n");
+    INDENT(-1);
+}
+
+static void dump_VdpPictureInfoH264(VdpPictureInfoH264 *pic_info)
+{
+    int i;
+
+    INDENT(1);
+    TRACE("VdpPictureInfoH264 = {\n");
+    INDENT(1);
+    DUMPi(pic_info, slice_count);
+    DUMPi(pic_info, field_order_cnt[0]);
+    DUMPi(pic_info, field_order_cnt[1]);
+    DUMPi(pic_info, is_reference);
+    DUMPi(pic_info, frame_num);
+    DUMPi(pic_info, field_pic_flag);
+    DUMPi(pic_info, bottom_field_flag);
+    DUMPi(pic_info, num_ref_frames);
+    DUMPi(pic_info, mb_adaptive_frame_field_flag);
+    DUMPi(pic_info, constrained_intra_pred_flag);
+    DUMPi(pic_info, weighted_pred_flag);
+    DUMPi(pic_info, weighted_bipred_idc);
+    DUMPi(pic_info, frame_mbs_only_flag);
+    DUMPi(pic_info, transform_8x8_mode_flag);
+    DUMPi(pic_info, chroma_qp_index_offset);
+    DUMPi(pic_info, second_chroma_qp_index_offset);
+    DUMPi(pic_info, pic_init_qp_minus26);
+    DUMPi(pic_info, num_ref_idx_l0_active_minus1);
+    DUMPi(pic_info, num_ref_idx_l1_active_minus1);
+    DUMPi(pic_info, log2_max_frame_num_minus4);
+    DUMPi(pic_info, pic_order_cnt_type);
+    DUMPi(pic_info, log2_max_pic_order_cnt_lsb_minus4);
+    DUMPi(pic_info, delta_pic_order_always_zero_flag);
+    DUMPi(pic_info, direct_8x8_inference_flag);
+    DUMPi(pic_info, entropy_coding_mode_flag);
+    DUMPi(pic_info, pic_order_present_flag);
+    DUMPi(pic_info, deblocking_filter_control_present_flag);
+    DUMPi(pic_info, redundant_pic_cnt_present_flag);
+    DUMPm(pic_info, scaling_lists_4x4, 6, 16);
+    DUMPm(pic_info, scaling_lists_8x8[0], 8, 8);
+    DUMPm(pic_info, scaling_lists_8x8[1], 8, 8);
+    for (i = 0; i < 16; i++) {
+	char label[100];
+	sprintf(label, "referenceFrames[%d]", i);
+	dump_VdpReferenceFrameH264(label, &pic_info->referenceFrames[i]);
+    }
+    INDENT(-1);
+    TRACE("};\n");
+    INDENT(-1);
+}
+
+
+static void dump_VdpPictureInfoVC1(VdpPictureInfoVC1 *pic_info)
+{
+    INDENT(1);
+    TRACE("VdpPictureInfoVC1 = {\n");
+    INDENT(1);
+    DUMPx(pic_info, forward_reference);
+    DUMPx(pic_info, backward_reference);
+    DUMPi(pic_info, slice_count);
+    DUMPi(pic_info, picture_type);
+    DUMPi(pic_info, frame_coding_mode);
+    DUMPi(pic_info, postprocflag);
+    DUMPi(pic_info, pulldown);
+    DUMPi(pic_info, interlace);
+    DUMPi(pic_info, tfcntrflag);
+    DUMPi(pic_info, finterpflag);
+    DUMPi(pic_info, psf);
+    DUMPi(pic_info, dquant);
+    DUMPi(pic_info, panscan_flag);
+    DUMPi(pic_info, refdist_flag);
+    DUMPi(pic_info, quantizer);
+    DUMPi(pic_info, extended_mv);
+    DUMPi(pic_info, extended_dmv);
+    DUMPi(pic_info, overlap);
+    DUMPi(pic_info, vstransform);
+    DUMPi(pic_info, loopfilter);
+    DUMPi(pic_info, fastuvmc);
+    DUMPi(pic_info, range_mapy_flag);
+    DUMPi(pic_info, range_mapy);
+    DUMPi(pic_info, range_mapuv_flag);
+    DUMPi(pic_info, range_mapuv);
+    DUMPi(pic_info, multires);
+    DUMPi(pic_info, syncmarker);
+    DUMPi(pic_info, rangered);
+    DUMPi(pic_info, maxbframes);
+    DUMPi(pic_info, deblockEnable);
+    DUMPi(pic_info, pquant);
+    INDENT(-1);
+    TRACE("};\n");
+    INDENT(-1);
+}
+
+
+/* ====================================================================== */
 /* === VA API to VDPAU thunks                                         === */
 /* ====================================================================== */
 
@@ -2083,6 +2325,21 @@ vdpau_EndPicture(VADriverContextP ctx,
     ASSERT(obj_output);
     if (obj_output == NULL)
 	return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    if (trace_enabled()) {
+	switch (obj_context->vdp_codec) {
+	case VDP_CODEC_MPEG1:
+	case VDP_CODEC_MPEG2:
+	    dump_VdpPictureInfoMPEG1Or2(&obj_context->vdp_picture_info.mpeg2);
+	    break;
+	case VDP_CODEC_H264:
+	    dump_VdpPictureInfoH264(&obj_context->vdp_picture_info.h264);
+	    break;
+	case VDP_CODEC_VC1:
+	    dump_VdpPictureInfoVC1(&obj_context->vdp_picture_info.vc1);
+	    break;
+	}
+    }
 
     VAStatus va_status;
     VdpStatus vdp_status;
