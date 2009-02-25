@@ -1341,6 +1341,42 @@ vdpau_translate_buffer(vdpau_driver_data_t *driver_data,
 /* === VA API Implementation with VDPAU                               === */
 /* ====================================================================== */
 
+static inline int get_num_ref_frames(object_context_p obj_context)
+{
+    if (obj_context->vdp_codec == VDP_CODEC_H264)
+	return obj_context->vdp_picture_info.h264.num_ref_frames;
+    return 2;
+}
+
+static VdpStatus ensure_decoder_with_max_refs(vdpau_driver_data_t *driver_data,
+					      object_context_p     obj_context,
+					      int                  max_ref_frames)
+{
+    if (max_ref_frames < 0)
+	max_ref_frames = get_VdpDecoder_max_references(obj_context->vdp_profile,
+						       obj_context->picture_width,
+						       obj_context->picture_height);
+
+    if (obj_context->vdp_decoder == VDP_INVALID_HANDLE ||
+	obj_context->max_ref_frames < max_ref_frames) {
+	obj_context->max_ref_frames = max_ref_frames;
+
+	if (obj_context->vdp_decoder != VDP_INVALID_HANDLE) {
+	    vdpau_decoder_destroy(driver_data, obj_context->vdp_decoder);
+	    obj_context->vdp_decoder = VDP_INVALID_HANDLE;
+	}
+
+	return vdpau_decoder_create(driver_data,
+				    driver_data->vdp_device,
+				    obj_context->vdp_profile,
+				    obj_context->picture_width,
+				    obj_context->picture_height,
+				    max_ref_frames,
+				    &obj_context->vdp_decoder);
+    }
+    return VDP_STATUS_OK;
+}
+
 static void destroy_output_surface(vdpau_driver_data_t *driver_data, VASurfaceID surface)
 {
     if (surface == 0)
@@ -2163,6 +2199,7 @@ vdpau_CreateContext(VADriverContextP ctx,
     obj_context->picture_height		= picture_height;
     obj_context->num_render_targets	= num_render_targets;
     obj_context->flags			= flag;
+    obj_context->max_ref_frames		= -1;
     obj_context->output_surface		=
 	create_output_surface(driver_data, picture_width, picture_height);
     obj_context->render_targets		= (VASurfaceID *)
@@ -2201,23 +2238,6 @@ vdpau_CreateContext(VADriverContextP ctx,
 	obj_surface->va_context = contextID;
     }
 
-    VdpStatus vdp_status;
-    int vdp_max_references;
-    vdp_max_references = get_VdpDecoder_max_references(vdp_profile,
-						       picture_width,
-						       picture_height);
-    vdp_status = vdpau_decoder_create(driver_data,
-				      driver_data->vdp_device,
-				      vdp_profile,
-				      picture_width,
-				      picture_height,
-				      vdp_max_references,
-				      &obj_context->vdp_decoder);
-    if (vdp_status != VDP_STATUS_OK) {
-	vdpau_DestroyContext(ctx, contextID);
-	return get_VAStatus(vdp_status);
-    }
-
     VdpVideoMixerParameter params[] = {
 	VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH,
 	VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_HEIGHT,
@@ -2229,6 +2249,7 @@ vdpau_CreateContext(VADriverContextP ctx,
     param_values[1] = &picture_height;
     param_values[2] = &driver_data->vdp_chroma_format;
 
+    VdpStatus vdp_status;
     vdp_status = vdpau_video_mixer_create(driver_data,
 					  driver_data->vdp_device,
 					  0,
@@ -2505,12 +2526,17 @@ vdpau_EndPicture(VADriverContextP ctx,
 
     VAStatus va_status;
     VdpStatus vdp_status;
-    vdp_status = vdpau_decoder_render(driver_data,
-				      obj_context->vdp_decoder,
-				      obj_surface->vdp_surface,
-				      (VdpPictureInfo)&obj_context->vdp_picture_info,
-				      1,
-				      &obj_context->vdp_bitstream_buffer);
+    vdp_status = ensure_decoder_with_max_refs(driver_data,
+					      obj_context,
+					      get_num_ref_frames(obj_context));
+
+    if (vdp_status == VDP_STATUS_OK)
+	vdp_status = vdpau_decoder_render(driver_data,
+					  obj_context->vdp_decoder,
+					  obj_surface->vdp_surface,
+					  (VdpPictureInfo)&obj_context->vdp_picture_info,
+					  1,
+					  &obj_context->vdp_bitstream_buffer);
     va_status = get_VAStatus(vdp_status);
 
     /* XXX: assume we are done with rendering right away */

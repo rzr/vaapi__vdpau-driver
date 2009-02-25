@@ -5,6 +5,7 @@ Version 0.2.3 - 25.Feb.2009
 * Add vaQueryImageFormats()
 * Sync with VDPAU additions from NVIDIA drivers 180.35
 * Allow tracing of control structures through VDPAU_VIDEO_TRACE=1
+* Fix decoding of some full HD bitstreams with many reference frames
 
 Version 0.2.2 - 05.Feb.2009
 * Fix VC-1 decoding of bitstreams with B-frames

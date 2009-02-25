@@ -114,6 +114,7 @@ struct object_context {
     int				 picture_height;
     int				 num_render_targets;
     int				 flags;
+    int				 max_ref_frames;
     VASurfaceID			 output_surface;
     VASurfaceID			*render_targets;
     VABufferID			*dead_buffers;
