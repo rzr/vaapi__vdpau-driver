@@ -33,6 +33,8 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #undef  MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#undef  ARRAY_ELEMS
+#define ARRAY_ELEMS(a) (sizeof(a) / sizeof((a)[0]))
 
 #ifdef HAVE_VISIBILITY_ATTRIBUTE
 # define attribute_hidden __attribute__((__visibility__("hidden")))
