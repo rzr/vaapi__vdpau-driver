@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-02-05
+vdpau-video NEWS -- summary of changes.  2009-02-25
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.2.3 - 25.Feb.2009
+* Allow tracing of control structures through VDPAU_VIDEO_TRACE=1
 
 Version 0.2.2 - 05.Feb.2009
 * Fix VC-1 decoding of bitstreams with B-frames
