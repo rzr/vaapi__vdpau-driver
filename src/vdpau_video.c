@@ -652,6 +652,19 @@ vdpau_get_surface_size_max(vdpau_driver_data_t *driver_data,
     return VDP_TRUE;
 }
 
+static inline VdpBool
+vdpau_is_nvidia(vdpau_driver_data_t *driver_data, int *major, int *minor)
+{
+    uint32_t nvidia_version = 0;
+    if (driver_data->vdp_impl_type == VDP_IMPLEMENTATION_NVIDIA)
+	nvidia_version = driver_data->vdp_impl_version;
+    if (major)
+	*major = nvidia_version >> 16;
+    if (minor)
+	*minor = nvidia_version & 0xffff;
+    return nvidia_version != 0;
+}
+
 
 /* ====================================================================== */
 /* === VDPAU data dumpers                                             === */
@@ -1210,7 +1223,7 @@ vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
 {
     VdpPictureInfoVC1 * const pinfo = &obj_context->vdp_picture_info.vc1;
     VAPictureParameterBufferVC1 * const pic_param = obj_buffer->buffer_data;
-    int picture_type;
+    int picture_type, major_version, minor_version;
 
     if (!vdpau_translate_VASurfaceID(driver_data,
 				     pic_param->forward_reference_picture,
@@ -1254,6 +1267,9 @@ vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
     pinfo->multires		= pic_param->multires;
     pinfo->syncmarker		= pic_param->syncmarker;
     pinfo->rangered		= pic_param->rangered;
+    if (!vdpau_is_nvidia(driver_data, &major_version, &minor_version) ||
+	(major_version > 180 || minor_version >= 35))
+	pinfo->rangered		|= pic_param->range_reduction_frame << 1;
     pinfo->maxbframes		= pic_param->max_b_frames;
     pinfo->deblockEnable	= 0; /* XXX: fill */
     pinfo->pquant		= 0; /* XXX: fill */
