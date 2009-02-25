@@ -36,6 +36,10 @@
 #define VDPAU_STR_DRIVER_NAME		"VDPAU backend for VA API"
 
 typedef enum {
+    VDP_IMPLEMENTATION_NVIDIA = 1,
+} VdpImplementation;
+
+typedef enum {
     VDP_IMAGE_FORMAT_TYPE_YCBCR = 1,
     VDP_IMAGE_FORMAT_TYPE_RGBA,
     VDP_IMAGE_FORMAT_TYPE_INDEXED
@@ -71,6 +75,8 @@ struct vdpau_vtable {
     VdpDecoderQueryCapabilities	*vdp_decoder_query_capabilities;
     VdpVideoSurfaceQueryGetPutBitsYCbCrCapabilities *vdp_video_surface_query_ycbcr_caps;
     VdpOutputSurfaceQueryGetPutBitsNativeCapabilities *vdp_output_surface_query_rgba_caps;
+    VdpGetApiVersion		*vdp_get_api_version;
+    VdpGetInformationString	*vdp_get_information_string;
 };
 
 typedef struct vdpau_driver_data vdpau_driver_data_t;
@@ -85,6 +91,8 @@ struct vdpau_driver_data {
     VdpGetProcAddress		*vdp_get_proc_address;
     struct vdpau_vtable		 vdp_vtable;
     VdpChromaType		 vdp_chroma_format; /* XXX: move elsewhere? */
+    VdpImplementation		 vdp_impl_type;
+    uint32_t			 vdp_impl_version;
 };
 
 typedef struct object_config object_config_t;

@@ -549,6 +549,29 @@ vdpau_output_surface_query_rgba_caps(vdpau_driver_data_t *driver_data,
 								      is_supported);
 }
 
+// VdpGetApiVersion
+static inline VdpStatus
+vdpau_get_api_version(vdpau_driver_data_t *driver_data, uint32_t *api_version)
+{
+    if (driver_data == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_get_api_version == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_get_api_version(api_version);
+}
+
+// VdpGetInformationString
+static inline VdpStatus
+vdpau_get_information_string(vdpau_driver_data_t *driver_data,
+			     const char         **info_string)
+{
+    if (driver_data == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_get_information_string == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_get_information_string(info_string);
+}
+
 // Checks whether the VDPAU implementation supports the specified profile
 static inline VdpBool
 vdpau_is_supported_profile(vdpau_driver_data_t *driver_data,
@@ -2880,8 +2903,23 @@ vdpau_Initialize(VADriverContextP ctx)
 		  video_surface_query_ycbcr_caps);
     VDP_INIT_PROC(OUTPUT_SURFACE_QUERY_GET_PUT_BITS_NATIVE_CAPABILITIES,
 		  output_surface_query_rgba_caps);
+    VDP_INIT_PROC(GET_API_VERSION,		get_api_version);
+    VDP_INIT_PROC(GET_INFORMATION_STRING,	get_information_string);
 
 #undef VDP_INIT_PROC
+
+    uint32_t api_version;
+    vdp_status = vdpau_get_api_version(driver_data, &api_version);
+    ASSERT(vdp_status == VDP_STATUS_OK);
+    if (api_version != VDPAU_VERSION)
+	return VA_STATUS_ERROR_UNKNOWN;
+
+    const char *impl_string = NULL;
+    vdp_status = vdpau_get_information_string(driver_data, &impl_string);
+    ASSERT(vdp_status == VDP_STATUS_OK);
+    if (impl_string) {
+	/* XXX: set impl_type and impl_version if there is any useful info */
+    }
 
     result = object_heap_init(&driver_data->config_heap, sizeof(struct object_config), CONFIG_ID_OFFSET);
     ASSERT(result == 0);
