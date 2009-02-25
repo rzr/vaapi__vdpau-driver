@@ -1408,7 +1408,7 @@ vdpau_QueryConfigProfiles(VADriverContextP ctx,
 	VAProfileVC1Advanced
     };
     int i, n = 0;
-    for (i = 0; i < sizeof(va_profiles)/sizeof(va_profiles[0]); i++) {
+    for (i = 0; i < ARRAY_ELEMS(va_profiles); i++) {
 	VAProfile profile = va_profiles[i];
 	VdpDecoderProfile vdp_profile = get_VdpDecoderProfile(profile);
 	if (vdpau_is_supported_profile(driver_data, profile))
@@ -2194,7 +2194,7 @@ vdpau_CreateContext(VADriverContextP ctx,
 					  driver_data->vdp_device,
 					  0,
 					  NULL,
-					  sizeof(params) / sizeof(params[0]),
+					  ARRAY_ELEMS(params),
 					  params,
 					  param_values,
 					  &obj_context->vdp_video_mixer);
