@@ -809,6 +809,20 @@ static void dump_VdpPictureInfoVC1(VdpPictureInfoVC1 *pic_info)
     INDENT(-1);
 }
 
+static void dump_VdpBitstreamBuffer(VdpBitstreamBuffer *bitstream_buffer)
+{
+    const uint8_t *buffer = bitstream_buffer->bitstream;
+    const uint32_t size   = bitstream_buffer->bitstream_bytes;
+
+    INDENT(1);
+    TRACE("VdpBitstreamBuffer (%d bytes) = {\n", size);
+    INDENT(1);
+    dump_matrix_NxM_1("buffer", buffer, 10, 15, size);
+    INDENT(-1);
+    TRACE("};\n");
+    INDENT(-1);
+}
+
 
 /* ====================================================================== */
 /* === VA API to VDPAU thunks                                         === */
@@ -2337,6 +2351,7 @@ vdpau_EndPicture(VADriverContextP ctx,
 	    dump_VdpPictureInfoVC1(&obj_context->vdp_picture_info.vc1);
 	    break;
 	}
+	dump_VdpBitstreamBuffer(&obj_context->vdp_bitstream_buffer);
     }
 
     VAStatus va_status;
