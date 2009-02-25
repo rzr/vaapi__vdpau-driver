@@ -581,17 +581,17 @@ static int g_trace_enabled	= -1;
 static int g_trace_is_new_line	= 1;
 static int g_trace_indent	= 0;
 
-static int check_vdpau_video_debug_env(void)
+static int check_vdpau_video_trace_env(void)
 {
-    const char *vdpau_video_debug_str = getenv("VDPAU_VIDEO_TRACE");
+    const char *vdpau_video_trace_str = getenv("VDPAU_VIDEO_TRACE");
     /* XXX: check actual value */
-    return vdpau_video_debug_str != NULL;
+    return vdpau_video_trace_str != NULL;
 }
 
 static inline int trace_enabled(void)
 {
     if (g_trace_enabled < 0)
-	g_trace_enabled = check_vdpau_video_debug_env();
+	g_trace_enabled = check_vdpau_video_trace_env();
     return g_trace_enabled;
 }
 
