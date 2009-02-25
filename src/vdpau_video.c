@@ -706,7 +706,6 @@ static void dump_VdpPictureInfoMPEG1Or2(VdpPictureInfoMPEG1Or2 *pic_info)
 
 static void dump_VdpReferenceFrameH264(const char *label, VdpReferenceFrameH264 *rf)
 {
-    INDENT(1);
     TRACE(".%s = {\n", label);
     INDENT(1);
     DUMPx(rf, surface);
@@ -718,7 +717,6 @@ static void dump_VdpReferenceFrameH264(const char *label, VdpReferenceFrameH264 
     DUMPi(rf, frame_idx);
     INDENT(-1);
     TRACE("}\n");
-    INDENT(-1);
 }
 
 static void dump_VdpPictureInfoH264(VdpPictureInfoH264 *pic_info)
