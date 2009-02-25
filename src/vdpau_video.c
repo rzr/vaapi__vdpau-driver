@@ -515,6 +515,40 @@ vdpau_decoder_query_capabilities(vdpau_driver_data_t *driver_data,
 								  max_height);
 }
 
+// VdpVideoSurfaceQueryGetPutBitsYCbCrCapabilities
+static inline VdpStatus
+vdpau_video_surface_query_ycbcr_caps(vdpau_driver_data_t *driver_data,
+				     VdpDevice            device,
+				     VdpChromaType        surface_chroma_type,
+				     VdpYCbCrFormat       bits_ycbcr_format,
+				     VdpBool             *is_supported)
+{
+    if (driver_data == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_video_surface_query_ycbcr_caps == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_video_surface_query_ycbcr_caps(device,
+								      surface_chroma_type,
+								      bits_ycbcr_format,
+								      is_supported);
+}
+
+// VdpOutputSurfaceQueryGetPutBitsNativeCapabilities
+static inline VdpStatus
+vdpau_output_surface_query_rgba_caps(vdpau_driver_data_t *driver_data,
+				     VdpDevice            device,
+				     VdpRGBAFormat        surface_rgba_format,
+				     VdpBool             *is_supported)
+{
+    if (driver_data == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_output_surface_query_rgba_caps == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_output_surface_query_rgba_caps(device,
+								      surface_rgba_format,
+								      is_supported);
+}
+
 // Checks whether the VDPAU implementation supports the specified profile
 static inline VdpBool
 vdpau_is_supported_profile(vdpau_driver_data_t *driver_data,
@@ -531,6 +565,32 @@ vdpau_is_supported_profile(vdpau_driver_data_t *driver_data,
 						  &max_references,
 						  &max_width,
 						  &max_height);
+    return vdp_status == VDP_STATUS_OK && is_supported;
+}
+
+// Checks whether the VDPAU implementation supports the specified image format
+static inline VdpBool
+vdpau_is_supported_image_format(vdpau_driver_data_t *driver_data,
+				VdpImageFormatType   type,
+				uint32_t             format)
+{
+    VdpBool is_supported = VDP_FALSE;
+    VdpStatus vdp_status;
+    switch (type) {
+    case VDP_IMAGE_FORMAT_TYPE_YCBCR:
+	vdp_status = vdpau_video_surface_query_ycbcr_caps(driver_data,
+							  driver_data->vdp_device,
+							  VDP_CHROMA_TYPE_420,
+							  format,
+							  &is_supported);
+	break;
+    case VDP_IMAGE_FORMAT_TYPE_RGBA:
+	vdp_status = vdpau_output_surface_query_rgba_caps(driver_data,
+							  driver_data->vdp_device,
+							  format,
+							  &is_supported);
+	break;
+    }
     return vdp_status == VDP_STATUS_OK && is_supported;
 }
 
@@ -1658,7 +1718,57 @@ vdpau_QueryImageFormats(VADriverContextP ctx,
 {
     INIT_DRIVER_DATA;
 
-    /* TODO */
+    if (num_formats)
+	*num_formats = 0;
+
+    if (format_list == NULL)
+	return VA_STATUS_SUCCESS;
+
+    typedef struct {
+	VdpImageFormatType type;
+	uint32_t format;
+	VAImageFormat va_format;
+    } image_format_map_t;
+
+    static const image_format_map_t image_formats_map[] = {
+#define DEF(TYPE, FORMAT) \
+	VDP_IMAGE_FORMAT_TYPE_##TYPE, VDP_##TYPE##_FORMAT_##FORMAT
+#define DEF_YUV(TYPE, FORMAT, FOURCC, ENDIAN, BPP) \
+	{ DEF(TYPE, FORMAT), { MAKEFOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, } }
+#define DEF_RGB(TYPE, FORMAT, FOURCC, ENDIAN, BPP, DEPTH, R,G,B,A) \
+	{ DEF(TYPE, FORMAT), { MAKEFOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
+	DEF_YUV(YCBCR, NV12,	('N','V','1','2'), LSB, 12),
+	DEF_YUV(YCBCR, UYVY,	('U','Y','V','Y'), LSB, 16),
+	DEF_YUV(YCBCR, YUYV,	('Y','U','Y','V'), LSB, 16),
+	DEF_YUV(YCBCR, V8U8Y8A8,('A','Y','U','V'), LSB, 32),
+#ifdef WORDS_BIGENDIAN
+	DEF_RGB(RGBA, B8G8R8A8,	('A','R','G','B'), MSB, 32,
+		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
+	DEF_RGB(RGBA, R8G8B8A8,	('A','B','G','R'), MSB, 32,
+		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
+#else
+	DEF_RGB(RGBA, B8G8R8A8,	('B','G','R','A'), LSB, 32,
+		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
+	DEF_RGB(RGBA, R8G8B8A8,	('R','G','B','A'), LSB, 32,
+		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
+#endif
+#undef DEF_RGB
+#undef DEF_YUV
+#undef DEF
+    };
+
+    int i, n = 0;
+    for (i = 0; i < ARRAY_ELEMS(image_formats_map); i++) {
+	const image_format_map_t * const f = &image_formats_map[i];
+	if (vdpau_is_supported_image_format(driver_data, f->type, f->format))
+	    format_list[n++] = f->va_format;
+    }
+
+    /* If the assert fails then VDPAU_MAX_IMAGE_FORMATS needs to be bigger */
+    ASSERT(n <= VDPAU_MAX_IMAGE_FORMATS);
+    if (num_formats)
+	*num_formats = n;
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -2766,6 +2876,10 @@ vdpau_Initialize(VADriverContextP ctx)
     VDP_INIT_PROC(DECODER_DESTROY,		decoder_destroy);
     VDP_INIT_PROC(DECODER_RENDER,		decoder_render);
     VDP_INIT_PROC(DECODER_QUERY_CAPABILITIES,	decoder_query_capabilities);
+    VDP_INIT_PROC(VIDEO_SURFACE_QUERY_GET_PUT_BITS_Y_CB_CR_CAPABILITIES,
+		  video_surface_query_ycbcr_caps);
+    VDP_INIT_PROC(OUTPUT_SURFACE_QUERY_GET_PUT_BITS_NATIVE_CAPABILITIES,
+		  output_surface_query_rgba_caps);
 
 #undef VDP_INIT_PROC
 

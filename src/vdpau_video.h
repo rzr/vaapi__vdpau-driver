@@ -36,6 +36,12 @@
 #define VDPAU_STR_DRIVER_NAME		"VDPAU backend for VA API"
 
 typedef enum {
+    VDP_IMAGE_FORMAT_TYPE_YCBCR = 1,
+    VDP_IMAGE_FORMAT_TYPE_RGBA,
+    VDP_IMAGE_FORMAT_TYPE_INDEXED
+} VdpImageFormatType;
+
+typedef enum {
     VDP_CODEC_MPEG1 = 1,
     VDP_CODEC_MPEG2,
     VDP_CODEC_MPEG4,
@@ -63,6 +69,8 @@ struct vdpau_vtable {
     VdpDecoderDestroy		*vdp_decoder_destroy;
     VdpDecoderRender		*vdp_decoder_render;
     VdpDecoderQueryCapabilities	*vdp_decoder_query_capabilities;
+    VdpVideoSurfaceQueryGetPutBitsYCbCrCapabilities *vdp_video_surface_query_ycbcr_caps;
+    VdpOutputSurfaceQueryGetPutBitsNativeCapabilities *vdp_output_surface_query_rgba_caps;
 };
 
 typedef struct vdpau_driver_data vdpau_driver_data_t;
