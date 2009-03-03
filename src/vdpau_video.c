@@ -20,7 +20,7 @@
 
 #include "sysdeps.h"
 #include "vdpau_video.h"
-#include <va_backend.h>
+#include <va/va_backend.h>
 #include <stdarg.h>
 
 #define DEBUG 1
@@ -976,15 +976,15 @@ vdpau_translate_VAPictureParameterBufferMPEG2(vdpau_driver_data_t *driver_data,
 				     pic_param->backward_reference_picture,
 				     &pinfo->backward_reference))
 	return 0;
-    pinfo->picture_structure		= pic_param->picture_structure;
+    pinfo->picture_structure		= pic_param->picture_coding_extension.bits.picture_structure;
     pinfo->picture_coding_type		= pic_param->picture_coding_type;
-    pinfo->intra_dc_precision		= pic_param->intra_dc_precision;
-    pinfo->frame_pred_frame_dct		= pic_param->frame_pred_frame_dct;
-    pinfo->concealment_motion_vectors	= pic_param->concealment_motion_vectors;
-    pinfo->intra_vlc_format		= pic_param->intra_vlc_format;
-    pinfo->alternate_scan		= pic_param->alternate_scan;
-    pinfo->q_scale_type			= pic_param->q_scale_type;
-    pinfo->top_field_first		= pic_param->top_field_first;
+    pinfo->intra_dc_precision		= pic_param->picture_coding_extension.bits.intra_dc_precision;
+    pinfo->frame_pred_frame_dct		= pic_param->picture_coding_extension.bits.frame_pred_frame_dct;
+    pinfo->concealment_motion_vectors	= pic_param->picture_coding_extension.bits.concealment_motion_vectors;
+    pinfo->intra_vlc_format		= pic_param->picture_coding_extension.bits.intra_vlc_format;
+    pinfo->alternate_scan		= pic_param->picture_coding_extension.bits.alternate_scan;
+    pinfo->q_scale_type			= pic_param->picture_coding_extension.bits.q_scale_type;
+    pinfo->top_field_first		= pic_param->picture_coding_extension.bits.top_field_first;
     pinfo->full_pel_forward_vector	= 0;
     pinfo->full_pel_backward_vector	= 0;
     pinfo->f_code[0][0]			= (pic_param->f_code >> 12) & 0xf;
@@ -1131,36 +1131,32 @@ vdpau_translate_VAPictureParameterBufferH264(vdpau_driver_data_t *driver_data,
     VAPictureH264 * const CurrPic = &pic_param->CurrPic;
     int i;
 
-    pinfo->field_order_cnt[0]		= CurrPic->TopFieldOrderCnt;
-    pinfo->field_order_cnt[1]		= CurrPic->BottomFieldOrderCnt;
-    pinfo->is_reference			= pic_param->reference_pic_flag;
+    pinfo->field_order_cnt[0]			= CurrPic->TopFieldOrderCnt;
+    pinfo->field_order_cnt[1]			= CurrPic->BottomFieldOrderCnt;
+    pinfo->is_reference				= pic_param->pic_fields.bits.reference_pic_flag;
 
-    pinfo->frame_num			= pic_param->frame_num;
-    pinfo->field_pic_flag		= pic_param->field_pic_flag;
-    pinfo->bottom_field_flag		= pic_param->field_pic_flag && (CurrPic->flags & VA_PICTURE_H264_BOTTOM_FIELD) != 0;
-    pinfo->num_ref_frames		= pic_param->num_ref_frames;
-    pinfo->mb_adaptive_frame_field_flag	= pic_param->mb_adaptive_frame_field_flag;
-    pinfo->constrained_intra_pred_flag	= pic_param->constrained_intra_pred_flag;
-    pinfo->weighted_pred_flag		= pic_param->weighted_pred_flag;
-    pinfo->weighted_bipred_idc		= pic_param->weighted_bipred_idc;
-    pinfo->frame_mbs_only_flag		= pic_param->frame_mbs_only_flag;
-    pinfo->transform_8x8_mode_flag	= pic_param->transform_8x8_mode_flag;
-    pinfo->chroma_qp_index_offset	= pic_param->chroma_qp_index_offset;
-    pinfo->second_chroma_qp_index_offset= pic_param->second_chroma_qp_index_offset;
-    pinfo->pic_init_qp_minus26		= pic_param->pic_init_qp_minus26;
-    pinfo->log2_max_frame_num_minus4	= pic_param->log2_max_frame_num_minus4;
-    pinfo->pic_order_cnt_type		= pic_param->pic_order_cnt_type;
-    pinfo->log2_max_pic_order_cnt_lsb_minus4 =
-	pic_param->log2_max_pic_order_cnt_lsb_minus4;
-    pinfo->delta_pic_order_always_zero_flag =
-	pic_param->delta_pic_order_always_zero_flag;
-    pinfo->direct_8x8_inference_flag	= pic_param->direct_8x8_inference_flag;
-    pinfo->entropy_coding_mode_flag	= pic_param->entropy_coding_mode_flag;
-    pinfo->pic_order_present_flag	= pic_param->pic_order_present_flag;
-    pinfo->deblocking_filter_control_present_flag =
-	pic_param->deblocking_filter_control_present_flag;
-    pinfo->redundant_pic_cnt_present_flag =
-	pic_param->redundant_pic_cnt_present_flag;
+    pinfo->frame_num				= pic_param->frame_num;
+    pinfo->field_pic_flag			= pic_param->pic_fields.bits.field_pic_flag;
+    pinfo->bottom_field_flag			= pic_param->pic_fields.bits.field_pic_flag && (CurrPic->flags & VA_PICTURE_H264_BOTTOM_FIELD) != 0;
+    pinfo->num_ref_frames			= pic_param->num_ref_frames;
+    pinfo->mb_adaptive_frame_field_flag		= pic_param->seq_fields.bits.mb_adaptive_frame_field_flag;
+    pinfo->constrained_intra_pred_flag		= pic_param->pic_fields.bits.constrained_intra_pred_flag;
+    pinfo->weighted_pred_flag			= pic_param->pic_fields.bits.weighted_pred_flag;
+    pinfo->weighted_bipred_idc			= pic_param->pic_fields.bits.weighted_bipred_idc;
+    pinfo->frame_mbs_only_flag			= pic_param->seq_fields.bits.frame_mbs_only_flag;
+    pinfo->transform_8x8_mode_flag		= pic_param->pic_fields.bits.transform_8x8_mode_flag;
+    pinfo->chroma_qp_index_offset		= pic_param->chroma_qp_index_offset;
+    pinfo->second_chroma_qp_index_offset	= pic_param->second_chroma_qp_index_offset;
+    pinfo->pic_init_qp_minus26			= pic_param->pic_init_qp_minus26;
+    pinfo->log2_max_frame_num_minus4		= pic_param->seq_fields.bits.log2_max_frame_num_minus4;
+    pinfo->pic_order_cnt_type			= pic_param->seq_fields.bits.pic_order_cnt_type;
+    pinfo->log2_max_pic_order_cnt_lsb_minus4	= pic_param->seq_fields.bits.log2_max_pic_order_cnt_lsb_minus4;
+    pinfo->delta_pic_order_always_zero_flag	= pic_param->seq_fields.bits.delta_pic_order_always_zero_flag;
+    pinfo->direct_8x8_inference_flag		= pic_param->seq_fields.bits.direct_8x8_inference_flag;
+    pinfo->entropy_coding_mode_flag		= pic_param->pic_fields.bits.entropy_coding_mode_flag;
+    pinfo->pic_order_present_flag		= pic_param->pic_fields.bits.pic_order_present_flag;
+    pinfo->deblocking_filter_control_present_flag = pic_param->pic_fields.bits.deblocking_filter_control_present_flag;
+    pinfo->redundant_pic_cnt_present_flag	= pic_param->pic_fields.bits.redundant_pic_cnt_present_flag;
     for (i = 0; i < 16; i++) {
 	if (!vdpau_translate_VAPictureH264(driver_data,
 					   &pic_param->ReferenceFrames[i],
@@ -1234,43 +1230,43 @@ vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
 				     &pinfo->backward_reference))
 	return 0;
 
-    switch (pic_param->picture_type) {
+    switch (pic_param->picture_fields.bits.picture_type) {
     case 0: picture_type = 0; break; /* I */
     case 1: picture_type = 1; break; /* P */
     case 2: picture_type = 3; break; /* B */
     case 3: picture_type = 4; break; /* BI */
-    default: ASSERT(!pic_param->picture_type); return 0;
+    default: ASSERT(!pic_param->picture_fields.bits.picture_type); return 0;
     }
 
     pinfo->picture_type		= picture_type;
-    pinfo->frame_coding_mode	= pic_param->frame_coding_mode;
+    pinfo->frame_coding_mode	= pic_param->picture_fields.bits.frame_coding_mode;
     pinfo->postprocflag		= pic_param->post_processing != 0;
-    pinfo->pulldown		= pic_param->pulldown;
-    pinfo->interlace		= pic_param->interlace;
-    pinfo->tfcntrflag		= pic_param->frame_counter_flag;
-    pinfo->finterpflag		= pic_param->frame_interpolation_flag;
-    pinfo->psf			= pic_param->progressive_segment_frame;
-    pinfo->dquant		= pic_param->dquant;
-    pinfo->panscan_flag		= pic_param->panscan_flag;
-    pinfo->refdist_flag		= pic_param->reference_distance_flag;
-    pinfo->quantizer		= pic_param->quantizer;
-    pinfo->extended_mv		= pic_param->extended_mv_flag;
-    pinfo->extended_dmv		= pic_param->extended_dmv_flag;
-    pinfo->overlap		= pic_param->overlap;
-    pinfo->vstransform		= pic_param->variable_sized_transform_flag;
-    pinfo->loopfilter		= pic_param->loopfilter;
+    pinfo->pulldown		= pic_param->sequence_fields.bits.pulldown;
+    pinfo->interlace		= pic_param->sequence_fields.bits.interlace;
+    pinfo->tfcntrflag		= pic_param->sequence_fields.bits.tfcntrflag;
+    pinfo->finterpflag		= pic_param->sequence_fields.bits.finterpflag;
+    pinfo->psf			= pic_param->sequence_fields.bits.psf;
+    pinfo->dquant		= pic_param->pic_quantizer_fields.bits.dquant;
+    pinfo->panscan_flag		= pic_param->entrypoint_fields.bits.panscan_flag;
+    pinfo->refdist_flag		= pic_param->reference_fields.bits.reference_distance_flag;
+    pinfo->quantizer		= pic_param->pic_quantizer_fields.bits.quantizer;
+    pinfo->extended_mv		= pic_param->mv_fields.bits.extended_mv_flag;
+    pinfo->extended_dmv		= pic_param->mv_fields.bits.extended_dmv_flag;
+    pinfo->overlap		= pic_param->sequence_fields.bits.overlap;
+    pinfo->vstransform		= pic_param->transform_fields.bits.variable_sized_transform_flag;
+    pinfo->loopfilter		= pic_param->entrypoint_fields.bits.loopfilter;
     pinfo->fastuvmc		= pic_param->fast_uvmc_flag;
-    pinfo->range_mapy_flag	= pic_param->range_mapping_luma_flag;
-    pinfo->range_mapy		= pic_param->range_mapping_luma;
-    pinfo->range_mapuv_flag	= pic_param->range_mapping_chroma_flag;
-    pinfo->range_mapuv		= pic_param->range_mapping_chroma;
-    pinfo->multires		= pic_param->multires;
-    pinfo->syncmarker		= pic_param->syncmarker;
-    pinfo->rangered		= pic_param->rangered;
+    pinfo->range_mapy_flag	= pic_param->range_mapping_fields.bits.luma_flag;
+    pinfo->range_mapy		= pic_param->range_mapping_fields.bits.luma;
+    pinfo->range_mapuv_flag	= pic_param->range_mapping_fields.bits.chroma_flag;
+    pinfo->range_mapuv		= pic_param->range_mapping_fields.bits.chroma;
+    pinfo->multires		= pic_param->sequence_fields.bits.multires;
+    pinfo->syncmarker		= pic_param->sequence_fields.bits.syncmarker;
+    pinfo->rangered		= pic_param->sequence_fields.bits.rangered;
     if (!vdpau_is_nvidia(driver_data, &major_version, &minor_version) ||
 	(major_version > 180 || minor_version >= 35))
 	pinfo->rangered		|= pic_param->range_reduction_frame << 1;
-    pinfo->maxbframes		= pic_param->max_b_frames;
+    pinfo->maxbframes		= pic_param->sequence_fields.bits.max_b_frames;
     pinfo->deblockEnable	= 0; /* XXX: fill */
     pinfo->pquant		= 0; /* XXX: fill */
     return 1;
@@ -1809,9 +1805,9 @@ vdpau_QueryImageFormats(VADriverContextP ctx,
 #define DEF(TYPE, FORMAT) \
 	VDP_IMAGE_FORMAT_TYPE_##TYPE, VDP_##TYPE##_FORMAT_##FORMAT
 #define DEF_YUV(TYPE, FORMAT, FOURCC, ENDIAN, BPP) \
-	{ DEF(TYPE, FORMAT), { MAKEFOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, } }
+	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, } }
 #define DEF_RGB(TYPE, FORMAT, FOURCC, ENDIAN, BPP, DEPTH, R,G,B,A) \
-	{ DEF(TYPE, FORMAT), { MAKEFOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
+	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
 	DEF_YUV(YCBCR, NV12,	('N','V','1','2'), LSB, 12),
 	DEF_YUV(YCBCR, UYVY,	('U','Y','V','Y'), LSB, 16),
 	DEF_YUV(YCBCR, YUYV,	('Y','U','Y','V'), LSB, 16),

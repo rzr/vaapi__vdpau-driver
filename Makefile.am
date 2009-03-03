@@ -32,6 +32,5 @@ deb: dist
 $(DEBIANGENFILES): debian/%: debian/%.in Makefile
 	-sed \
 	  -e 's|\@PACKAGE_VERSION\@|$(PACKAGE_VERSION)|' \
-	  -e 's|\@LIBVA_API_VERSION\@|$(LIBVA_API_VERSION)|' \
 	  -e 's|\@LIBVA_SDS_PACKAGE_VERSION\@|$(LIBVA_SDS_PACKAGE_VERSION)|' \
 	  $< > $@

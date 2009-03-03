@@ -1,14 +1,13 @@
 # vdpau_video package version number
 m4_define([vdpau_video_major_version], [0])
 m4_define([vdpau_video_minor_version], [2])
-m4_define([vdpau_video_micro_version], [3])
+m4_define([vdpau_video_micro_version], [4])
 m4_define([vdpau_video_version],
           [vdpau_video_major_version.vdpau_video_minor_version.vdpau_video_micro_version])
 
 # libva package version number
-m4_define([libva_api_version], [0.29])
-m4_define([libva_sds_version], [6])
-m4_define([libva_sds_package_version], [0.29-2+sds9])
+m4_define([libva_sds_version], [7])
+m4_define([libva_sds_package_version], [0.29-2+sds10])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])
@@ -17,10 +16,8 @@ AM_INIT_AUTOMAKE
 
 AM_CONFIG_HEADER([src/config.h])
 
-LIBVA_API_VERSION=libva_api_version
 LIBVA_SDS_VERSION=libva_sds_version
 LIBVA_SDS_PACKAGE_VERSION=libva_sds_package_version
-AC_SUBST(LIBVA_API_VERSION)
 AC_SUBST(LIBVA_SDS_PACKAGE_VERSION)
 
 VDPAU_VIDEO_MAJOR_VERSION=vdpau_video_major_version
@@ -77,7 +74,7 @@ if test "$ac_cv_have_vdpau" = "no"; then
     AC_MSG_ERROR([you need VDPAU to build this package])
 fi
 
-PKG_CHECK_MODULES(LIBVA_DEPS, [libva-x11-libva_api_version])
+PKG_CHECK_MODULES(LIBVA_DEPS, [libva-x11])
 VDPAU_VIDEO_CFLAGS="$LIBVA_DEPS_CFLAGS"
 VDPAU_VIDEO_LIBS="$LIBVA_DEPS_LIBS"
 AC_SUBST(VDPAU_VIDEO_CFLAGS)
@@ -89,7 +86,7 @@ AC_CACHE_CHECK([for VA API],
   saved_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS $LIBVA_DEPS_CFLAGS"
   AC_TRY_COMPILE([
-    #include <va_version.h>
+    #include <va/va_version.h>
     #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 29
     # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION)
     #  error "VA API version >= 0.29.0-sds$LIBVA_SDS_VERSION is required"
@@ -107,7 +104,7 @@ if test "$ac_cv_libva_sds_extensions" = "no"; then
 fi
 
 AC_MSG_CHECKING([for VA drivers path])
-LIBVA_DRIVERS_PATH=`$PKG_CONFIG libva-$LIBVA_API_VERSION --variable driverdir`
+LIBVA_DRIVERS_PATH=`$PKG_CONFIG libva --variable driverdir`
 if test -z "$LIBVA_DRIVERS_PATH"; then
     LIBVA_DRIVERS_PATH="/usr/lib/xorg/modules/drivers"
 fi

@@ -21,7 +21,7 @@
 #ifndef VDPAU_VIDEO_H
 #define VDPAU_VIDEO_H
 
-#include <va.h>
+#include <va/va.h>
 #include <vdpau/vdpau.h>
 #include <vdpau/vdpau_x11.h>
 #include "object_heap.h"
