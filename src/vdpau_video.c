@@ -1139,7 +1139,7 @@ vdpau_translate_VAPictureParameterBufferH264(vdpau_driver_data_t *driver_data,
     pinfo->field_pic_flag			= pic_param->pic_fields.bits.field_pic_flag;
     pinfo->bottom_field_flag			= pic_param->pic_fields.bits.field_pic_flag && (CurrPic->flags & VA_PICTURE_H264_BOTTOM_FIELD) != 0;
     pinfo->num_ref_frames			= pic_param->num_ref_frames;
-    pinfo->mb_adaptive_frame_field_flag		= pic_param->seq_fields.bits.mb_adaptive_frame_field_flag;
+    pinfo->mb_adaptive_frame_field_flag		= pic_param->seq_fields.bits.mb_adaptive_frame_field_flag && !pinfo->field_pic_flag;
     pinfo->constrained_intra_pred_flag		= pic_param->pic_fields.bits.constrained_intra_pred_flag;
     pinfo->weighted_pred_flag			= pic_param->pic_fields.bits.weighted_pred_flag;
     pinfo->weighted_bipred_idc			= pic_param->pic_fields.bits.weighted_bipred_idc;
