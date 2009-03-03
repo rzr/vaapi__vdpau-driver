@@ -1,5 +1,9 @@
-vdpau-video NEWS -- summary of changes.  2009-02-25
+vdpau-video NEWS -- summary of changes.  2009-03-04
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.2.4 - 04.Mar.2009
+* Upgrade to VA API 0.29.0-sds7 extensions
+* Fix corruption decoding field-coded pictures in MBAFF H.264 clips
 
 Version 0.2.3 - 25.Feb.2009
 * Add vaQueryImageFormats()
