@@ -1,1 +1,1 @@
-debian/tmp/usr/lib/va-*/drivers/*.so
+debian/tmp/usr/lib/va/drivers/*.so
