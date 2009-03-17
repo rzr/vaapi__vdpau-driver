@@ -2200,15 +2200,15 @@ vdpau_DestroyContext(VADriverContextP ctx,
 	obj_context->output_surface = 0;
     }
 
-    obj_context->context_id = -1;
-    obj_context->config_id = -1;
-    obj_context->current_render_target = -1;
-    obj_context->picture_width = 0;
-    obj_context->picture_height = 0;
-    obj_context->num_render_targets = 0;
-    obj_context->flags = 0;
-    obj_context->dead_buffers_count = 0;
-    obj_context->dead_buffers_count_max = 0;
+    obj_context->context_id		= -1;
+    obj_context->config_id		= -1;
+    obj_context->current_render_target	= -1;
+    obj_context->picture_width		= 0;
+    obj_context->picture_height		= 0;
+    obj_context->num_render_targets	= 0;
+    obj_context->flags			= 0;
+    obj_context->dead_buffers_count	= 0;
+    obj_context->dead_buffers_count_max	= 0;
 
     object_heap_free(&driver_data->context_heap, (object_base_p)obj_context);
     return VA_STATUS_SUCCESS;
@@ -2351,7 +2351,7 @@ vdpau_schedule_destroy_buffer(object_context_p obj_context,
 			      object_buffer_p  obj_buffer)
 {
     if (obj_context->dead_buffers_count >= obj_context->dead_buffers_count_max) {
-	obj_context->dead_buffers_count_max += 4;
+	obj_context->dead_buffers_count_max += 16;
 	obj_context->dead_buffers = realloc(obj_context->dead_buffers,
 					    obj_context->dead_buffers_count_max * sizeof(obj_context->dead_buffers[0]));
 	ASSERT(obj_context->dead_buffers);
