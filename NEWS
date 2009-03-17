@@ -1,9 +1,10 @@
-vdpau-video NEWS -- summary of changes.  2009-03-DD
+vdpau-video NEWS -- summary of changes.  2009-03-18
 Copyright (C) 2009 Splitted-Desktop Systems
 
-Version 0.2.5 - DD.Mar.2009
+Version 0.2.5 - 18.Mar.2009
 * Handle multiple VASliceDataBuffers
 * Handle H.264 bitstreams without start_code_prefix_one_3byte
+* Fix destruction of output surfaces
 
 Version 0.2.4 - 03.Mar.2009
 * Upgrade to VA API 0.29.0-sds7 extensions
