@@ -1451,9 +1451,9 @@ static void destroy_output_surface(vdpau_driver_data_t *driver_data, VASurfaceID
     }
 
     int i;
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++) {
 	VdpOutputSurface vdp_output_surface = obj_output->vdp_output_surfaces[i];
-	if (vdp_output_surface) {
+	if (vdp_output_surface != VDP_INVALID_HANDLE) {
 	    vdpau_output_surface_destroy(driver_data, vdp_output_surface);
 	    obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
 	}
@@ -1466,6 +1466,7 @@ static VASurfaceID create_output_surface(vdpau_driver_data_t *driver_data,
 					 uint32_t             width,
 					 uint32_t             height)
 {
+    int i;
     int surface = object_heap_allocate(&driver_data->output_heap);
     if (surface < 0)
 	return 0;
@@ -1482,9 +1483,9 @@ static VASurfaceID create_output_surface(vdpau_driver_data_t *driver_data,
     obj_output->vdp_flip_target		= VDP_INVALID_HANDLE;
     obj_output->output_surface_width	= width;
     obj_output->output_surface_height	= height;
-    obj_output->vdp_output_surfaces[0]	= VDP_INVALID_HANDLE;
-    obj_output->vdp_output_surfaces[1]	= VDP_INVALID_HANDLE;
     obj_output->current_output_surface	= 0;
+    for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++)
+	obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
 
     VADriverContextP const ctx = driver_data->va_context;
     uint32_t display_width, display_height;
@@ -1495,8 +1496,7 @@ static VASurfaceID create_output_surface(vdpau_driver_data_t *driver_data,
     if (obj_output->output_surface_height < display_height)
 	obj_output->output_surface_height = display_height;
 
-    int i;
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++) {
 	VdpStatus vdp_status;
 	VdpOutputSurface vdp_output_surface;
 	vdp_status = vdpau_output_surface_create(driver_data,
@@ -2864,6 +2864,7 @@ vdpau_Terminate(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     object_buffer_p obj_buffer;
+    object_output_p obj_output;
     object_surface_p obj_surface;
     object_context_p obj_context;
     object_config_p obj_config;
@@ -2871,15 +2872,19 @@ vdpau_Terminate(VADriverContextP ctx)
 
     /* Clean up left over buffers */
     obj_buffer = (object_buffer_p)object_heap_first(&driver_data->buffer_heap, &iter);
-    while (obj_buffer)
-    {
-        vdpau_information_message("vaTerminate: bufferID %08x still allocated, destroying\n", obj_buffer->base.id);
+    while (obj_buffer) {
+        vdpau_information_message("vaTerminate: buffer 0x%08x is still allocated, destroying\n", obj_buffer->base.id);
         vdpau_destroy_buffer(driver_data, obj_buffer);
         obj_buffer = (object_buffer_p)object_heap_next(&driver_data->buffer_heap, &iter);
     }
     object_heap_destroy(&driver_data->buffer_heap);
 
-    /* TODO cleanup */
+    obj_output = (object_output_p)object_heap_first(&driver_data->output_heap, &iter);
+    while (obj_output) {
+	vdpau_information_message("vaTerminate: output surface 0x%08x is still allocated, destroying\n", obj_output->base.id);
+	destroy_output_surface(driver_data, obj_output->base.id);
+	obj_output = (object_output_p)object_heap_next(&driver_data->output_heap, &iter);
+    }
     object_heap_destroy(&driver_data->output_heap);
 
     /* TODO cleanup */

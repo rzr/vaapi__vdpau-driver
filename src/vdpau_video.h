@@ -32,6 +32,7 @@
 #define VDPAU_MAX_IMAGE_FORMATS		10
 #define VDPAU_MAX_SUBPIC_FORMATS	4
 #define VDPAU_MAX_DISPLAY_ATTRIBUTES	4
+#define VDPAU_MAX_OUTPUT_SURFACES	2
 #define VDPAU_STR_DRIVER_VENDOR		"Splitted-Desktop Systems"
 #define VDPAU_STR_DRIVER_NAME		"VDPAU backend for VA API"
 
@@ -164,7 +165,7 @@ struct object_output {
     VdpPresentationQueueTarget	 vdp_flip_target;
     uint32_t			 output_surface_width;
     uint32_t			 output_surface_height;
-    VdpOutputSurface		 vdp_output_surfaces[3];
+    VdpOutputSurface		 vdp_output_surfaces[VDPAU_MAX_OUTPUT_SURFACES];
     int				 current_output_surface;
 };
 
