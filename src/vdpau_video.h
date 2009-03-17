@@ -120,6 +120,8 @@ struct object_context {
     VABufferID			*dead_buffers;
     uint32_t			 dead_buffers_count;
     uint32_t			 dead_buffers_count_max;
+    void			*last_slice_params;
+    unsigned int		 last_slice_params_count;
     VdpCodec			 vdp_codec;
     VdpDecoderProfile		 vdp_profile;
     VdpDecoder			 vdp_decoder;

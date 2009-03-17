@@ -940,6 +940,22 @@ vdpau_allocate_VdpBitstreamBuffer(object_context_p obj_context)
 }
 
 static int
+vdpau_append_VdpBitstreamBuffer(object_context_p obj_context,
+				const uint8_t	*buffer,
+				uint32_t	 buffer_size)
+{
+    VdpBitstreamBuffer *bitstream_buffer;
+
+    if ((bitstream_buffer = vdpau_allocate_VdpBitstreamBuffer(obj_context)) == NULL)
+	return 0;
+
+    bitstream_buffer->struct_version	= VDP_BITSTREAM_BUFFER_VERSION;
+    bitstream_buffer->bitstream		= buffer;
+    bitstream_buffer->bitstream_bytes	= buffer_size;
+    return 1;
+}
+
+static int
 vdpau_translate_VASurfaceID(vdpau_driver_data_t *driver_data,
 			    VASurfaceID          va_surface,
 			    VdpVideoSurface     *vdp_surface)
@@ -969,11 +985,30 @@ vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
 				  object_context_p     obj_context,
 				  object_buffer_p      obj_buffer)
 {
-    VdpBitstreamBuffer * const vdp_bitstream_buffer = vdpau_allocate_VdpBitstreamBuffer(obj_context);
-    vdp_bitstream_buffer->struct_version  = VDP_BITSTREAM_BUFFER_VERSION;
-    vdp_bitstream_buffer->bitstream	  = obj_buffer->buffer_data;
-    vdp_bitstream_buffer->bitstream_bytes = obj_buffer->buffer_size;
-    return 1;
+    VdpBitstreamBuffer *vdp_bitstream_buffer;
+
+    if (obj_context->vdp_codec == VDP_CODEC_H264) {
+	/* Check we have the start code */
+	/* XXX: check for other codecs too? */
+	static const uint8_t start_code_prefix[3] = { 0x00, 0x00, 0x01 };
+	VASliceParameterBufferH264 * const slice_params = obj_context->last_slice_params;
+	unsigned int i;
+	for (i = 0; i < obj_context->last_slice_params_count; i++) {
+	    VASliceParameterBufferH264 * const slice_param = &slice_params[i];
+	    uint8_t *buf = (uint8_t *)obj_buffer->buffer_data + slice_param->slice_data_offset;
+	    if (memcmp(buf, start_code_prefix, sizeof(start_code_prefix)) != 0) {
+		if (!vdpau_append_VdpBitstreamBuffer(obj_context, start_code_prefix, sizeof(start_code_prefix)))
+		    return 0;
+	    }
+	    if (!vdpau_append_VdpBitstreamBuffer(obj_context, buf, slice_param->slice_data_size))
+		return 0;
+	}
+	return 1;
+    }
+
+    return vdpau_append_VdpBitstreamBuffer(obj_context,
+					   obj_buffer->buffer_data,
+					   obj_buffer->buffer_size);
 }
 
 static int
@@ -1098,7 +1133,10 @@ vdpau_translate_VASliceParameterBufferMPEG2(vdpau_driver_data_t *driver_data,
 					    object_buffer_p      obj_buffer)
 {
     VdpPictureInfoMPEG1Or2 * const pinfo = &obj_context->vdp_picture_info.mpeg2;
-    pinfo->slice_count = obj_buffer->num_elements;
+
+    pinfo->slice_count		       += obj_buffer->num_elements;
+    obj_context->last_slice_params	= obj_buffer->buffer_data;
+    obj_context->last_slice_params_count= obj_buffer->num_elements;
     return 1;
 }
 
@@ -1221,9 +1259,11 @@ vdpau_translate_VASliceParameterBufferH264(vdpau_driver_data_t *driver_data,
     VASliceParameterBufferH264 * const slice_params = obj_buffer->buffer_data;
     VASliceParameterBufferH264 * const slice_param = &slice_params[obj_buffer->num_elements - 1];
 
-    pinfo->slice_count			= obj_buffer->num_elements;
+    pinfo->slice_count		       += obj_buffer->num_elements;
     pinfo->num_ref_idx_l0_active_minus1	= slice_param->num_ref_idx_l0_active_minus1;
     pinfo->num_ref_idx_l1_active_minus1	= slice_param->num_ref_idx_l1_active_minus1;
+    obj_context->last_slice_params	= obj_buffer->buffer_data;
+    obj_context->last_slice_params_count= obj_buffer->num_elements;
     return 1;
 }
 
@@ -1296,7 +1336,9 @@ vdpau_translate_VASliceParameterBufferVC1(vdpau_driver_data_t *driver_data,
     VASliceParameterBufferVC1 * const slice_params = obj_buffer->buffer_data;
     VASliceParameterBufferVC1 * const slice_param = &slice_params[obj_buffer->num_elements - 1];
 
-    pinfo->slice_count			= obj_buffer->num_elements;
+    pinfo->slice_count		       += obj_buffer->num_elements;
+    obj_context->last_slice_params	= obj_buffer->buffer_data;
+    obj_context->last_slice_params_count= obj_buffer->num_elements;
     return 1;
 }
 
@@ -2458,8 +2500,26 @@ vdpau_BeginPicture(VADriverContextP ctx,
     if (obj_surface == NULL)
 	return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    obj_context->current_render_target = obj_surface->base.id;
-    obj_context->vdp_bitstream_buffers_count = 0;
+    obj_context->last_slice_params		= NULL;
+    obj_context->last_slice_params_count	= 0;
+    obj_context->current_render_target		= obj_surface->base.id;
+    obj_context->vdp_bitstream_buffers_count	= 0;
+
+    switch (obj_context->vdp_codec) {
+    case VDP_CODEC_MPEG1:
+    case VDP_CODEC_MPEG2:
+	obj_context->vdp_picture_info.mpeg2.slice_count = 0;
+	break;
+    case VDP_CODEC_H264:
+	obj_context->vdp_picture_info.h264.slice_count = 0;
+	break;
+    case VDP_CODEC_VC1:
+	obj_context->vdp_picture_info.vc1.slice_count = 0;
+	break;
+    default:
+	assert(0);
+	break;
+    }
     return VA_STATUS_SUCCESS;
 }
 
@@ -2498,10 +2558,16 @@ vdpau_RenderPicture(VADriverContextP ctx,
 	if (!vdpau_translate_buffer(driver_data, obj_context, obj_buffer))
 	    return VA_STATUS_ERROR_UNSUPPORTED_BUFFERTYPE;
 	/* Release any buffer that is not VASliceDataBuffer */
-	if (obj_buffer->type == VASliceDataBufferType)
+	/* VASliceParameterBuffer is also needed to check for start_codes */
+	switch (obj_buffer->type) {
+	case VASliceParameterBufferType:
+	case VASliceDataBufferType:
 	    vdpau_schedule_destroy_buffer(obj_context, obj_buffer);
-	else
+	    break;
+	default:
 	    vdpau_destroy_buffer(driver_data, obj_buffer);
+	    break;
+	}
     }
 
     return VA_STATUS_SUCCESS;
