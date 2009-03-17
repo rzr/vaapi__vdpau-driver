@@ -954,10 +954,21 @@ vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
 				  object_context_p     obj_context,
 				  object_buffer_p      obj_buffer)
 {
-    VdpBitstreamBuffer * const vdp_bitstream_buffer = &obj_context->vdp_bitstream_buffer;
+    VdpBitstreamBuffer *vdp_bitstream_buffers = obj_context->vdp_bitstream_buffers;
+    if (obj_context->vdp_bitstream_buffers_count + 1 > obj_context->vdp_bitstream_buffers_count_max) {
+	obj_context->vdp_bitstream_buffers_count_max += 16;
+	vdp_bitstream_buffers = realloc(vdp_bitstream_buffers,
+					obj_context->vdp_bitstream_buffers_count_max * sizeof(vdp_bitstream_buffers[0]));
+	if (!vdp_bitstream_buffers)
+	    return 0;
+	obj_context->vdp_bitstream_buffers = vdp_bitstream_buffers;
+    }
+
+    VdpBitstreamBuffer * const vdp_bitstream_buffer = &vdp_bitstream_buffers[obj_context->vdp_bitstream_buffers_count];
     vdp_bitstream_buffer->struct_version  = VDP_BITSTREAM_BUFFER_VERSION;
     vdp_bitstream_buffer->bitstream	  = obj_buffer->buffer_data;
     vdp_bitstream_buffer->bitstream_bytes = obj_buffer->buffer_size;
+    obj_context->vdp_bitstream_buffers_count++;
     return 1;
 }
 
@@ -2100,6 +2111,12 @@ vdpau_DestroyContext(VADriverContextP ctx,
     if (obj_context == NULL)
 	return VA_STATUS_ERROR_INVALID_CONTEXT;
 
+    if (obj_context->vdp_bitstream_buffers) {
+	free(obj_context->vdp_bitstream_buffers);
+	obj_context->vdp_bitstream_buffers = NULL;
+	obj_context->vdp_bitstream_buffers_count_max = 0;
+    }
+
     if (obj_context->vdp_video_surfaces) {
 	for (i = 0; i < obj_context->num_render_targets; i++) {
 	    VdpVideoSurface surface = obj_context->vdp_video_surfaces[i];
@@ -2209,6 +2226,9 @@ vdpau_CreateContext(VADriverContextP ctx,
     obj_context->vdp_video_mixer	= VDP_INVALID_HANDLE;
     obj_context->vdp_video_surfaces	= (VdpVideoSurface *)
 	calloc(num_render_targets, sizeof(VdpVideoSurface));
+    obj_context->vdp_bitstream_buffers = NULL;
+    obj_context->vdp_bitstream_buffers_count = 0;
+    obj_context->vdp_bitstream_buffers_count_max = 0;
 
     if (obj_context->output_surface == 0) {
 	vdpau_DestroyContext(ctx, contextID);
@@ -2435,6 +2455,7 @@ vdpau_BeginPicture(VADriverContextP ctx,
 	return VA_STATUS_ERROR_INVALID_SURFACE;
 
     obj_context->current_render_target = obj_surface->base.id;
+    obj_context->vdp_bitstream_buffers_count = 0;
     return VA_STATUS_SUCCESS;
 }
 
@@ -2488,6 +2509,7 @@ vdpau_EndPicture(VADriverContextP ctx,
 		 VAContextID context)
 {
     INIT_DRIVER_DATA;
+    unsigned int i;
 
     object_context_p obj_context = CONTEXT(context);
     ASSERT(obj_context);
@@ -2517,7 +2539,8 @@ vdpau_EndPicture(VADriverContextP ctx,
 	    dump_VdpPictureInfoVC1(&obj_context->vdp_picture_info.vc1);
 	    break;
 	}
-	dump_VdpBitstreamBuffer(&obj_context->vdp_bitstream_buffer);
+	for (i = 0; i < obj_context->vdp_bitstream_buffers_count; i++)
+	    dump_VdpBitstreamBuffer(&obj_context->vdp_bitstream_buffers[i]);
     }
 
     VAStatus va_status;
@@ -2531,8 +2554,8 @@ vdpau_EndPicture(VADriverContextP ctx,
 					  obj_context->vdp_decoder,
 					  obj_surface->vdp_surface,
 					  (VdpPictureInfo)&obj_context->vdp_picture_info,
-					  1,
-					  &obj_context->vdp_bitstream_buffer);
+					  obj_context->vdp_bitstream_buffers_count,
+					  obj_context->vdp_bitstream_buffers);
     va_status = get_VAStatus(vdp_status);
 
     /* XXX: assume we are done with rendering right away */

@@ -125,7 +125,9 @@ struct object_context {
     VdpDecoder			 vdp_decoder;
     VdpVideoMixer                vdp_video_mixer;
     VdpVideoSurface		*vdp_video_surfaces;
-    VdpBitstreamBuffer		 vdp_bitstream_buffer;
+    VdpBitstreamBuffer		*vdp_bitstream_buffers;
+    unsigned int		 vdp_bitstream_buffers_count;
+    unsigned int		 vdp_bitstream_buffers_count_max;
     union {
 	VdpPictureInfoMPEG1Or2	 mpeg2;
 	VdpPictureInfoH264	 h264;
