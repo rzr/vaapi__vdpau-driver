@@ -924,6 +924,21 @@ static void dump_VdpBitstreamBuffer(VdpBitstreamBuffer *bitstream_buffer)
 /* === VA API to VDPAU thunks                                         === */
 /* ====================================================================== */
 
+static VdpBitstreamBuffer *
+vdpau_allocate_VdpBitstreamBuffer(object_context_p obj_context)
+{
+    VdpBitstreamBuffer *vdp_bitstream_buffers = obj_context->vdp_bitstream_buffers;
+    if (obj_context->vdp_bitstream_buffers_count + 1 > obj_context->vdp_bitstream_buffers_count_max) {
+	obj_context->vdp_bitstream_buffers_count_max += 16;
+	vdp_bitstream_buffers = realloc(vdp_bitstream_buffers,
+					obj_context->vdp_bitstream_buffers_count_max * sizeof(vdp_bitstream_buffers[0]));
+	if (!vdp_bitstream_buffers)
+	    return NULL;
+	obj_context->vdp_bitstream_buffers = vdp_bitstream_buffers;
+    }
+    return &vdp_bitstream_buffers[obj_context->vdp_bitstream_buffers_count++];
+}
+
 static int
 vdpau_translate_VASurfaceID(vdpau_driver_data_t *driver_data,
 			    VASurfaceID          va_surface,
@@ -954,21 +969,10 @@ vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
 				  object_context_p     obj_context,
 				  object_buffer_p      obj_buffer)
 {
-    VdpBitstreamBuffer *vdp_bitstream_buffers = obj_context->vdp_bitstream_buffers;
-    if (obj_context->vdp_bitstream_buffers_count + 1 > obj_context->vdp_bitstream_buffers_count_max) {
-	obj_context->vdp_bitstream_buffers_count_max += 16;
-	vdp_bitstream_buffers = realloc(vdp_bitstream_buffers,
-					obj_context->vdp_bitstream_buffers_count_max * sizeof(vdp_bitstream_buffers[0]));
-	if (!vdp_bitstream_buffers)
-	    return 0;
-	obj_context->vdp_bitstream_buffers = vdp_bitstream_buffers;
-    }
-
-    VdpBitstreamBuffer * const vdp_bitstream_buffer = &vdp_bitstream_buffers[obj_context->vdp_bitstream_buffers_count];
+    VdpBitstreamBuffer * const vdp_bitstream_buffer = vdpau_allocate_VdpBitstreamBuffer(obj_context);
     vdp_bitstream_buffer->struct_version  = VDP_BITSTREAM_BUFFER_VERSION;
     vdp_bitstream_buffer->bitstream	  = obj_buffer->buffer_data;
     vdp_bitstream_buffer->bitstream_bytes = obj_buffer->buffer_size;
-    obj_context->vdp_bitstream_buffers_count++;
     return 1;
 }
 
