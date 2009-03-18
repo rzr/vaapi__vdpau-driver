@@ -5,6 +5,7 @@ Version 0.2.5 - 18.Mar.2009
 * Handle multiple VASliceDataBuffers
 * Handle H.264 bitstreams without start_code_prefix_one_3byte
 * Fix destruction of output surfaces
+* Fix VC-1 picture info fields (pquant and deblockEnable)
 
 Version 0.2.4 - 03.Mar.2009
 * Upgrade to VA API 0.29.0-sds7 extensions

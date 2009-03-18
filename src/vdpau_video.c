@@ -1322,8 +1322,8 @@ vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
 	(major_version > 180 || minor_version >= 35))
 	pinfo->rangered		|= pic_param->range_reduction_frame << 1;
     pinfo->maxbframes		= pic_param->sequence_fields.bits.max_b_frames;
-    pinfo->deblockEnable	= 0; /* XXX: fill */
-    pinfo->pquant		= 0; /* XXX: fill */
+    pinfo->deblockEnable	= pic_param->post_processing != 0; /* XXX: this is NVIDIA's vdpau.c semantics (postprocflag & 1) */
+    pinfo->pquant		= pic_param->pic_quantizer_fields.bits.pic_quantizer_scale;
     return 1;
 }
 
