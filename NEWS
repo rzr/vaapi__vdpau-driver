@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-03-18
+vdpau-video NEWS -- summary of changes.  2009-03-20
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.2.6 - 20.Mar.2009
+* Handle VC-1 skipped P-frames
 
 Version 0.2.5 - 18.Mar.2009
 * Handle multiple VASliceDataBuffers

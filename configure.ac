@@ -1,13 +1,13 @@
 # vdpau_video package version number
 m4_define([vdpau_video_major_version], [0])
 m4_define([vdpau_video_minor_version], [2])
-m4_define([vdpau_video_micro_version], [5])
+m4_define([vdpau_video_micro_version], [6])
 m4_define([vdpau_video_version],
           [vdpau_video_major_version.vdpau_video_minor_version.vdpau_video_micro_version])
 
 # libva package version number
-m4_define([libva_sds_version], [7])
-m4_define([libva_sds_package_version], [0.29-2+sds10])
+m4_define([libva_sds_version], [8])
+m4_define([libva_sds_package_version], [0.29-2+sds11])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])
