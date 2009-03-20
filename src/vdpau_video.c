@@ -1290,6 +1290,7 @@ vdpau_translate_VAPictureParameterBufferVC1(vdpau_driver_data_t *driver_data,
     case 1: picture_type = 1; break; /* P */
     case 2: picture_type = 3; break; /* B */
     case 3: picture_type = 4; break; /* BI */
+    case 4: picture_type = 1; break; /* P "skipped" */
     default: ASSERT(!pic_param->picture_fields.bits.picture_type); return 0;
     }
 
