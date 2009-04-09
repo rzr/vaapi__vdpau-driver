@@ -91,25 +91,6 @@ static const char *string_of_VABufferType(VABufferType type)
     return str;
 }
 
-// Translates VdpStatus to VAStatus
-static VAStatus get_VAStatus(VdpStatus status)
-{
-    VAStatus va_status;
-    switch (status) {
-    case VDP_STATUS_OK:
-	va_status = VA_STATUS_SUCCESS;
-	break;
-    case VDP_STATUS_INVALID_DECODER_PROFILE:
-	va_status = VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
-	break;
-    default:
-	D(bug("WARNING: unknown VdpStatus %d\n", status));
-	va_status = VA_STATUS_ERROR_UNKNOWN;
-	break;
-    }
-    return va_status;
-}
-
 // Returns string representation of VdpCodec
 static const char *string_of_VdpCodec(VdpCodec codec)
 {
@@ -572,6 +553,17 @@ vdpau_get_information_string(vdpau_driver_data_t *driver_data,
     return driver_data->vdp_vtable.vdp_get_information_string(info_string);
 }
 
+// VdpGetErrorString
+static inline const char *
+vdpau_get_error_string(vdpau_driver_data_t *driver_data, VdpStatus vdp_status)
+{
+    if (driver_data == NULL)
+	return NULL;
+    if (driver_data->vdp_vtable.vdp_get_error_string == NULL)
+	return NULL;
+    return driver_data->vdp_vtable.vdp_get_error_string(vdp_status);
+}
+
 // Checks whether the VDPAU implementation supports the specified profile
 static inline VdpBool
 vdpau_is_supported_profile(vdpau_driver_data_t *driver_data,
@@ -953,6 +945,29 @@ vdpau_append_VdpBitstreamBuffer(object_context_p obj_context,
     bitstream_buffer->bitstream		= buffer;
     bitstream_buffer->bitstream_bytes	= buffer_size;
     return 1;
+}
+
+static VAStatus vdpau_translate_VAStatus(vdpau_driver_data_t *driver_data,
+					 VdpStatus            vdp_status)
+{
+    VAStatus va_status;
+    const char *vdp_status_string;
+
+    switch (vdp_status) {
+    case VDP_STATUS_OK:
+	va_status = VA_STATUS_SUCCESS;
+	break;
+    case VDP_STATUS_INVALID_DECODER_PROFILE:
+	va_status = VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
+	break;
+    default:
+	vdp_status_string = vdpau_get_error_string(driver_data, vdp_status);
+	D(bug("WARNING: unknown VdpStatus %d: %s\n", vdp_status,
+	      vdp_status_string ? vdp_status_string : "<unknown error>"));
+	va_status = VA_STATUS_ERROR_UNKNOWN;
+	break;
+    }
+    return va_status;
 }
 
 static int
@@ -2323,7 +2338,7 @@ vdpau_CreateContext(VADriverContextP ctx,
 					  &obj_context->vdp_video_mixer);
     if (vdp_status != VDP_STATUS_OK) {
 	vdpau_DestroyContext(ctx, contextID);
-	return get_VAStatus(vdp_status);
+	return vdpau_translate_VAStatus(driver_data, vdp_status);
     }
 
     return VA_STATUS_SUCCESS;
@@ -2627,7 +2642,7 @@ vdpau_EndPicture(VADriverContextP ctx,
 					  (VdpPictureInfo)&obj_context->vdp_picture_info,
 					  obj_context->vdp_bitstream_buffers_count,
 					  obj_context->vdp_bitstream_buffers);
-    va_status = get_VAStatus(vdp_status);
+    va_status = vdpau_translate_VAStatus(driver_data, vdp_status);
 
     /* XXX: assume we are done with rendering right away */
     obj_context->current_render_target = -1;
@@ -2746,14 +2761,14 @@ vdpau_PutSurface(VADriverContextP ctx,
 								&obj_output->vdp_flip_target);
 
 	if (vdp_status != VDP_STATUS_OK)
-	    return get_VAStatus(vdp_status);
+	    return vdpau_translate_VAStatus(driver_data, vdp_status);
 
 	vdp_status = vdpau_presentation_queue_create(driver_data,
 						     driver_data->vdp_device,
 						     obj_output->vdp_flip_target,
 						     &obj_output->vdp_flip_queue);
 	if (vdp_status != VDP_STATUS_OK)
-	    return get_VAStatus(vdp_status);
+	    return vdpau_translate_VAStatus(driver_data, vdp_status);
     }
     ASSERT(obj_output->drawable == draw);
     ASSERT(obj_output->vdp_flip_queue != VDP_INVALID_HANDLE);
@@ -2768,7 +2783,7 @@ vdpau_PutSurface(VADriverContextP ctx,
 								   vdp_output_surface,
 								   &dummy_time);
     if (vdp_status != VDP_STATUS_OK)
-	return get_VAStatus(vdp_status);
+	return vdpau_translate_VAStatus(driver_data, vdp_status);
 
     VdpRect source_rect, output_rect, display_rect;
     source_rect.x0  = srcx;
@@ -2798,7 +2813,7 @@ vdpau_PutSurface(VADriverContextP ctx,
 					  0, NULL);
 
     if (vdp_status != VDP_STATUS_OK)
-	return get_VAStatus(vdp_status);
+	return vdpau_translate_VAStatus(driver_data, vdp_status);
 
     uint32_t clip_width, clip_height;
     clip_width  = MIN(obj_output->output_surface_width, MAX(output_rect.x1, display_rect.x1));
@@ -2811,7 +2826,7 @@ vdpau_PutSurface(VADriverContextP ctx,
 						  0);
 
     if (vdp_status != VDP_STATUS_OK)
-	return get_VAStatus(vdp_status);
+	return vdpau_translate_VAStatus(driver_data, vdp_status);
 
     obj_output->current_output_surface ^= 1;
 
@@ -3042,6 +3057,7 @@ vdpau_Initialize(VADriverContextP ctx)
 		  output_surface_query_rgba_caps);
     VDP_INIT_PROC(GET_API_VERSION,		get_api_version);
     VDP_INIT_PROC(GET_INFORMATION_STRING,	get_information_string);
+    VDP_INIT_PROC(GET_ERROR_STRING,		get_error_string);
 
 #undef VDP_INIT_PROC
 

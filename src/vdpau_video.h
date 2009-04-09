@@ -78,6 +78,7 @@ struct vdpau_vtable {
     VdpOutputSurfaceQueryGetPutBitsNativeCapabilities *vdp_output_surface_query_rgba_caps;
     VdpGetApiVersion		*vdp_get_api_version;
     VdpGetInformationString	*vdp_get_information_string;
+    VdpGetErrorString		*vdp_get_error_string;
 };
 
 typedef struct vdpau_driver_data vdpau_driver_data_t;
