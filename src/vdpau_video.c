@@ -1927,7 +1927,7 @@ vdpau_CreateImage(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaDeriveImage
@@ -1939,7 +1939,7 @@ vdpau_DeriveImage(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaDestroyImage
@@ -1950,7 +1950,7 @@ vdpau_DestroyImage(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaSetImagePalette
@@ -1962,7 +1962,7 @@ vdpau_SetImagePalette(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaGetImage
@@ -1978,7 +1978,7 @@ vdpau_GetImage(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaPutImage
@@ -1996,7 +1996,7 @@ vdpau_PutImage(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaPutImage2
@@ -2016,7 +2016,7 @@ vdpau_PutImage2(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaQuerySubpictureFormats
@@ -2029,7 +2029,7 @@ vdpau_QuerySubpictureFormats(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaCreateSubpicture
@@ -2041,7 +2041,7 @@ vdpau_CreateSubpicture(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaDestroySubpicture
@@ -2052,7 +2052,7 @@ vdpau_DestroySubpicture(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaSetSubpictureImage
@@ -2064,7 +2064,7 @@ vdpau_SetSubpictureImage(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaSetSubpicturePalette (not a PUBLIC interface)
@@ -2076,7 +2076,7 @@ vdpau_SetSubpicturePalette(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaSetSubpictureChromaKey
@@ -2090,7 +2090,7 @@ vdpau_SetSubpictureChromakey(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaSetSubpictureGlobalAlpha
@@ -2102,7 +2102,7 @@ vdpau_SetSubpictureGlobalAlpha(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaAssociateSubpicture
@@ -2122,7 +2122,7 @@ vdpau_AssociateSubpicture(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaAssociateSubpicture2
@@ -2144,7 +2144,7 @@ vdpau_AssociateSubpicture2(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaDeassociateSubpicture
@@ -2157,7 +2157,7 @@ vdpau_DeassociateSubpicture(VADriverContextP ctx,
     INIT_DRIVER_DATA;
 
     /* TODO */
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaDestroyContext
