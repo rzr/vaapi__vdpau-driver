@@ -1854,320 +1854,6 @@ vdpau_CreateSurfaces(VADriverContextP ctx,
     return va_status;
 }
 
-// vaQueryImageFormats
-static VAStatus
-vdpau_QueryImageFormats(VADriverContextP ctx,
-			VAImageFormat *format_list,	/* out */
-			int *num_formats)		/* out */
-{
-    INIT_DRIVER_DATA;
-
-    if (num_formats)
-	*num_formats = 0;
-
-    if (format_list == NULL)
-	return VA_STATUS_SUCCESS;
-
-    typedef struct {
-	VdpImageFormatType type;
-	uint32_t format;
-	VAImageFormat va_format;
-    } image_format_map_t;
-
-    static const image_format_map_t image_formats_map[] = {
-#define DEF(TYPE, FORMAT) \
-	VDP_IMAGE_FORMAT_TYPE_##TYPE, VDP_##TYPE##_FORMAT_##FORMAT
-#define DEF_YUV(TYPE, FORMAT, FOURCC, ENDIAN, BPP) \
-	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, } }
-#define DEF_RGB(TYPE, FORMAT, FOURCC, ENDIAN, BPP, DEPTH, R,G,B,A) \
-	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
-	DEF_YUV(YCBCR, NV12,	('N','V','1','2'), LSB, 12),
-	DEF_YUV(YCBCR, YV12,	('Y','V','1','2'), LSB, 12),
-	DEF_YUV(YCBCR, UYVY,	('U','Y','V','Y'), LSB, 16),
-	DEF_YUV(YCBCR, YUYV,	('Y','U','Y','V'), LSB, 16),
-	DEF_YUV(YCBCR, V8U8Y8A8,('A','Y','U','V'), LSB, 32),
-#if 0
-	/* XXX: this requires a VdpOutputSurface that we don't want to
-	   handle yet. That surface is generally created wrt. the
-	   window (display-dependent) dimensions. However, it should
-	   be possible to create a temporary VdpOutputSurface in
-	   vaGetImage() but that may be costly (in memory). */
-#ifdef WORDS_BIGENDIAN
-	DEF_RGB(RGBA, B8G8R8A8,	('A','R','G','B'), MSB, 32,
-		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
-	DEF_RGB(RGBA, R8G8B8A8,	('A','B','G','R'), MSB, 32,
-		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
-#else
-	DEF_RGB(RGBA, B8G8R8A8,	('B','G','R','A'), LSB, 32,
-		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
-	DEF_RGB(RGBA, R8G8B8A8,	('R','G','B','A'), LSB, 32,
-		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
-#endif
-#endif
-#undef DEF_RGB
-#undef DEF_YUV
-#undef DEF
-    };
-
-    int i, n = 0;
-    for (i = 0; i < ARRAY_ELEMS(image_formats_map); i++) {
-	const image_format_map_t * const f = &image_formats_map[i];
-	if (vdpau_is_supported_image_format(driver_data, f->type, f->format))
-	    format_list[n++] = f->va_format;
-    }
-
-    /* If the assert fails then VDPAU_MAX_IMAGE_FORMATS needs to be bigger */
-    ASSERT(n <= VDPAU_MAX_IMAGE_FORMATS);
-    if (num_formats)
-	*num_formats = n;
-
-    return VA_STATUS_SUCCESS;
-}
-
-// vaCreateImage
-static VAStatus
-vdpau_CreateImage(VADriverContextP ctx,
-		  VAImageFormat *format,
-		  int width,
-		  int height,
-		  VAImage *image)			/* out */
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaDeriveImage
-static VAStatus
-vdpau_DeriveImage(VADriverContextP ctx,
-		  VASurfaceID surface,
-		  VAImage *image)			/* out */
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaDestroyImage
-static VAStatus
-vdpau_DestroyImage(VADriverContextP ctx,
-		   VAImageID image)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetImagePalette
-static VAStatus
-vdpau_SetImagePalette(VADriverContextP ctx,
-		      VAImageID image,
-		      unsigned char *palette)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaGetImage
-static VAStatus
-vdpau_GetImage(VADriverContextP ctx,
-	       VASurfaceID surface,
-	       int x,     /* coordinates of the upper left source pixel */
-	       int y,
-	       unsigned int width, /* width and height of the region */
-	       unsigned int height,
-	       VAImageID image)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaPutImage
-static VAStatus
-vdpau_PutImage(VADriverContextP ctx,
-	       VASurfaceID surface,
-	       VAImageID image,
-	       int src_x,
-	       int src_y,
-	       unsigned int width,
-	       unsigned int height,
-	       int dest_x,
-	       int dest_y)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaPutImage2
-static VAStatus
-vdpau_PutImage2(VADriverContextP ctx,
-		VASurfaceID surface,
-		VAImageID image,
-		int src_x,
-		int src_y,
-		unsigned int src_width,
-		unsigned int src_height,
-		int dest_x,
-		int dest_y,
-		unsigned int dest_width,
-		unsigned int dest_height)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaQuerySubpictureFormats
-static VAStatus
-vdpau_QuerySubpictureFormats(VADriverContextP ctx,
-			     VAImageFormat *format_list,/* out */
-			     unsigned int *flags,	/* out */
-			     unsigned int *num_formats)	/* out */
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaCreateSubpicture
-static VAStatus
-vdpau_CreateSubpicture(VADriverContextP ctx,
-		       VAImageID image,
-		       VASubpictureID *subpicture)	/* out */
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaDestroySubpicture
-static VAStatus
-vdpau_DestroySubpicture(VADriverContextP ctx,
-			VASubpictureID subpicture)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetSubpictureImage
-static VAStatus
-vdpau_SetSubpictureImage(VADriverContextP ctx,
-			 VASubpictureID subpicture,
-			 VAImageID image)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetSubpicturePalette (not a PUBLIC interface)
-static VAStatus
-vdpau_SetSubpicturePalette(VADriverContextP ctx,
-			   VASubpictureID subpicture,
-			   unsigned char *palette)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetSubpictureChromaKey
-static VAStatus
-vdpau_SetSubpictureChromakey(VADriverContextP ctx,
-			     VASubpictureID subpicture,
-			     unsigned int chromakey_min,
-			     unsigned int chromakey_max,
-			     unsigned int chromakey_mask)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetSubpictureGlobalAlpha
-static VAStatus
-vdpau_SetSubpictureGlobalAlpha(VADriverContextP ctx,
-			       VASubpictureID subpicture,
-			       float global_alpha)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaAssociateSubpicture
-static VAStatus
-vdpau_AssociateSubpicture(VADriverContextP ctx,
-			  VASubpictureID subpicture,
-			  VASurfaceID *target_surfaces,
-			  int num_surfaces,
-			  short src_x, /* upper left offset in subpicture */
-			  short src_y,
-			  short dest_x, /* upper left offset in surface */
-			  short dest_y,
-			  unsigned short width,
-			  unsigned short height,
-			  unsigned int flags)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaAssociateSubpicture2
-static VAStatus
-vdpau_AssociateSubpicture2(VADriverContextP ctx,
-			   VASubpictureID subpicture,
-			   VASurfaceID *target_surfaces,
-			   int num_surfaces,
-			   short src_x, /* upper left offset in subpicture */
-			   short src_y,
-			   unsigned short src_width,
-			   unsigned short src_height,
-			   short dest_x, /* upper left offset in surface */
-			   short dest_y,
-			   unsigned short dest_width,
-			   unsigned short dest_height,
-			   unsigned int flags)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaDeassociateSubpicture
-static VAStatus
-vdpau_DeassociateSubpicture(VADriverContextP ctx,
-			    VASubpictureID subpicture,
-			    VASurfaceID *target_surfaces,
-			    int num_surfaces)
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
 // vaDestroyContext
 static VAStatus
 vdpau_DestroyContext(VADriverContextP ctx,
@@ -2504,6 +2190,320 @@ vdpau_UnmapBuffer(VADriverContextP ctx,
 {
     /* Don't do anything there, translate structure in vaRenderPicture() */
     return VA_STATUS_SUCCESS;
+}
+
+// vaQueryImageFormats
+static VAStatus
+vdpau_QueryImageFormats(VADriverContextP ctx,
+			VAImageFormat *format_list,	/* out */
+			int *num_formats)		/* out */
+{
+    INIT_DRIVER_DATA;
+
+    if (num_formats)
+	*num_formats = 0;
+
+    if (format_list == NULL)
+	return VA_STATUS_SUCCESS;
+
+    typedef struct {
+	VdpImageFormatType type;
+	uint32_t format;
+	VAImageFormat va_format;
+    } image_format_map_t;
+
+    static const image_format_map_t image_formats_map[] = {
+#define DEF(TYPE, FORMAT) \
+	VDP_IMAGE_FORMAT_TYPE_##TYPE, VDP_##TYPE##_FORMAT_##FORMAT
+#define DEF_YUV(TYPE, FORMAT, FOURCC, ENDIAN, BPP) \
+	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, } }
+#define DEF_RGB(TYPE, FORMAT, FOURCC, ENDIAN, BPP, DEPTH, R,G,B,A) \
+	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
+	DEF_YUV(YCBCR, NV12,	('N','V','1','2'), LSB, 12),
+	DEF_YUV(YCBCR, YV12,	('Y','V','1','2'), LSB, 12),
+	DEF_YUV(YCBCR, UYVY,	('U','Y','V','Y'), LSB, 16),
+	DEF_YUV(YCBCR, YUYV,	('Y','U','Y','V'), LSB, 16),
+	DEF_YUV(YCBCR, V8U8Y8A8,('A','Y','U','V'), LSB, 32),
+#if 0
+	/* XXX: this requires a VdpOutputSurface that we don't want to
+	   handle yet. That surface is generally created wrt. the
+	   window (display-dependent) dimensions. However, it should
+	   be possible to create a temporary VdpOutputSurface in
+	   vaGetImage() but that may be costly (in memory). */
+#ifdef WORDS_BIGENDIAN
+	DEF_RGB(RGBA, B8G8R8A8,	('A','R','G','B'), MSB, 32,
+		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
+	DEF_RGB(RGBA, R8G8B8A8,	('A','B','G','R'), MSB, 32,
+		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
+#else
+	DEF_RGB(RGBA, B8G8R8A8,	('B','G','R','A'), LSB, 32,
+		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
+	DEF_RGB(RGBA, R8G8B8A8,	('R','G','B','A'), LSB, 32,
+		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
+#endif
+#endif
+#undef DEF_RGB
+#undef DEF_YUV
+#undef DEF
+    };
+
+    int i, n = 0;
+    for (i = 0; i < ARRAY_ELEMS(image_formats_map); i++) {
+	const image_format_map_t * const f = &image_formats_map[i];
+	if (vdpau_is_supported_image_format(driver_data, f->type, f->format))
+	    format_list[n++] = f->va_format;
+    }
+
+    /* If the assert fails then VDPAU_MAX_IMAGE_FORMATS needs to be bigger */
+    ASSERT(n <= VDPAU_MAX_IMAGE_FORMATS);
+    if (num_formats)
+	*num_formats = n;
+
+    return VA_STATUS_SUCCESS;
+}
+
+// vaCreateImage
+static VAStatus
+vdpau_CreateImage(VADriverContextP ctx,
+		  VAImageFormat *format,
+		  int width,
+		  int height,
+		  VAImage *image)			/* out */
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaDeriveImage
+static VAStatus
+vdpau_DeriveImage(VADriverContextP ctx,
+		  VASurfaceID surface,
+		  VAImage *image)			/* out */
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaDestroyImage
+static VAStatus
+vdpau_DestroyImage(VADriverContextP ctx,
+		   VAImageID image)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaSetImagePalette
+static VAStatus
+vdpau_SetImagePalette(VADriverContextP ctx,
+		      VAImageID image,
+		      unsigned char *palette)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaGetImage
+static VAStatus
+vdpau_GetImage(VADriverContextP ctx,
+	       VASurfaceID surface,
+	       int x,     /* coordinates of the upper left source pixel */
+	       int y,
+	       unsigned int width, /* width and height of the region */
+	       unsigned int height,
+	       VAImageID image)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaPutImage
+static VAStatus
+vdpau_PutImage(VADriverContextP ctx,
+	       VASurfaceID surface,
+	       VAImageID image,
+	       int src_x,
+	       int src_y,
+	       unsigned int width,
+	       unsigned int height,
+	       int dest_x,
+	       int dest_y)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaPutImage2
+static VAStatus
+vdpau_PutImage2(VADriverContextP ctx,
+		VASurfaceID surface,
+		VAImageID image,
+		int src_x,
+		int src_y,
+		unsigned int src_width,
+		unsigned int src_height,
+		int dest_x,
+		int dest_y,
+		unsigned int dest_width,
+		unsigned int dest_height)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaQuerySubpictureFormats
+static VAStatus
+vdpau_QuerySubpictureFormats(VADriverContextP ctx,
+			     VAImageFormat *format_list,/* out */
+			     unsigned int *flags,	/* out */
+			     unsigned int *num_formats)	/* out */
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaCreateSubpicture
+static VAStatus
+vdpau_CreateSubpicture(VADriverContextP ctx,
+		       VAImageID image,
+		       VASubpictureID *subpicture)	/* out */
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaDestroySubpicture
+static VAStatus
+vdpau_DestroySubpicture(VADriverContextP ctx,
+			VASubpictureID subpicture)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaSetSubpictureImage
+static VAStatus
+vdpau_SetSubpictureImage(VADriverContextP ctx,
+			 VASubpictureID subpicture,
+			 VAImageID image)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaSetSubpicturePalette (not a PUBLIC interface)
+static VAStatus
+vdpau_SetSubpicturePalette(VADriverContextP ctx,
+			   VASubpictureID subpicture,
+			   unsigned char *palette)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaSetSubpictureChromaKey
+static VAStatus
+vdpau_SetSubpictureChromakey(VADriverContextP ctx,
+			     VASubpictureID subpicture,
+			     unsigned int chromakey_min,
+			     unsigned int chromakey_max,
+			     unsigned int chromakey_mask)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaSetSubpictureGlobalAlpha
+static VAStatus
+vdpau_SetSubpictureGlobalAlpha(VADriverContextP ctx,
+			       VASubpictureID subpicture,
+			       float global_alpha)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaAssociateSubpicture
+static VAStatus
+vdpau_AssociateSubpicture(VADriverContextP ctx,
+			  VASubpictureID subpicture,
+			  VASurfaceID *target_surfaces,
+			  int num_surfaces,
+			  short src_x, /* upper left offset in subpicture */
+			  short src_y,
+			  short dest_x, /* upper left offset in surface */
+			  short dest_y,
+			  unsigned short width,
+			  unsigned short height,
+			  unsigned int flags)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaAssociateSubpicture2
+static VAStatus
+vdpau_AssociateSubpicture2(VADriverContextP ctx,
+			   VASubpictureID subpicture,
+			   VASurfaceID *target_surfaces,
+			   int num_surfaces,
+			   short src_x, /* upper left offset in subpicture */
+			   short src_y,
+			   unsigned short src_width,
+			   unsigned short src_height,
+			   short dest_x, /* upper left offset in surface */
+			   short dest_y,
+			   unsigned short dest_width,
+			   unsigned short dest_height,
+			   unsigned int flags)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+
+// vaDeassociateSubpicture
+static VAStatus
+vdpau_DeassociateSubpicture(VADriverContextP ctx,
+			    VASubpictureID subpicture,
+			    VASurfaceID *target_surfaces,
+			    int num_surfaces)
+{
+    INIT_DRIVER_DATA;
+
+    /* TODO */
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
 // vaBeginPicture
