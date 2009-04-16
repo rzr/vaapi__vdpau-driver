@@ -59,8 +59,10 @@ struct vdpau_vtable {
     VdpDeviceDestroy		*vdp_device_destroy;
     VdpVideoSurfaceCreate	*vdp_video_surface_create;
     VdpVideoSurfaceDestroy	*vdp_video_surface_destroy;
+    VdpVideoSurfaceGetBitsYCbCr	*vdp_video_surface_get_bits_ycbcr;
     VdpOutputSurfaceCreate	*vdp_output_surface_create;
     VdpOutputSurfaceDestroy	*vdp_output_surface_destroy;
+    VdpOutputSurfaceGetBitsNative *vdp_output_surface_get_bits_native;
     VdpVideoMixerCreate		*vdp_video_mixer_create;
     VdpVideoMixerDestroy	*vdp_video_mixer_destroy;
     VdpVideoMixerRender		*vdp_video_mixer_render;
@@ -89,6 +91,7 @@ struct vdpau_driver_data {
     struct object_heap		 surface_heap;
     struct object_heap		 buffer_heap;
     struct object_heap		 output_heap;
+    struct object_heap		 image_heap;
     VdpDevice			 vdp_device;
     VdpGetProcAddress		*vdp_get_proc_address;
     struct vdpau_vtable		 vdp_vtable;
@@ -144,6 +147,8 @@ struct object_surface {
     struct object_base		 base;
     VAContextID			 va_context;
     VdpVideoSurface		 vdp_surface;
+    unsigned int		 width;
+    unsigned int		 height;
 };
 
 typedef struct object_buffer object_buffer_t;
@@ -170,10 +175,17 @@ struct object_output {
     int				 current_output_surface;
 };
 
+typedef struct object_image object_image_t;
+struct object_image {
+    struct object_base		 base;
+    VAImage			*image;
+};
+
 typedef object_config_t		*object_config_p;
 typedef object_context_t	*object_context_p;
 typedef object_surface_t	*object_surface_p;
 typedef object_buffer_t		*object_buffer_p;
 typedef object_output_t		*object_output_p;
+typedef object_image_t		*object_image_p;
 
 #endif /* VDPAU_VIDEO_H */

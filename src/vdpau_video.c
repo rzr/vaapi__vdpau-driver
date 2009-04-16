@@ -41,12 +41,15 @@
 	((object_buffer_p)object_heap_lookup(&driver_data->buffer_heap, id))
 #define OUTPUT(id) \
 	((object_output_p)object_heap_lookup(&driver_data->output_heap, id))
+#define IMAGE(id) \
+	((object_image_p)object_heap_lookup(&driver_data->image_heap, id))
 
 #define CONFIG_ID_OFFSET	0x01000000
 #define CONTEXT_ID_OFFSET	0x02000000
 #define SURFACE_ID_OFFSET	0x04000000
 #define BUFFER_ID_OFFSET	0x08000000
 #define OUTPUT_ID_OFFSET	0x10000000
+#define IMAGE_ID_OFFSET		0x06000000
 
 
 /* ====================================================================== */
@@ -180,6 +183,20 @@ static VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
     return (VdpDecoderProfile)-1;
 }
 
+// Translates VA API image format to VdpYCbCrFormat
+static VdpYCbCrFormat get_VdpYCbCrFormat(uint32_t fourcc)
+{
+    switch (fourcc) {
+    case VA_FOURCC('N','V','1','2'):	return VDP_YCBCR_FORMAT_NV12;
+    case VA_FOURCC('Y','V','1','2'):	return VDP_YCBCR_FORMAT_YV12;
+    case VA_FOURCC('U','Y','V','Y'):	return VDP_YCBCR_FORMAT_UYVY;
+    case VA_FOURCC('Y','U','Y','V'):	return VDP_YCBCR_FORMAT_YUYV;
+    case VA_FOURCC('A','Y','U','V'):	return VDP_YCBCR_FORMAT_V8U8Y8A8;
+    }
+    ASSERT(fourcc);
+    return (VdpYCbCrFormat)-1;
+}
+
 
 /* ====================================================================== */
 /* === VDPAU Gate                                                     === */
@@ -217,6 +234,23 @@ vdpau_video_surface_destroy(vdpau_driver_data_t *driver_data,
     return driver_data->vdp_vtable.vdp_video_surface_destroy(surface);
 }
 
+// VdpVideoSurfaceGetBitsYCbCr
+static inline VdpStatus
+vdpau_video_surface_get_bits_ycbcr(vdpau_driver_data_t *driver_data,
+				   VdpVideoSurface      surface,
+                                   VdpYCbCrFormat       format,
+                                   uint8_t            **dest,
+                                   uint32_t            *stride)
+{
+    if (driver_data < 0)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_video_surface_get_bits_ycbcr == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_video_surface_get_bits_ycbcr(surface, format,
+								    (void * const *)dest,
+								    stride);
+}
+
 // VdpOutputSurfaceCreate
 static inline VdpStatus
 vdpau_output_surface_create(vdpau_driver_data_t *driver_data,
@@ -247,6 +281,24 @@ vdpau_output_surface_destroy(vdpau_driver_data_t *driver_data,
     if (driver_data->vdp_vtable.vdp_output_surface_destroy == NULL)
 	return VDP_STATUS_INVALID_POINTER;
     return driver_data->vdp_vtable.vdp_output_surface_destroy(surface);
+}
+
+// VdpOutputSurfaceGetBitsNative
+static inline VdpStatus
+vdpau_output_surface_get_bits_native(vdpau_driver_data_t *driver_data,
+				     VdpOutputSurface     surface,
+                                     const VdpRect       *source_rect,
+                                     uint8_t            **dst,
+                                     uint32_t            *stride)
+{
+    if (driver_data == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_output_surface_get_bits_native == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_output_surface_get_bits_native(surface,
+								      source_rect,
+								      (void * const *)dst,
+								      stride);
 }
 
 // VdpVideoMixerCreate
@@ -1840,6 +1892,8 @@ vdpau_CreateSurfaces(VADriverContextP ctx,
         }
 	obj_surface->va_context = 0;
 	obj_surface->vdp_surface = vdp_surface;
+	obj_surface->width = width;
+	obj_surface->height = height;
         surfaces[i] = va_surface;
 	vdp_surface = VDP_INVALID_HANDLE;
     }
@@ -2110,6 +2164,7 @@ vdpau_CreateBuffer(VADriverContextP ctx,
     case VASliceParameterBufferType:
     case VASliceDataBufferType:
     case VABitPlaneBufferType:
+    case VAImageBufferType:
 	/* Ok */
 	break;
     default:
@@ -2262,6 +2317,25 @@ vdpau_QueryImageFormats(VADriverContextP ctx,
     return VA_STATUS_SUCCESS;
 }
 
+// vaDestroyImage
+static VAStatus
+vdpau_DestroyImage(VADriverContextP ctx,
+		   VAImageID image_id)
+{
+    INIT_DRIVER_DATA;
+
+    VAImage *image;
+    object_image_p obj_image;
+
+    if ((obj_image = IMAGE(image_id)) == NULL)
+	return VA_STATUS_ERROR_INVALID_IMAGE;
+    if ((image = obj_image->image) == NULL)
+	return VA_STATUS_ERROR_INVALID_IMAGE;
+
+    object_heap_free(&driver_data->image_heap, (object_base_p)obj_image);
+    return vdpau_DestroyBuffer(ctx, image->buf);
+}
+
 // vaCreateImage
 static VAStatus
 vdpau_CreateImage(VADriverContextP ctx,
@@ -2272,8 +2346,75 @@ vdpau_CreateImage(VADriverContextP ctx,
 {
     INIT_DRIVER_DATA;
 
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
+    VAStatus va_status;
+    int image_id;
+    object_image_p obj_image = NULL;
+
+    if (format == NULL)
+	return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+    if (image == NULL)
+	return VA_STATUS_ERROR_INVALID_IMAGE;
+    image->image_id		= 0;
+    image->buf			= 0;
+
+    if ((image_id = object_heap_allocate(&driver_data->image_heap)) < 0)
+	return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    image->image_id = image_id;
+
+    if ((obj_image = IMAGE(image_id)) == NULL)
+	return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    obj_image->image = image;
+
+    switch (format->fourcc) {
+    case VA_FOURCC('N','V','1','2'):
+	image->num_planes	= 2;
+	image->pitches[0]	= width;
+	image->offsets[0]	= 0;
+	image->pitches[1]	= width;
+	image->offsets[1]	= image->offsets[0] + image->pitches[0] * height;
+	image->data_size	= image->offsets[1] + image->pitches[1] * (height + 1) / 2;
+	break;
+    case VA_FOURCC('Y','V','1','2'):
+	image->num_planes	= 3;
+	image->pitches[0]	= width;
+	image->offsets[0]	= 0;
+	image->pitches[1]	= (width + 1) / 2;
+	image->offsets[1]	= image->offsets[0] + image->pitches[0] * height;
+	image->pitches[2]	= (width + 1) / 2;
+	image->offsets[2]	= image->offsets[1] + image->pitches[1] * (height + 1) / 2;
+	image->data_size	= image->offsets[2] + image->pitches[2] * (height + 1) / 2;
+	break;
+    case VA_FOURCC('U','Y','V','Y'):
+    case VA_FOURCC('Y','U','Y','V'):
+	image->num_planes	= 1;
+	image->pitches[0]	= width * 4;
+	image->offsets[0]	= 0;
+	image->data_size	= image->offsets[0] + image->pitches[0] * height;
+	break;
+    default:
+	vdpau_DestroyImage(ctx, image_id);
+	return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
+
+    va_status = vdpau_CreateBuffer(ctx, 0, VAImageBufferType,
+				   image->data_size, 1, NULL,
+				   &image->buf);
+    if (va_status != VA_STATUS_SUCCESS) {
+	vdpau_DestroyImage(ctx, image_id);
+	return va_status;
+    }
+
+    obj_image->image		= image;
+    image->image_id		= image_id;
+    image->format		= *format;
+    image->width		= width;
+    image->height		= height;
+
+    /* XXX: no paletted formats supported yet */
+    image->num_palette_entries	= 0;
+    image->entry_bytes		= 0;
+    return VA_STATUS_SUCCESS;
 }
 
 // vaDeriveImage
@@ -2281,17 +2422,6 @@ static VAStatus
 vdpau_DeriveImage(VADriverContextP ctx,
 		  VASurfaceID surface,
 		  VAImage *image)			/* out */
-{
-    INIT_DRIVER_DATA;
-
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaDestroyImage
-static VAStatus
-vdpau_DestroyImage(VADriverContextP ctx,
-		   VAImageID image)
 {
     INIT_DRIVER_DATA;
 
@@ -2319,12 +2449,53 @@ vdpau_GetImage(VADriverContextP ctx,
 	       int y,
 	       unsigned int width, /* width and height of the region */
 	       unsigned int height,
-	       VAImageID image)
+	       VAImageID image_id)
 {
     INIT_DRIVER_DATA;
 
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
+    object_buffer_p obj_buffer;
+    object_surface_p obj_surface;
+    object_image_p obj_image;
+    VAImage *image;
+    VdpStatus vdp_status;
+    VdpYCbCrFormat ycbcr_format;
+    uint8_t *src[3];
+    unsigned int src_stride[3];
+    int i, is_full_surface;
+
+    if ((obj_surface = SURFACE(surface)) == NULL)
+	return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    /* XXX: only support full surface readback for now */
+    is_full_surface = (x == 0 &&
+		       y == 0 &&
+		       obj_surface->width == width &&
+		       obj_surface->height == height);
+    if (!is_full_surface)
+	return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+    if ((obj_image = IMAGE(image_id)) == NULL)
+	return VA_STATUS_ERROR_INVALID_IMAGE;
+    if ((image = obj_image->image) == NULL)
+	return VA_STATUS_ERROR_INVALID_IMAGE;
+
+    if ((obj_buffer = BUFFER(image->buf)) == NULL)
+	return VA_STATUS_ERROR_INVALID_BUFFER;
+
+    if ((ycbcr_format = get_VdpYCbCrFormat(image->format.fourcc)) == (VdpYCbCrFormat)-1)
+	return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    for (i = 0; i < image->num_planes; i++) {
+	src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+	src_stride[i] = image->pitches[i];
+    }
+
+    vdp_status = vdpau_video_surface_get_bits_ycbcr(driver_data,
+						    obj_surface->vdp_surface,
+						    ycbcr_format,
+						    src, src_stride);
+
+    return vdpau_translate_VAStatus(driver_data, vdp_status);
 }
 
 // vaPutImage
@@ -2887,12 +3058,16 @@ static VAStatus
 vdpau_Terminate(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
+    object_image_p obj_image;
     object_buffer_p obj_buffer;
     object_output_p obj_output;
     object_surface_p obj_surface;
     object_context_p obj_context;
     object_config_p obj_config;
     object_heap_iterator iter;
+
+    /* TODO cleanup */
+    object_heap_destroy(&driver_data->image_heap);
 
     /* Clean up left over buffers */
     obj_buffer = (object_buffer_p)object_heap_first(&driver_data->buffer_heap, &iter);
@@ -3041,8 +3216,12 @@ vdpau_Initialize(VADriverContextP ctx)
     VDP_INIT_PROC(DEVICE_DESTROY,		device_destroy);
     VDP_INIT_PROC(VIDEO_SURFACE_CREATE,		video_surface_create);
     VDP_INIT_PROC(VIDEO_SURFACE_DESTROY,	video_surface_destroy);
+    VDP_INIT_PROC(VIDEO_SURFACE_GET_BITS_Y_CB_CR,
+                  video_surface_get_bits_ycbcr);
     VDP_INIT_PROC(OUTPUT_SURFACE_CREATE,	output_surface_create);
     VDP_INIT_PROC(OUTPUT_SURFACE_DESTROY,	output_surface_destroy);
+    VDP_INIT_PROC(OUTPUT_SURFACE_GET_BITS_NATIVE,
+                  output_surface_get_bits_native);
     VDP_INIT_PROC(VIDEO_MIXER_CREATE,		video_mixer_create);
     VDP_INIT_PROC(VIDEO_MIXER_DESTROY,		video_mixer_destroy);
     VDP_INIT_PROC(VIDEO_MIXER_RENDER,		video_mixer_render);
@@ -3103,6 +3282,11 @@ vdpau_Initialize(VADriverContextP ctx)
 	return VDPAU_TERMINATE(ctx, ERROR_ALLOCATION_FAILED);
 
     result = object_heap_init(&driver_data->output_heap, sizeof(struct object_output), OUTPUT_ID_OFFSET);
+    ASSERT(result == 0);
+    if (result != 0)
+	return VDPAU_TERMINATE(ctx, ERROR_ALLOCATION_FAILED);
+
+    result = object_heap_init(&driver_data->image_heap, sizeof(struct object_image), IMAGE_ID_OFFSET);
     ASSERT(result == 0);
     if (result != 0)
 	return VDPAU_TERMINATE(ctx, ERROR_ALLOCATION_FAILED);
