@@ -1885,6 +1885,12 @@ vdpau_QueryImageFormats(VADriverContextP ctx,
 	DEF_YUV(YCBCR, UYVY,	('U','Y','V','Y'), LSB, 16),
 	DEF_YUV(YCBCR, YUYV,	('Y','U','Y','V'), LSB, 16),
 	DEF_YUV(YCBCR, V8U8Y8A8,('A','Y','U','V'), LSB, 32),
+#if 0
+	/* XXX: this requires a VdpOutputSurface that we don't want to
+	   handle yet. That surface is generally created wrt. the
+	   window (display-dependent) dimensions. However, it should
+	   be possible to create a temporary VdpOutputSurface in
+	   vaGetImage() but that may be costly (in memory). */
 #ifdef WORDS_BIGENDIAN
 	DEF_RGB(RGBA, B8G8R8A8,	('A','R','G','B'), MSB, 32,
 		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
@@ -1895,6 +1901,7 @@ vdpau_QueryImageFormats(VADriverContextP ctx,
 		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
 	DEF_RGB(RGBA, R8G8B8A8,	('R','G','B','A'), LSB, 32,
 		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
+#endif
 #endif
 #undef DEF_RGB
 #undef DEF_YUV
