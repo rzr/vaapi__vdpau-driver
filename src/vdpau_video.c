@@ -1882,6 +1882,7 @@ vdpau_QueryImageFormats(VADriverContextP ctx,
 #define DEF_RGB(TYPE, FORMAT, FOURCC, ENDIAN, BPP, DEPTH, R,G,B,A) \
 	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
 	DEF_YUV(YCBCR, NV12,	('N','V','1','2'), LSB, 12),
+	DEF_YUV(YCBCR, YV12,	('Y','V','1','2'), LSB, 12),
 	DEF_YUV(YCBCR, UYVY,	('U','Y','V','Y'), LSB, 16),
 	DEF_YUV(YCBCR, YUYV,	('Y','U','Y','V'), LSB, 16),
 	DEF_YUV(YCBCR, V8U8Y8A8,('A','Y','U','V'), LSB, 32),
