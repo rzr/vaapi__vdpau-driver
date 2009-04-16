@@ -1,5 +1,11 @@
-vdpau-video NEWS -- summary of changes.  2009-03-20
+vdpau-video NEWS -- summary of changes.  2009-04-16
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.3.0 - 16.Apr.2009
+* Don't expose RGBA formats in vaQueryImageFormats()
+* Add support for VAImage related functions:
+  - vaCreateImage(), vaDestroyImage()
+  - vaGetImage() for full surface readback only (i.e. no partial reads)
 
 Version 0.2.6 - 20.Mar.2009
 * Handle VC-1 skipped P-frames
