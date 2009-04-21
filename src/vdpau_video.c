@@ -56,6 +56,40 @@
 /* === Helpers                                                        === */
 /* ====================================================================== */
 
+typedef struct {
+    VdpImageFormatType type;
+    uint32_t format;
+    VAImageFormat va_format;
+} vdpau_image_format_map_t;
+
+static const vdpau_image_format_map_t vdpau_image_formats_map[] = {
+#define DEF(TYPE, FORMAT) \
+    VDP_IMAGE_FORMAT_TYPE_##TYPE, VDP_##TYPE##_FORMAT_##FORMAT
+#define DEF_YUV(TYPE, FORMAT, FOURCC, ENDIAN, BPP) \
+    { DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, } }
+#define DEF_RGB(TYPE, FORMAT, FOURCC, ENDIAN, BPP, DEPTH, R,G,B,A) \
+    { DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
+    DEF_YUV(YCBCR, NV12,	('N','V','1','2'), LSB, 12),
+    DEF_YUV(YCBCR, YV12,	('Y','V','1','2'), LSB, 12),
+    DEF_YUV(YCBCR, UYVY,	('U','Y','V','Y'), LSB, 16),
+    DEF_YUV(YCBCR, YUYV,	('Y','U','Y','V'), LSB, 16),
+    DEF_YUV(YCBCR, V8U8Y8A8,	('A','Y','U','V'), LSB, 32),
+#ifdef WORDS_BIGENDIAN
+    DEF_RGB(RGBA, B8G8R8A8,	('R','G','B','A'), MSB, 32,
+	    32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000),
+    DEF_RGB(RGBA, R8G8B8A8,	('R','G','B','A'), MSB, 32,
+	    32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000),
+#else
+    DEF_RGB(RGBA, B8G8R8A8,	('R','G','B','A'), LSB, 32,
+	    32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000),
+    DEF_RGB(RGBA, R8G8B8A8,	('R','G','B','A'), LSB, 32,
+	    32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000),
+#endif
+#undef DEF_RGB
+#undef DEF_YUV
+#undef DEF
+};
+
 // Returns X drawable dimensions
 static void get_drawable_size(Display  *display,
 			      Drawable  drawable,
@@ -184,17 +218,36 @@ static VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
 }
 
 // Translates VA API image format to VdpYCbCrFormat
-static VdpYCbCrFormat get_VdpYCbCrFormat(uint32_t fourcc)
+static VdpYCbCrFormat get_VdpYCbCrFormat(const VAImageFormat *image_format)
 {
-    switch (fourcc) {
-    case VA_FOURCC('N','V','1','2'):	return VDP_YCBCR_FORMAT_NV12;
-    case VA_FOURCC('Y','V','1','2'):	return VDP_YCBCR_FORMAT_YV12;
-    case VA_FOURCC('U','Y','V','Y'):	return VDP_YCBCR_FORMAT_UYVY;
-    case VA_FOURCC('Y','U','Y','V'):	return VDP_YCBCR_FORMAT_YUYV;
-    case VA_FOURCC('A','Y','U','V'):	return VDP_YCBCR_FORMAT_V8U8Y8A8;
+    int i;
+    for (i = 0; i < ARRAY_ELEMS(vdpau_image_formats_map); i++) {
+	const vdpau_image_format_map_t * const m = &vdpau_image_formats_map[i];
+	if (m->type != VDP_IMAGE_FORMAT_TYPE_YCBCR)
+	    continue;
+	if (m->va_format.fourcc == image_format->fourcc)
+	    return m->format;
     }
-    ASSERT(fourcc);
+    ASSERT(image_format->fourcc);
     return (VdpYCbCrFormat)-1;
+}
+
+// Translates VA API image format to VdpRGBAFormat
+static VdpRGBAFormat get_VdpRGBAFormat(const VAImageFormat *image_format)
+{
+    int i;
+    for (i = 0; i < ARRAY_ELEMS(vdpau_image_formats_map); i++) {
+	const vdpau_image_format_map_t * const m = &vdpau_image_formats_map[i];
+	if (m->type != VDP_IMAGE_FORMAT_TYPE_RGBA)
+	    continue;
+	if (m->va_format.fourcc == image_format->fourcc &&
+	    m->va_format.byte_order == image_format->byte_order &&
+	    m->va_format.red_mask == image_format->red_mask &&
+	    m->va_format.green_mask == image_format->green_mask &&
+	    m->va_format.blue_mask == image_format->blue_mask)
+	    return m->format;
+    }
+    return (VdpRGBAFormat)-1;
 }
 
 
@@ -2261,50 +2314,9 @@ vdpau_QueryImageFormats(VADriverContextP ctx,
     if (format_list == NULL)
 	return VA_STATUS_SUCCESS;
 
-    typedef struct {
-	VdpImageFormatType type;
-	uint32_t format;
-	VAImageFormat va_format;
-    } image_format_map_t;
-
-    static const image_format_map_t image_formats_map[] = {
-#define DEF(TYPE, FORMAT) \
-	VDP_IMAGE_FORMAT_TYPE_##TYPE, VDP_##TYPE##_FORMAT_##FORMAT
-#define DEF_YUV(TYPE, FORMAT, FOURCC, ENDIAN, BPP) \
-	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, } }
-#define DEF_RGB(TYPE, FORMAT, FOURCC, ENDIAN, BPP, DEPTH, R,G,B,A) \
-	{ DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
-	DEF_YUV(YCBCR, NV12,	('N','V','1','2'), LSB, 12),
-	DEF_YUV(YCBCR, YV12,	('Y','V','1','2'), LSB, 12),
-	DEF_YUV(YCBCR, UYVY,	('U','Y','V','Y'), LSB, 16),
-	DEF_YUV(YCBCR, YUYV,	('Y','U','Y','V'), LSB, 16),
-	DEF_YUV(YCBCR, V8U8Y8A8,('A','Y','U','V'), LSB, 32),
-#if 0
-	/* XXX: this requires a VdpOutputSurface that we don't want to
-	   handle yet. That surface is generally created wrt. the
-	   window (display-dependent) dimensions. However, it should
-	   be possible to create a temporary VdpOutputSurface in
-	   vaGetImage() but that may be costly (in memory). */
-#ifdef WORDS_BIGENDIAN
-	DEF_RGB(RGBA, B8G8R8A8,	('A','R','G','B'), MSB, 32,
-		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
-	DEF_RGB(RGBA, R8G8B8A8,	('A','B','G','R'), MSB, 32,
-		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
-#else
-	DEF_RGB(RGBA, B8G8R8A8,	('B','G','R','A'), LSB, 32,
-		32, 0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff),
-	DEF_RGB(RGBA, R8G8B8A8,	('R','G','B','A'), LSB, 32,
-		32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff),
-#endif
-#endif
-#undef DEF_RGB
-#undef DEF_YUV
-#undef DEF
-    };
-
     int i, n = 0;
-    for (i = 0; i < ARRAY_ELEMS(image_formats_map); i++) {
-	const image_format_map_t * const f = &image_formats_map[i];
+    for (i = 0; i < ARRAY_ELEMS(vdpau_image_formats_map); i++) {
+	const vdpau_image_format_map_t * const f = &vdpau_image_formats_map[i];
 	if (vdpau_is_supported_image_format(driver_data, f->type, f->format))
 	    format_list[n++] = f->va_format;
     }
@@ -2332,6 +2344,9 @@ vdpau_DestroyImage(VADriverContextP ctx,
     if ((image = obj_image->image) == NULL)
 	return VA_STATUS_ERROR_INVALID_IMAGE;
 
+    if (obj_image->vdp_rgba_surface != VDP_INVALID_HANDLE)
+	vdpau_output_surface_destroy(driver_data, obj_image->vdp_rgba_surface);
+
     object_heap_free(&driver_data->image_heap, (object_base_p)obj_image);
     return vdpau_DestroyBuffer(ctx, image->buf);
 }
@@ -2346,7 +2361,8 @@ vdpau_CreateImage(VADriverContextP ctx,
 {
     INIT_DRIVER_DATA;
 
-    VAStatus va_status;
+    VdpRGBAFormat vdp_rgba_format;
+    VAStatus va_status = VA_STATUS_ERROR_OPERATION_FAILED;
     int image_id;
     object_image_p obj_image = NULL;
 
@@ -2365,6 +2381,7 @@ vdpau_CreateImage(VADriverContextP ctx,
     if ((obj_image = IMAGE(image_id)) == NULL)
 	return VA_STATUS_ERROR_ALLOCATION_FAILED;
     obj_image->image = image;
+    obj_image->vdp_rgba_surface = VDP_INVALID_HANDLE;
 
     switch (format->fourcc) {
     case VA_FOURCC('N','V','1','2'):
@@ -2385,6 +2402,15 @@ vdpau_CreateImage(VADriverContextP ctx,
 	image->offsets[2]	= image->offsets[1] + image->pitches[1] * (height + 1) / 2;
 	image->data_size	= image->offsets[2] + image->pitches[2] * (height + 1) / 2;
 	break;
+    case VA_FOURCC('R','G','B','A'):
+	if ((vdp_rgba_format = get_VdpRGBAFormat(format)) == (VdpRGBAFormat)-1)
+	    goto error;
+	if (vdpau_output_surface_create(driver_data,
+					driver_data->vdp_device,
+					vdp_rgba_format, width, height,
+					&obj_image->vdp_rgba_surface) != VDP_STATUS_OK)
+	    goto error;
+	// fall-through
     case VA_FOURCC('U','Y','V','Y'):
     case VA_FOURCC('Y','U','Y','V'):
 	image->num_planes	= 1;
@@ -2393,17 +2419,14 @@ vdpau_CreateImage(VADriverContextP ctx,
 	image->data_size	= image->offsets[0] + image->pitches[0] * height;
 	break;
     default:
-	vdpau_DestroyImage(ctx, image_id);
-	return VA_STATUS_ERROR_OPERATION_FAILED;
+	goto error;
     }
 
     va_status = vdpau_CreateBuffer(ctx, 0, VAImageBufferType,
 				   image->data_size, 1, NULL,
 				   &image->buf);
-    if (va_status != VA_STATUS_SUCCESS) {
-	vdpau_DestroyImage(ctx, image_id);
-	return va_status;
-    }
+    if (va_status != VA_STATUS_SUCCESS)
+	goto error;
 
     obj_image->image		= image;
     image->image_id		= image_id;
@@ -2415,6 +2438,10 @@ vdpau_CreateImage(VADriverContextP ctx,
     image->num_palette_entries	= 0;
     image->entry_bytes		= 0;
     return VA_STATUS_SUCCESS;
+
+ error:
+    vdpau_DestroyImage(ctx, image_id);
+    return va_status;
 }
 
 // vaDeriveImage
@@ -2453,15 +2480,18 @@ vdpau_GetImage(VADriverContextP ctx,
 {
     INIT_DRIVER_DATA;
 
+    object_context_p obj_context;
     object_buffer_p obj_buffer;
     object_surface_p obj_surface;
     object_image_p obj_image;
     VAImage *image;
     VdpStatus vdp_status;
+    VdpRGBAFormat rgba_format;
     VdpYCbCrFormat ycbcr_format;
+    VdpRect r;
     uint8_t *src[3];
     unsigned int src_stride[3];
-    int i, is_full_surface;
+    int i, is_full_surface, is_yuv_format;
 
     if ((obj_surface = SURFACE(surface)) == NULL)
 	return VA_STATUS_ERROR_INVALID_SURFACE;
@@ -2482,18 +2512,56 @@ vdpau_GetImage(VADriverContextP ctx,
     if ((obj_buffer = BUFFER(image->buf)) == NULL)
 	return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    if ((ycbcr_format = get_VdpYCbCrFormat(image->format.fourcc)) == (VdpYCbCrFormat)-1)
-	return VA_STATUS_ERROR_OPERATION_FAILED;
+    is_yuv_format = obj_image->vdp_rgba_surface == VDP_INVALID_HANDLE;
+    if (is_yuv_format) {
+	if ((ycbcr_format = get_VdpYCbCrFormat(&image->format)) == (VdpYCbCrFormat)-1)
+	    return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
+    else {
+	if ((rgba_format = get_VdpRGBAFormat(&image->format)) == (VdpRGBAFormat)-1)
+	    return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
 
     for (i = 0; i < image->num_planes; i++) {
 	src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
 	src_stride[i] = image->pitches[i];
     }
 
-    vdp_status = vdpau_video_surface_get_bits_ycbcr(driver_data,
-						    obj_surface->vdp_surface,
-						    ycbcr_format,
-						    src, src_stride);
+    if (is_yuv_format) {
+	vdp_status = vdpau_video_surface_get_bits_ycbcr(driver_data,
+							obj_surface->vdp_surface,
+							ycbcr_format,
+							src, src_stride);
+    }
+    else {
+	if ((obj_context = CONTEXT(obj_surface->va_context)) == NULL)
+	    return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+	r.x0 = x;
+	r.y0 = y;
+	r.x1 = x + width;
+	r.y1 = y + height;
+	vdp_status = vdpau_video_mixer_render(driver_data,
+					      obj_context->vdp_video_mixer,
+					      VDP_INVALID_HANDLE, NULL,
+					      VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
+					      0, NULL,
+					      obj_surface->vdp_surface,
+					      0, NULL,
+					      &r,
+					      obj_image->vdp_rgba_surface,
+					      &r,
+					      &r,
+					      0, NULL);
+	if (vdp_status != VDP_STATUS_OK)
+	    return vdpau_translate_VAStatus(driver_data, vdp_status);
+
+        vdp_status = vdpau_output_surface_get_bits_native(driver_data,
+							  obj_image->vdp_rgba_surface,
+							  &r,
+							  src,
+							  src_stride);
+    }
 
     return vdpau_translate_VAStatus(driver_data, vdp_status);
 }

@@ -179,6 +179,7 @@ typedef struct object_image object_image_t;
 struct object_image {
     struct object_base		 base;
     VAImage			*image;
+    VdpOutputSurface		 vdp_rgba_surface;
 };
 
 typedef object_config_t		*object_config_p;
