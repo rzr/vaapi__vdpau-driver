@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-04-16
+vdpau-video NEWS -- summary of changes.  2009-04-23
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.3.1 - 23.Apr.2009
+* Add RGBA image formats, including for vaGetImage().
 
 Version 0.3.0 - 16.Apr.2009
 * Don't expose RGBA formats in vaQueryImageFormats()
