@@ -3121,6 +3121,47 @@ vdpau_DbgCopySurfaceToBuffer(VADriverContextP ctx,
     return VA_STATUS_ERROR_UNKNOWN;
 }
 
+#if VA_CHECK_VERSION(0,30,0)
+// vaCreateSurfaceFromCIFrame
+static VAStatus
+vdpau_CreateSurfaceFromCIFrame(VADriverContextP ctx,
+			       unsigned long frame_id,
+			       VASurfaceID *surface)	/* out */
+{
+    /* TODO */
+    return VA_STATUS_ERROR_UNKNOWN;
+}
+
+// vaCreateSurfaceFromV4L2Buf
+static VAStatus
+vdpau_CreateSurfaceFromV4L2Buf(VADriverContextP ctx,
+			       int v4l2_fd,			/* file descriptor of V4L2 device */
+			       struct v4l2_format *v4l2_fmt,	/* format of V4L2 */
+			       struct v4l2_buffer *v4l2_buf,	/* V4L2 buffer */
+			       VASurfaceID *surface)		/* out */
+{
+    /* TODO */
+    return VA_STATUS_ERROR_UNKNOWN;
+}
+
+// vaCopySurfaceToBuffer
+static VAStatus
+vdpau_CopySurfaceToBuffer(VADriverContextP ctx,
+			  VASurfaceID surface,
+			  unsigned int *fourcc, /* out  for follow argument */
+			  unsigned int *luma_stride,
+			  unsigned int *chroma_u_stride,
+			  unsigned int *chroma_v_stride,
+			  unsigned int *luma_offset,
+			  unsigned int *chroma_u_offset,
+			  unsigned int *chroma_v_offset,
+			  void **buffer)
+{
+    /* TODO */
+    return VA_STATUS_ERROR_UNKNOWN;
+}
+#endif
+
 // vaTerminate
 static VAStatus
 vdpau_Terminate(VADriverContextP ctx)
@@ -3247,7 +3288,6 @@ vdpau_Initialize(VADriverContextP ctx)
     ctx->vtable.vaCreateSubpicture		= vdpau_CreateSubpicture;
     ctx->vtable.vaDestroySubpicture		= vdpau_DestroySubpicture;
     ctx->vtable.vaSetSubpictureImage		= vdpau_SetSubpictureImage;
-    ctx->vtable.vaSetSubpicturePalette		= vdpau_SetSubpicturePalette;
     ctx->vtable.vaSetSubpictureChromakey	= vdpau_SetSubpictureChromakey;
     ctx->vtable.vaSetSubpictureGlobalAlpha	= vdpau_SetSubpictureGlobalAlpha;
     ctx->vtable.vaAssociateSubpicture		= vdpau_AssociateSubpicture;
@@ -3256,7 +3296,14 @@ vdpau_Initialize(VADriverContextP ctx)
     ctx->vtable.vaQueryDisplayAttributes	= vdpau_QueryDisplayAttributes;
     ctx->vtable.vaGetDisplayAttributes		= vdpau_GetDisplayAttributes;
     ctx->vtable.vaSetDisplayAttributes		= vdpau_SetDisplayAttributes;
+#if VA_CHECK_VERSION(0,30,0)
+    ctx->vtable.vaCreateSurfaceFromCIFrame	= vdpau_CreateSurfaceFromCIFrame;
+    ctx->vtable.vaCreateSurfaceFromV4L2Buf	= vdpau_CreateSurfaceFromV4L2Buf;
+    ctx->vtable.vaCopySurfaceToBuffer		= vdpau_CopySurfaceToBuffer;
+#else
+    ctx->vtable.vaSetSubpicturePalette		= vdpau_SetSubpicturePalette;
     ctx->vtable.vaDbgCopySurfaceToBuffer	= vdpau_DbgCopySurfaceToBuffer;
+#endif
 
     driver_data = (struct vdpau_driver_data *)calloc(1, sizeof(*driver_data));
     if (driver_data == NULL)
@@ -3362,7 +3409,7 @@ vdpau_Initialize(VADriverContextP ctx)
     return VA_STATUS_SUCCESS;
 }
 
-VAStatus __vaDriverInit_0_29_sds(VADriverContextP ctx)
+VAStatus VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
 {
     return vdpau_Initialize(ctx);
 }

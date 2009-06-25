@@ -6,8 +6,12 @@ m4_define([vdpau_video_version],
           [vdpau_video_major_version.vdpau_video_minor_version.vdpau_video_micro_version])
 
 # libva package version number
-m4_define([libva_sds_version], [8])
-m4_define([libva_sds_package_version], [0.29-2+sds11])
+m4_define([libva_sds_version_0_29], [8])
+m4_define([libva_sds_package_version_0_29], [0.29-2+sds11])
+m4_define([libva_sds_version_0_30], [1])
+m4_define([libva_sds_package_version_0_30], [0.30-1+sds1])
+m4_define([libva_sds_version], [libva_sds_version_0_30])
+m4_define([libva_sds_package_version], [libva_sds_package_version_0_30])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])
@@ -16,6 +20,8 @@ AM_INIT_AUTOMAKE
 
 AM_CONFIG_HEADER([src/config.h])
 
+LIBVA_SDS_VERSION_0_29=libva_sds_version_0_29
+LIBVA_SDS_VERSION_0_30=libva_sds_version_0_30
 LIBVA_SDS_VERSION=libva_sds_version
 LIBVA_SDS_PACKAGE_VERSION=libva_sds_package_version
 AC_SUBST(LIBVA_SDS_PACKAGE_VERSION)
@@ -88,8 +94,12 @@ AC_CACHE_CHECK([for VA API],
   AC_TRY_COMPILE([
     #include <va/va_version.h>
     #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 29
-    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION)
-    #  error "VA API version >= 0.29.0-sds$LIBVA_SDS_VERSION is required"
+    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION_0_29)
+    #  error "VA API version >= 0.29.0-sds$LIBVA_SDS_VERSION_0_29 is required"
+    # endif
+    #elif VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 30
+    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION_0_30)
+    #  error "VA API version >= 0.30.0-sds$LIBVA_SDS_VERSION_0_30 is required"
     # endif
     #elif !VA_CHECK_VERSION(0,50,0)
     # error "VA API version >= 0.50 is required"
@@ -99,7 +109,13 @@ AC_CACHE_CHECK([for VA API],
   [ac_cv_libva_sds_extensions="no"])
   CFLAGS="$saved_CFLAGS"
 ])
-if test "$ac_cv_libva_sds_extensions" = "no"; then
+VA_VERSION=`$PKG_CONFIG --modversion libva`
+VA_MAJOR_VERSION=`echo "$VA_VERSION" | cut -d'.' -f1`
+VA_MINOR_VERSION=`echo "$VA_VERSION" | cut -d'.' -f2`
+VA_DRIVER_INIT_FUNC="__vaDriverInit_${VA_MAJOR_VERSION}_${VA_MINOR_VERSION}_sds"
+if test "$ac_cv_libva_sds_extensions" = "yes"; then
+    AC_DEFINE_UNQUOTED([VA_DRIVER_INIT_FUNC], [$VA_DRIVER_INIT_FUNC], [Define driver entry-point])
+else
     AC_MSG_ERROR([Your VA API SDK does not include SDS extensions])
 fi
 
