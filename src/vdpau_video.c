@@ -2613,8 +2613,10 @@ vdpau_QuerySubpictureFormats(VADriverContextP ctx,
 {
     INIT_DRIVER_DATA;
 
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
+    if (num_formats)
+      *num_formats = 0;
+
+    return VA_STATUS_SUCCESS;
 }
 
 // vaCreateSubpicture
