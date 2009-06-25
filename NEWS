@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-04-23
+vdpau-video NEWS -- summary of changes.  2009-06-DD
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.3.2 - DD.Jun.2009
+* Add support for VA API 0.30
 
 Version 0.3.1 - 23.Apr.2009
 * Add RGBA image formats, including for vaGetImage().
