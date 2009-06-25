@@ -21,8 +21,8 @@ vdpau-video consists in a VDPAU-based backend for VA API.
 Requirements
 ------------
 
-You need libva >= 0.29.0-sds8. That's the API version, not the version
-of the packages.
+You need libva >= 0.29.0-sds8|0.30.0-sds1. That's the API version, not
+the version of the packages.
 
 mplayer-vaapi >= 20090320 patchset is also needed if you intend to use
 MPlayer.
