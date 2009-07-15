@@ -120,6 +120,8 @@ struct object_context {
     int				 num_render_targets;
     int				 flags;
     int				 max_ref_frames;
+    VASurfaceID			 ref_frames[16];
+    unsigned int		 ref_frames_count;
     VASurfaceID			 output_surface;
     VASurfaceID			*render_targets;
     VABufferID			*dead_buffers;
@@ -149,6 +151,9 @@ struct object_surface {
     VdpVideoSurface		 vdp_surface;
     unsigned int		 width;
     unsigned int		 height;
+    union {
+	VdpReferenceFrameH264	 h264;
+    }				 vdp_ref_frame;
 };
 
 typedef struct object_buffer object_buffer_t;

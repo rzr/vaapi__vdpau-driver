@@ -28,6 +28,10 @@
 
 #define ASSERT assert
 
+/* Define to 1 if we want this VDPAU backend to handle H.264 DPB itself and not
+   strictly replicate VAPictureParameterBufferH264.ReferenceFrames[]. */
+#define VDPAU_VIDEO_DPB 1
+
 #define INIT_DRIVER_DATA \
 	struct vdpau_driver_data *driver_data = (struct vdpau_driver_data *)ctx->pDriverData
 
@@ -55,6 +59,10 @@
 /* ====================================================================== */
 /* === Helpers                                                        === */
 /* ====================================================================== */
+
+#ifndef VA_INVALID_SURFACE
+#define VA_INVALID_SURFACE 0xffffffff
+#endif
 
 typedef struct {
     VdpImageFormatType type;
@@ -248,6 +256,32 @@ static VdpRGBAFormat get_VdpRGBAFormat(const VAImageFormat *image_format)
 	    return m->format;
     }
     return (VdpRGBAFormat)-1;
+}
+
+// Returns 1 if we want to handle H.264 DPB ourselves
+static int g_vdpau_video_dpb = -1;
+
+static int vdpau_video_dpb_1(void)
+{
+    const char *vdpau_video_dpb_str = getenv("VDPAU_VIDEO_DPB");
+    if (vdpau_video_dpb_str) {
+	if (strcmp(vdpau_video_dpb_str, "1") == 0 ||
+	    strcmp(vdpau_video_dpb_str, "yes") == 0)
+	    g_vdpau_video_dpb = 1;
+	else if (strcmp(vdpau_video_dpb_str, "0") == 0 ||
+		 strcmp(vdpau_video_dpb_str, "no") == 0)
+	    g_vdpau_video_dpb = 0;
+    }
+    if (g_vdpau_video_dpb < 0)
+	g_vdpau_video_dpb = VDPAU_VIDEO_DPB;
+    return g_vdpau_video_dpb;
+}
+
+static inline int vdpau_video_dpb(void)
+{
+    if (g_vdpau_video_dpb < 0)
+	g_vdpau_video_dpb = vdpau_video_dpb_1();
+    return g_vdpau_video_dpb;
 }
 
 
@@ -1080,7 +1114,7 @@ vdpau_translate_VASurfaceID(vdpau_driver_data_t *driver_data,
 			    VASurfaceID          va_surface,
 			    VdpVideoSurface     *vdp_surface)
 {
-    if (va_surface == 0xffffffff) {
+    if (va_surface == VA_INVALID_SURFACE) {
 	*vdp_surface = VDP_INVALID_HANDLE;
 	return 1;
     }
@@ -1100,6 +1134,9 @@ vdpau_translate_nothing(vdpau_driver_data_t *driver_data,
     return 1;
 }
 
+static void
+vdpau_h264_clear_reference_frames(object_context_p obj_context);
+
 static int
 vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
 				  object_context_p     obj_context,
@@ -1110,6 +1147,7 @@ vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
     if (obj_context->vdp_codec == VDP_CODEC_H264) {
 	/* Check we have the start code */
 	/* XXX: check for other codecs too? */
+	/* XXX: this assumes we get SliceParams before SliceData */
 	static const uint8_t start_code_prefix[3] = { 0x00, 0x00, 0x01 };
 	VASliceParameterBufferH264 * const slice_params = obj_context->last_slice_params;
 	unsigned int i;
@@ -1120,6 +1158,8 @@ vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
 		if (!vdpau_append_VdpBitstreamBuffer(obj_context, start_code_prefix, sizeof(start_code_prefix)))
 		    return 0;
 	    }
+	    if ((buf[0] & 0x1f) == 5) /* IDR */
+		vdpau_h264_clear_reference_frames(obj_context);
 	    if (!vdpau_append_VdpBitstreamBuffer(obj_context, buf, slice_param->slice_data_size))
 		return 0;
 	}
@@ -1260,20 +1300,26 @@ vdpau_translate_VASliceParameterBufferMPEG2(vdpau_driver_data_t *driver_data,
     return 1;
 }
 
+static void
+vdpau_init_VdpReferenceFrameH264(VdpReferenceFrameH264 *rf)
+{
+    rf->surface			= VDP_INVALID_HANDLE;
+    rf->is_long_term		= VDP_FALSE;
+    rf->top_is_reference	= VDP_FALSE;
+    rf->bottom_is_reference	= VDP_FALSE;
+    rf->field_order_cnt[0]	= 0;
+    rf->field_order_cnt[1]	= 0;
+    rf->frame_idx		= 0;
+}
+
 static int
 vdpau_translate_VAPictureH264(vdpau_driver_data_t   *driver_data,
 			      const VAPictureH264   *va_pic,
 			      VdpReferenceFrameH264 *rf)
 {
     // Handle invalid surfaces specifically
-    if (va_pic->picture_id == 0xffffffff) {
-	rf->surface		= VDP_INVALID_HANDLE;
-	rf->is_long_term	= VDP_FALSE;
-	rf->top_is_reference	= VDP_FALSE;
-	rf->bottom_is_reference	= VDP_FALSE;
-	rf->field_order_cnt[0]	= 0;
-	rf->field_order_cnt[1]	= 0;
-	rf->frame_idx		= 0;
+    if (va_pic->picture_id == VA_INVALID_SURFACE) {
+	vdpau_init_VdpReferenceFrameH264(rf);
 	return 1;
     }
 
@@ -1295,6 +1341,132 @@ vdpau_translate_VAPictureH264(vdpau_driver_data_t   *driver_data,
 }
 
 static int
+vdpau_sync_VAPictureH264(vdpau_driver_data_t	*driver_data,
+			 const VAPictureH264	*va_pic)
+{
+    if (va_pic->picture_id == VA_INVALID_SURFACE)
+	return 1;
+    object_surface_p obj_surface = SURFACE(va_pic->picture_id);
+    ASSERT(obj_surface);
+    if (obj_surface == NULL)
+	return 0;
+    return vdpau_translate_VAPictureH264(driver_data, va_pic, &obj_surface->vdp_ref_frame.h264);
+}
+
+static void
+vdpau_h264_clear_reference_frames(object_context_p obj_context)
+{
+    unsigned int i;
+
+    if (!vdpau_video_dpb())
+	return;
+
+    obj_context->ref_frames_count	= 0;
+    for (i = 0; i < ARRAY_ELEMS(obj_context->ref_frames); i++)
+	obj_context->ref_frames[i]	= VA_INVALID_SURFACE;
+}
+
+static int
+vdpau_h264_sync_reference_frames(vdpau_driver_data_t		*driver_data,
+				 object_context_p		 obj_context,
+				 VAPictureParameterBufferH264	*pic_param)
+{
+    VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
+    VAPictureH264 * const CurrPic = &pic_param->CurrPic;
+    unsigned int i;
+
+    /* Synchronize plain VAPictureParameterBufferH264.ReferenceFrames */
+    if (!vdpau_video_dpb()) {
+	for (i = 0; i < 16; i++) {
+	    if (!vdpau_translate_VAPictureH264(driver_data,
+					       &pic_param->ReferenceFrames[i],
+					       &pinfo->referenceFrames[i]))
+		return 0;
+	}
+	return 1;
+    }
+
+    /* Synchronize past reference frames */
+    for (i = 0; i < ARRAY_ELEMS(pic_param->ReferenceFrames); i++) {
+	VAPictureH264 * const va_pic = &pic_param->ReferenceFrames[i];
+	if (!vdpau_sync_VAPictureH264(driver_data, va_pic))
+	    return 0;
+    }
+
+    /* Remove current picture if it is not the second field of a
+       reference field picture */
+    for (i = 0; i < obj_context->ref_frames_count; i++) {
+	if (obj_context->ref_frames[i] == CurrPic->picture_id) {
+	    if (!pinfo->field_pic_flag) {
+		for (i = i + 1; i < obj_context->ref_frames_count; i++)
+		    obj_context->ref_frames[i - 1] = obj_context->ref_frames[i];
+		obj_context->ref_frames[--obj_context->ref_frames_count] = VA_INVALID_SURFACE;
+	    }
+	    break;
+	}
+    }
+
+    /* Fill in VDPAU referenceFrames[] array */
+    for (i = 0; i < obj_context->ref_frames_count; i++) {
+	object_surface_p obj_surface = SURFACE(obj_context->ref_frames[i]);
+	ASSERT(obj_surface);
+	if (obj_surface == NULL)
+	    return 0;
+	pinfo->referenceFrames[i] = obj_surface->vdp_ref_frame.h264;
+    }
+    for (; i < ARRAY_ELEMS(pinfo->referenceFrames); i++)
+	vdpau_init_VdpReferenceFrameH264(&pinfo->referenceFrames[i]);
+
+    /* Synchronize current picture, no matter it is reference or not */
+    return vdpau_sync_VAPictureH264(driver_data, CurrPic);
+}
+
+static void
+vdpau_h264_update_reference_frames(vdpau_driver_data_t	*driver_data,
+				   object_context_p	 obj_context)
+{
+    VdpPictureInfoH264 * const pic_info = &obj_context->vdp_picture_info.h264;
+    VASurfaceID picture_id = obj_context->current_render_target;
+    unsigned int i;
+
+    if (!vdpau_video_dpb())
+	return;
+
+    /* Remove non-reference picture that was previously a reference (in DPB) */
+    if (!pic_info->is_reference) {
+	for (i = 0; i < obj_context->ref_frames_count; i++) {
+	    if (obj_context->ref_frames[i] == picture_id) {
+		for (i = i + 1; i < obj_context->ref_frames_count; i++)
+		    obj_context->ref_frames[i - 1] = obj_context->ref_frames[i];
+		obj_context->ref_frames[--obj_context->ref_frames_count] = VA_INVALID_SURFACE;
+		break;
+	    }
+	}
+	return;
+    }
+
+    if (obj_context->max_ref_frames == 0)
+	return;
+
+    /* Update (return) if we already had this reference picture in DPB */
+    for (i = 0; i < obj_context->ref_frames_count; i++) {
+	if (obj_context->ref_frames[i] == picture_id)
+	    return;
+    }
+
+    /* Shift one frame buffer out of the DPB, and add the new reference picture */
+    if (obj_context->ref_frames_count >= obj_context->max_ref_frames) {
+	for (i = 1; i < obj_context->ref_frames_count; i++)
+	    obj_context->ref_frames[i - 1] = obj_context->ref_frames[i];
+	obj_context->ref_frames[--obj_context->ref_frames_count] = VA_INVALID_SURFACE;
+    }
+    ASSERT(obj_context->ref_frames_count < obj_context->max_ref_frames);
+
+    obj_context->ref_frames[obj_context->ref_frames_count] = picture_id;
+    obj_context->ref_frames_count++;
+}
+
+static int
 vdpau_translate_VAPictureParameterBufferH264(vdpau_driver_data_t *driver_data,
 					     object_context_p     obj_context,
 					     object_buffer_p      obj_buffer)
@@ -1302,7 +1474,6 @@ vdpau_translate_VAPictureParameterBufferH264(vdpau_driver_data_t *driver_data,
     VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
     VAPictureParameterBufferH264 * const pic_param = obj_buffer->buffer_data;
     VAPictureH264 * const CurrPic = &pic_param->CurrPic;
-    int i;
 
     pinfo->field_order_cnt[0]			= CurrPic->TopFieldOrderCnt;
     pinfo->field_order_cnt[1]			= CurrPic->BottomFieldOrderCnt;
@@ -1330,13 +1501,8 @@ vdpau_translate_VAPictureParameterBufferH264(vdpau_driver_data_t *driver_data,
     pinfo->pic_order_present_flag		= pic_param->pic_fields.bits.pic_order_present_flag;
     pinfo->deblocking_filter_control_present_flag = pic_param->pic_fields.bits.deblocking_filter_control_present_flag;
     pinfo->redundant_pic_cnt_present_flag	= pic_param->pic_fields.bits.redundant_pic_cnt_present_flag;
-    for (i = 0; i < 16; i++) {
-	if (!vdpau_translate_VAPictureH264(driver_data,
-					   &pic_param->ReferenceFrames[i],
-					   &pinfo->referenceFrames[i]))
-	    return 0;
-    }
-    return 1;
+
+    return vdpau_h264_sync_reference_frames(driver_data, obj_context, pic_param);
 }
 
 static int
@@ -2092,6 +2258,8 @@ vdpau_CreateContext(VADriverContextP ctx,
     obj_context->vdp_bitstream_buffers = NULL;
     obj_context->vdp_bitstream_buffers_count = 0;
     obj_context->vdp_bitstream_buffers_count_max = 0;
+
+    vdpau_h264_clear_reference_frames(obj_context);
 
     if (obj_context->output_surface == 0) {
 	vdpau_DestroyContext(ctx, contextID);
@@ -2850,6 +3018,8 @@ vdpau_EndPicture(VADriverContextP ctx,
     ASSERT(obj_context);
     if (obj_context == NULL)
 	return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+    vdpau_h264_update_reference_frames(driver_data, obj_context);
 
     object_surface_p obj_surface = SURFACE(obj_context->current_render_target);
     ASSERT(obj_surface);
