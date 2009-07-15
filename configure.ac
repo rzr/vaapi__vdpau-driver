@@ -1,7 +1,7 @@
 # vdpau_video package version number
 m4_define([vdpau_video_major_version], [0])
 m4_define([vdpau_video_minor_version], [3])
-m4_define([vdpau_video_micro_version], [2])
+m4_define([vdpau_video_micro_version], [3])
 m4_define([vdpau_video_version],
           [vdpau_video_major_version.vdpau_video_minor_version.vdpau_video_micro_version])
 

@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-06-25
+vdpau-video NEWS -- summary of changes.  2009-07-DD
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.3.3 - DD.Jul.2009
+* Fix H.264 DPB synchronization
 
 Version 0.3.2 - 25.Jun.2009
 * Add support for VA API 0.30
