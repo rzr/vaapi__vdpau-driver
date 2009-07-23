@@ -3119,6 +3119,55 @@ vdpau_EndPicture(VADriverContextP ctx,
     return va_status;
 }
 
+// vaQuerySurfaceStatus
+static VAStatus
+vdpau_QuerySurfaceStatus(VADriverContextP ctx,
+			 VASurfaceID render_target,
+			 VASurfaceStatus *status)	/* out */
+{
+    INIT_DRIVER_DATA;
+
+    object_surface_p obj_surface = SURFACE(render_target);
+    ASSERT(obj_surface);
+    if (obj_surface == NULL)
+	return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    object_context_p obj_context = CONTEXT(obj_surface->va_context);
+    ASSERT(obj_context);
+    if (obj_context == NULL)
+	return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+    VAStatus va_status = VA_STATUS_SUCCESS;
+    if (obj_context->last_video_surface == render_target &&
+	obj_surface->va_surface_status == VASurfaceDisplaying) {
+	object_output_p obj_output = OUTPUT(obj_context->output_surface);
+	ASSERT(obj_output);
+	if (obj_output == NULL)
+	    return VA_STATUS_ERROR_INVALID_SURFACE;
+
+	VdpOutputSurface vdp_output_surface;
+	vdp_output_surface = obj_output->vdp_output_surfaces[obj_output->current_output_surface ^ 1];
+
+	VdpPresentationQueueStatus vdp_queue_status;
+	VdpTime vdp_dummy_time;
+	VdpStatus vdp_status =
+	    vdpau_presentation_queue_query_surface_status(driver_data,
+							  obj_output->vdp_flip_queue,
+							  vdp_output_surface,
+							  &vdp_queue_status,
+							  &vdp_dummy_time);
+	va_status = vdpau_translate_VAStatus(driver_data, vdp_status);
+
+	if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE)
+	    obj_surface->va_surface_status = VASurfaceReady;
+    }
+
+    if (status)
+	*status = obj_surface->va_surface_status;
+
+    return va_status;
+}
+
 // vaSyncSurface
 static VAStatus
 vdpau_SyncSurface(VADriverContextP ctx,
@@ -3141,55 +3190,11 @@ vdpau_SyncSurface(VADriverContextP ctx,
     ASSERT(obj_context->current_render_target != obj_surface->base.id);
 
     /* VDPAU only supports status interface for in-progress display */
-    if (obj_context->last_video_surface == render_target &&
-	obj_surface->va_surface_status == VASurfaceDisplaying) {
-	object_output_p obj_output = OUTPUT(obj_context->output_surface);
-	ASSERT(obj_output);
-	if (obj_output == NULL)
-	    return VA_STATUS_ERROR_INVALID_SURFACE;
-
-	VdpOutputSurface vdp_output_surface;
-	vdp_output_surface = obj_output->vdp_output_surfaces[obj_output->current_output_surface ^ 1];
-
-	/* XXX: polling is bad but there currently is no alternative */
-	for (;;) {
-	    VdpPresentationQueueStatus vdp_queue_status;
-	    VdpTime vdp_dummy_time;
-	    VdpStatus vdp_status;
-
-	    vdp_status =
-		vdpau_presentation_queue_query_surface_status(driver_data,
-							      obj_output->vdp_flip_queue,
-							      vdp_output_surface,
-							      &vdp_queue_status,
-							      &vdp_dummy_time);
-	    if (vdp_status != VDP_STATUS_OK)
-		return VA_STATUS_ERROR_UNKNOWN;
-
-	    if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE)
-		break;
-
-	    delay_usec(10);
-	}
-    }
-
-    return VA_STATUS_SUCCESS;
-}
-
-// vaQuerySurfaceStatus
-static VAStatus
-vdpau_QuerySurfaceStatus(VADriverContextP ctx,
-			 VASurfaceID render_target,
-			 VASurfaceStatus *status)	/* out */
-{
-    INIT_DRIVER_DATA;
-    VAStatus va_status = VA_STATUS_SUCCESS;
-    object_surface_p obj_surface;
-
-    obj_surface = SURFACE(render_target);
-    ASSERT(obj_surface);
-
-    *status = VASurfaceReady;
+    /* XXX: polling is bad but there currently is no alternative */
+    VASurfaceStatus va_surface_status;
+    VAStatus va_status;
+    while ((va_status = vdpau_QuerySurfaceStatus(ctx, render_target, &va_surface_status)) == VA_STATUS_SUCCESS && va_surface_status == VASurfaceDisplaying)
+	delay_usec(10);
 
     return va_status;
 }
