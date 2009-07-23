@@ -2280,6 +2280,7 @@ vdpau_CreateContext(VADriverContextP ctx,
     obj_context->max_ref_frames		= -1;
     obj_context->output_surface		=
 	create_output_surface(driver_data, picture_width, picture_height);
+    obj_context->last_video_surface	= 0;
     obj_context->render_targets		= (VASurfaceID *)
 	calloc(num_render_targets, sizeof(VASurfaceID));
     obj_context->dead_buffers		= NULL;
@@ -3140,7 +3141,8 @@ vdpau_SyncSurface(VADriverContextP ctx,
     ASSERT(obj_context->current_render_target != obj_surface->base.id);
 
     /* VDPAU only supports status interface for in-progress display */
-    if (obj_surface->va_surface_status == VASurfaceDisplaying) {
+    if (obj_context->last_video_surface == render_target &&
+	obj_surface->va_surface_status == VASurfaceDisplaying) {
 	object_output_p obj_output = OUTPUT(obj_context->output_surface);
 	ASSERT(obj_output);
 	if (obj_output == NULL)
@@ -3215,7 +3217,6 @@ vdpau_PutSurface(VADriverContextP ctx,
     ASSERT(obj_surface);
     if (obj_surface == NULL)
 	return VA_STATUS_ERROR_INVALID_SURFACE;
-    obj_surface->va_surface_status = VASurfaceReady;
 
     object_context_p obj_context = CONTEXT(obj_surface->va_context);
     ASSERT(obj_context);
@@ -3226,6 +3227,9 @@ vdpau_PutSurface(VADriverContextP ctx,
     ASSERT(obj_output);
     if (obj_output == NULL)
 	return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    obj_context->last_video_surface = surface;
+    obj_surface->va_surface_status  = VASurfaceReady;
 
     /* XXX: no clip rects supported */
     if (cliprects || number_cliprects > 0)
