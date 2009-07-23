@@ -1754,7 +1754,7 @@ static VdpStatus ensure_decoder_with_max_refs(vdpau_driver_data_t *driver_data,
 
 static void destroy_output_surface(vdpau_driver_data_t *driver_data, VASurfaceID surface)
 {
-    if (surface == 0)
+    if (surface == VA_INVALID_SURFACE)
 	return;
 
     object_output_p obj_output = OUTPUT(surface);
@@ -1791,12 +1791,12 @@ static VASurfaceID create_output_surface(vdpau_driver_data_t *driver_data,
     int i;
     int surface = object_heap_allocate(&driver_data->output_heap);
     if (surface < 0)
-	return 0;
+	return VA_INVALID_SURFACE;
 
     object_output_p obj_output = OUTPUT(surface);
     ASSERT(obj_output);
     if (obj_output == NULL)
-	return 0;
+	return VA_INVALID_SURFACE;
 
     obj_output->drawable		= None;
     obj_output->width			= 0;
@@ -1830,7 +1830,7 @@ static VASurfaceID create_output_surface(vdpau_driver_data_t *driver_data,
 
 	if (vdp_status != VDP_STATUS_OK) {
 	    destroy_output_surface(driver_data, surface);
-	    return 0;
+	    return VA_INVALID_SURFACE;
 	}
 
 	obj_output->vdp_output_surfaces[i] = vdp_output_surface;
@@ -2214,14 +2214,14 @@ vdpau_DestroyContext(VADriverContextP ctx,
 	obj_context->render_targets = NULL;
     }
 
-    if (obj_context->output_surface) {
+    if (obj_context->output_surface != VA_INVALID_SURFACE) {
 	destroy_output_surface(driver_data, obj_context->output_surface);
-	obj_context->output_surface = 0;
+	obj_context->output_surface = VA_INVALID_SURFACE;
     }
 
     obj_context->context_id		= -1;
     obj_context->config_id		= -1;
-    obj_context->current_render_target	= -1;
+    obj_context->current_render_target	= VA_INVALID_SURFACE;
     obj_context->picture_width		= 0;
     obj_context->picture_height		= 0;
     obj_context->num_render_targets	= 0;
@@ -2272,7 +2272,7 @@ vdpau_CreateContext(VADriverContextP ctx,
 
     obj_context->context_id		= contextID;
     obj_context->config_id		= config_id;
-    obj_context->current_render_target	= -1;
+    obj_context->current_render_target	= VA_INVALID_SURFACE;
     obj_context->picture_width		= picture_width;
     obj_context->picture_height		= picture_height;
     obj_context->num_render_targets	= num_render_targets;
@@ -2280,7 +2280,7 @@ vdpau_CreateContext(VADriverContextP ctx,
     obj_context->max_ref_frames		= -1;
     obj_context->output_surface		=
 	create_output_surface(driver_data, picture_width, picture_height);
-    obj_context->last_video_surface	= 0;
+    obj_context->last_video_surface	= VA_INVALID_SURFACE;
     obj_context->render_targets		= (VASurfaceID *)
 	calloc(num_render_targets, sizeof(VASurfaceID));
     obj_context->dead_buffers		= NULL;
@@ -2298,7 +2298,7 @@ vdpau_CreateContext(VADriverContextP ctx,
 
     vdpau_h264_clear_reference_frames(obj_context);
 
-    if (obj_context->output_surface == 0) {
+    if (obj_context->output_surface == VA_INVALID_SURFACE) {
 	vdpau_DestroyContext(ctx, contextID);
 	return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -3102,7 +3102,7 @@ vdpau_EndPicture(VADriverContextP ctx,
     va_status = vdpau_translate_VAStatus(driver_data, vdp_status);
 
     /* XXX: assume we are done with rendering right away */
-    obj_context->current_render_target = -1;
+    obj_context->current_render_target = VA_INVALID_SURFACE;
 
     /* Release pending buffers */
     if (obj_context->dead_buffers_count > 0) {
