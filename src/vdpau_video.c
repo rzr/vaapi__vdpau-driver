@@ -22,6 +22,8 @@
 #include "vdpau_video.h"
 #include <va/va_backend.h>
 #include <stdarg.h>
+#include <time.h>
+#include <errno.h>
 
 #define DEBUG 1
 #include "debug.h"
@@ -97,6 +99,21 @@ static const vdpau_image_format_map_t vdpau_image_formats_map[] = {
 #undef DEF_YUV
 #undef DEF
 };
+
+// Wait for the specified amount of microseconds
+static void delay_usec(unsigned int usec)
+{
+    struct timeval tv;
+    int was_error;
+
+    tv.tv_sec = 0;
+    tv.tv_usec = usec;
+
+    do {
+	errno = 0;
+	was_error = select(0, NULL, NULL, NULL, &tv);
+    } while (was_error && (errno == EINTR));
+}
 
 // Returns X drawable dimensions
 static void get_drawable_size(Display  *display,
@@ -526,6 +543,24 @@ vdpau_presentation_queue_block_until_surface_idle(vdpau_driver_data_t *driver_da
     return driver_data->vdp_vtable.vdp_presentation_queue_block_until_surface_idle(presentation_queue,
 										   surface,
 										   first_presentation_time);
+}
+
+// VdpPresentationQueueQuerySurfaceStatus
+static inline VdpStatus
+vdpau_presentation_queue_query_surface_status(vdpau_driver_data_t	 *driver_data,
+					      VdpPresentationQueue	  presentation_queue,
+					      VdpOutputSurface		  surface,
+					      VdpPresentationQueueStatus *status,
+					      VdpTime			 *first_presentation_time)
+{
+    if (driver_data == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_presentation_queue_query_surface_status == NULL)
+	return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_presentation_queue_query_surface_status(presentation_queue,
+									       surface,
+									       status,
+									       first_presentation_time);
 }
 
 // VdpPresentationQueueTargetCreateX11
@@ -2110,6 +2145,7 @@ vdpau_CreateSurfaces(VADriverContextP ctx,
             break;
         }
 	obj_surface->va_context = 0;
+	obj_surface->va_surface_status = VASurfaceReady;
 	obj_surface->vdp_surface = vdp_surface;
 	obj_surface->width = width;
 	obj_surface->height = height;
@@ -2933,6 +2969,7 @@ vdpau_BeginPicture(VADriverContextP ctx,
     if (obj_surface == NULL)
 	return VA_STATUS_ERROR_INVALID_SURFACE;
 
+    obj_surface->va_surface_status		= VASurfaceRendering;
     obj_context->last_slice_params		= NULL;
     obj_context->last_slice_params_count	= 0;
     obj_context->current_render_target		= obj_surface->base.id;
@@ -3102,6 +3139,38 @@ vdpau_SyncSurface(VADriverContextP ctx,
     /* Assume that this shouldn't be called before vaEndPicture() */
     ASSERT(obj_context->current_render_target != obj_surface->base.id);
 
+    /* VDPAU only supports status interface for in-progress display */
+    if (obj_surface->va_surface_status == VASurfaceDisplaying) {
+	object_output_p obj_output = OUTPUT(obj_context->output_surface);
+	ASSERT(obj_output);
+	if (obj_output == NULL)
+	    return VA_STATUS_ERROR_INVALID_SURFACE;
+
+	VdpOutputSurface vdp_output_surface;
+	vdp_output_surface = obj_output->vdp_output_surfaces[obj_output->current_output_surface ^ 1];
+
+	/* XXX: polling is bad but there currently is no alternative */
+	for (;;) {
+	    VdpPresentationQueueStatus vdp_queue_status;
+	    VdpTime vdp_dummy_time;
+	    VdpStatus vdp_status;
+
+	    vdp_status =
+		vdpau_presentation_queue_query_surface_status(driver_data,
+							      obj_output->vdp_flip_queue,
+							      vdp_output_surface,
+							      &vdp_queue_status,
+							      &vdp_dummy_time);
+	    if (vdp_status != VDP_STATUS_OK)
+		return VA_STATUS_ERROR_UNKNOWN;
+
+	    if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE)
+		break;
+
+	    delay_usec(10);
+	}
+    }
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -3146,6 +3215,7 @@ vdpau_PutSurface(VADriverContextP ctx,
     ASSERT(obj_surface);
     if (obj_surface == NULL)
 	return VA_STATUS_ERROR_INVALID_SURFACE;
+    obj_surface->va_surface_status = VASurfaceReady;
 
     object_context_p obj_context = CONTEXT(obj_surface->va_context);
     ASSERT(obj_context);
@@ -3247,6 +3317,7 @@ vdpau_PutSurface(VADriverContextP ctx,
     if (vdp_status != VDP_STATUS_OK)
 	return vdpau_translate_VAStatus(driver_data, vdp_status);
 
+    obj_surface->va_surface_status = VASurfaceDisplaying;
     obj_output->current_output_surface ^= 1;
 
     return VA_STATUS_SUCCESS;
@@ -3517,6 +3588,8 @@ vdpau_Initialize(VADriverContextP ctx)
     VDP_INIT_PROC(PRESENTATION_QUEUE_DISPLAY,	presentation_queue_display);
     VDP_INIT_PROC(PRESENTATION_QUEUE_BLOCK_UNTIL_SURFACE_IDLE,
 		  presentation_queue_block_until_surface_idle);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_QUERY_SURFACE_STATUS,
+		  presentation_queue_query_surface_status);
     VDP_INIT_PROC(PRESENTATION_QUEUE_TARGET_CREATE_X11,
 		  presentation_queue_target_create_x11);
     VDP_INIT_PROC(PRESENTATION_QUEUE_TARGET_DESTROY,

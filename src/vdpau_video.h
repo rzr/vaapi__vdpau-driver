@@ -70,6 +70,7 @@ struct vdpau_vtable {
     VdpPresentationQueueDestroy	*vdp_presentation_queue_destroy;
     VdpPresentationQueueDisplay	*vdp_presentation_queue_display;
     VdpPresentationQueueBlockUntilSurfaceIdle *vdp_presentation_queue_block_until_surface_idle;
+    VdpPresentationQueueQuerySurfaceStatus *vdp_presentation_queue_query_surface_status;
     VdpPresentationQueueTargetCreateX11	*vdp_presentation_queue_target_create_x11;
     VdpPresentationQueueTargetDestroy	*vdp_presentation_queue_target_destroy;
     VdpDecoderCreate		*vdp_decoder_create;
@@ -148,6 +149,7 @@ typedef struct object_surface object_surface_t;
 struct object_surface {
     struct object_base		 base;
     VAContextID			 va_context;
+    VASurfaceStatus		 va_surface_status;
     VdpVideoSurface		 vdp_surface;
     unsigned int		 width;
     unsigned int		 height;
