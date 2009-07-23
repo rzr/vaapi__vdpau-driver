@@ -44,6 +44,25 @@ AC_C_BIGENDIAN
 AC_HEADER_STDC
 AC_SYS_LARGEFILE
 
+dnl We want pthreads. Try libpthread first, then libc_r (FreeBSD), then PTL.
+HAVE_PTHREADS=yes
+AC_CHECK_LIB(pthread, pthread_create, , [
+    AC_CHECK_LIB(c_r, pthread_create, , [
+        AC_CHECK_LIB(PTL, pthread_create, , [
+            HAVE_PTHREADS=no
+        ])
+    ])
+])
+if test "x$HAVE_PTHREADS" = "xyes"; then
+    AC_DEFINE(HAVE_PTHREADS, 1, [Defined if pthreads are available])
+fi
+
+dnl Checks for libraries.
+AC_CHECK_LIB(rt, timer_create)
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(clock_gettime)
+
 dnl Check for __attribute__((visibility()))
 AC_CACHE_CHECK([whether __attribute__((visibility())) is supported],
   vdpau_cv_visibility_attribute,
