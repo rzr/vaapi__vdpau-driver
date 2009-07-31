@@ -124,7 +124,6 @@ struct object_context {
     VASurfaceID			 ref_frames[16];
     unsigned int		 ref_frames_count;
     VASurfaceID			 output_surface;
-    VASurfaceID			 last_video_surface; /* vaPutSurface(): input video surface */
     VASurfaceID			*render_targets;
     VABufferID			*dead_buffers;
     uint32_t			 dead_buffers_count;
@@ -152,6 +151,7 @@ struct object_surface {
     VAContextID			 va_context;
     VASurfaceStatus		 va_surface_status;
     VdpVideoSurface		 vdp_surface;
+    VdpOutputSurface		 vdp_output_surface;
     unsigned int		 width;
     unsigned int		 height;
     union {

@@ -2218,13 +2218,14 @@ vdpau_CreateSurfaces(VADriverContextP ctx,
             va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
             break;
         }
-	obj_surface->va_context = 0;
-	obj_surface->va_surface_status = VASurfaceReady;
-	obj_surface->vdp_surface = vdp_surface;
-	obj_surface->width = width;
-	obj_surface->height = height;
-        surfaces[i] = va_surface;
-	vdp_surface = VDP_INVALID_HANDLE;
+	obj_surface->va_context		= 0;
+	obj_surface->va_surface_status	= VASurfaceReady;
+	obj_surface->vdp_surface	= vdp_surface;
+	obj_surface->vdp_output_surface	= VDP_INVALID_HANDLE;
+	obj_surface->width		= width;
+	obj_surface->height		= height;
+	surfaces[i]			= va_surface;
+	vdp_surface			= VDP_INVALID_HANDLE;
     }
 
     /* Error recovery */
@@ -2354,7 +2355,6 @@ vdpau_CreateContext(VADriverContextP ctx,
     obj_context->max_ref_frames		= -1;
     obj_context->output_surface		=
 	create_output_surface(driver_data, picture_width, picture_height);
-    obj_context->last_video_surface	= VA_INVALID_SURFACE;
     obj_context->render_targets		= (VASurfaceID *)
 	calloc(num_render_targets, sizeof(VASurfaceID));
     obj_context->dead_buffers		= NULL;
@@ -3045,6 +3045,7 @@ vdpau_BeginPicture(VADriverContextP ctx,
 	return VA_STATUS_ERROR_INVALID_SURFACE;
 
     obj_surface->va_surface_status		= VASurfaceRendering;
+    obj_surface->vdp_output_surface		= VDP_INVALID_HANDLE;
     obj_context->last_slice_params		= NULL;
     obj_context->last_slice_params_count	= 0;
     obj_context->current_render_target		= obj_surface->base.id;
@@ -3212,28 +3213,27 @@ vdpau_QuerySurfaceStatus(VADriverContextP ctx,
 	return VA_STATUS_ERROR_INVALID_CONTEXT;
 
     VAStatus va_status = VA_STATUS_SUCCESS;
-    if (obj_context->last_video_surface == render_target &&
-	obj_surface->va_surface_status == VASurfaceDisplaying) {
+    if (obj_surface->va_surface_status == VASurfaceDisplaying &&
+	obj_surface->vdp_output_surface != VDP_INVALID_HANDLE) {
 	object_output_p obj_output = OUTPUT(obj_context->output_surface);
 	ASSERT(obj_output);
 	if (obj_output == NULL)
 	    return VA_STATUS_ERROR_INVALID_SURFACE;
-
-	VdpOutputSurface vdp_output_surface;
-	vdp_output_surface = obj_output->vdp_output_surfaces[obj_output->current_output_surface ^ 1];
 
 	VdpPresentationQueueStatus vdp_queue_status;
 	VdpTime vdp_dummy_time;
 	VdpStatus vdp_status =
 	    vdpau_presentation_queue_query_surface_status(driver_data,
 							  obj_output->vdp_flip_queue,
-							  vdp_output_surface,
+							  obj_surface->vdp_output_surface,
 							  &vdp_queue_status,
 							  &vdp_dummy_time);
 	va_status = vdpau_translate_VAStatus(driver_data, vdp_status);
 
-	if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE)
-	    obj_surface->va_surface_status = VASurfaceReady;
+	if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE) {
+	    obj_surface->va_surface_status  = VASurfaceReady;
+	    obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
+	}
     }
 
     if (status)
@@ -3307,8 +3307,8 @@ vdpau_PutSurface(VADriverContextP ctx,
     if (obj_output == NULL)
 	return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    obj_context->last_video_surface = surface;
     obj_surface->va_surface_status  = VASurfaceReady;
+    obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
 
     /* XXX: no clip rects supported */
     if (cliprects || number_cliprects > 0)
@@ -3400,7 +3400,8 @@ vdpau_PutSurface(VADriverContextP ctx,
     if (vdp_status != VDP_STATUS_OK)
 	return vdpau_translate_VAStatus(driver_data, vdp_status);
 
-    obj_surface->va_surface_status = VASurfaceDisplaying;
+    obj_surface->va_surface_status  = VASurfaceDisplaying;
+    obj_surface->vdp_output_surface = vdp_output_surface;
     obj_output->current_output_surface ^= 1;
 
     return VA_STATUS_SUCCESS;
