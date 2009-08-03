@@ -3402,7 +3402,7 @@ vdpau_PutSurface(VADriverContextP ctx,
 
     obj_surface->va_surface_status  = VASurfaceDisplaying;
     obj_surface->vdp_output_surface = vdp_output_surface;
-    obj_output->current_output_surface ^= 1;
+    obj_output->current_output_surface = (obj_output->current_output_surface + 1) % VDPAU_MAX_OUTPUT_SURFACES;
 
     return VA_STATUS_SUCCESS;
 }
