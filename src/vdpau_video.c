@@ -2669,7 +2669,7 @@ vdpau_CreateImage(VADriverContextP ctx,
 	image->offsets[0]	= 0;
 	image->pitches[1]	= width;
 	image->offsets[1]	= image->offsets[0] + image->pitches[0] * height;
-	image->data_size	= image->offsets[1] + image->pitches[1] * (height + 1) / 2;
+	image->data_size	= image->offsets[1] + image->pitches[1] * ((height + 1) / 2);
 	break;
     case VA_FOURCC('Y','V','1','2'):
 	image->num_planes	= 3;
@@ -2678,8 +2678,8 @@ vdpau_CreateImage(VADriverContextP ctx,
 	image->pitches[1]	= (width + 1) / 2;
 	image->offsets[1]	= image->offsets[0] + image->pitches[0] * height;
 	image->pitches[2]	= (width + 1) / 2;
-	image->offsets[2]	= image->offsets[1] + image->pitches[1] * (height + 1) / 2;
-	image->data_size	= image->offsets[2] + image->pitches[2] * (height + 1) / 2;
+	image->offsets[2]	= image->offsets[1] + image->pitches[1] * ((height + 1) / 2);
+	image->data_size	= image->offsets[2] + image->pitches[2] * ((height + 1) / 2);
 	break;
     case VA_FOURCC('R','G','B','A'):
 	if ((vdp_rgba_format = get_VdpRGBAFormat(format)) == (VdpRGBAFormat)-1)
