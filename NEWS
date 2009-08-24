@@ -1,8 +1,9 @@
-vdpau-video NEWS -- summary of changes.  2009-07-DD
+vdpau-video NEWS -- summary of changes.  2009-08-25
 Copyright (C) 2009 Splitted-Desktop Systems
 
-Version 0.3.3 - DD.Jul.2009
+Version 0.3.3 - 25.Aug.2009
 * Fix H.264 DPB synchronization
+* Fix vaGetImage() with YV12 format
 * Add support for vaSyncSurface() and vaQuerySurfaceStatus()
 
 Version 0.3.2 - 25.Jun.2009
