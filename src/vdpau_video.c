@@ -34,6 +34,10 @@
    strictly replicate VAPictureParameterBufferH264.ReferenceFrames[]. */
 #define VDPAU_VIDEO_DPB 1
 
+/* Define wait delay (in microseconds) for vaSyncSurface() implementation
+   with polling. */
+#define VDPAU_SYNC_DELAY 5000
+
 #define INIT_DRIVER_DATA \
         struct vdpau_driver_data *driver_data = (struct vdpau_driver_data *)ctx->pDriverData
 
@@ -3314,7 +3318,7 @@ sync_surface(vdpau_driver_data_t *driver_data,
 
         if (va_surface_status != VASurfaceDisplaying)
             break;
-        delay_usec(10);
+        delay_usec(VDPAU_SYNC_DELAY);
     }
     return VA_STATUS_SUCCESS;
 }
