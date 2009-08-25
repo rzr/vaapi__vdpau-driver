@@ -36,6 +36,11 @@ AC_DEFINE([VDPAU_VIDEO_MICRO_VERSION], [vdpau_video_micro_version], [Micro versi
 VDPAU_VIDEO_LT_LDFLAGS="-avoid-version"
 AC_SUBST(VDPAU_VIDEO_LT_LDFLAGS)
 
+AC_ARG_ENABLE(glx,
+              AC_HELP_STRING([--enable-glx],
+                             [enable OpenGL/X11 @<:@default=yes@:>@]),
+              [], [enable_glx="yes"])
+
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_PROG_CC
@@ -84,26 +89,22 @@ if test $vdpau_cv_visibility_attribute = yes; then
   AC_DEFINE([HAVE_VISIBILITY_ATTRIBUTE], 1, [Define to use the __attribute__((visibility())) extension])
 fi
 
-dnl Check whether VDPAU is available
-AC_CACHE_CHECK([for VDPAU],
-    ac_cv_have_vdpau, [
-    saved_LIBS="$LIBS"
-    LIBS="$LIBS -lvdpau"
-    AC_TRY_LINK(
-    [#include <vdpau/vdpau_x11.h>],
-    [vdp_device_create_x11(0,0,0,0)],
-    [ac_cv_have_vdpau="yes"; HAVE_VDPAU=1],
-    [ac_cv_have_vdpau="no";  HAVE_VDPAU=0; LIBS="$saved_LIBS"])
-])
-if test "$ac_cv_have_vdpau" = "no"; then
-    AC_MSG_ERROR([you need VDPAU to build this package])
-fi
+dnl Check for OpenGL
+AC_CHECK_HEADERS([GL/glx.h])
+AC_CHECK_HEADERS([GL/gl.h GL/glu.h])
 
-PKG_CHECK_MODULES(LIBVA_DEPS, [libva-x11])
-VDPAU_VIDEO_CFLAGS="$LIBVA_DEPS_CFLAGS"
-VDPAU_VIDEO_LIBS="$LIBVA_DEPS_LIBS"
-AC_SUBST(VDPAU_VIDEO_CFLAGS)
-AC_SUBST(VDPAU_VIDEO_LIBS)
+USE_GLX=1
+GL_DEPS_CFLAGS=""
+GL_DEPS_LIBS=""
+AC_CHECK_LIB(GL, glXCreateContext, [GL_DEPS_LIBS="-lGL"], [USE_GLX=0])
+AC_SUBST(GL_DEPS_CFLAGS)
+AC_SUBST(GL_DEPS_LIBS)
+
+dnl Check for VA API
+PKG_CHECK_MODULES(LIBVA_DEPS,	  [libva])
+PKG_CHECK_MODULES(LIBVA_X11_DEPS, [libva-x11])
+PKG_CHECK_MODULES(LIBVA_GLX_DEPS, [libva-glx], [], [USE_GLX=0])
+AC_DEFINE_UNQUOTED(USE_GLX, $USE_GLX, [Defined to 1 if GLX is enabled])
 
 dnl Check for SDS extensions to VA API
 AC_CACHE_CHECK([for VA API],
@@ -138,6 +139,7 @@ else
     AC_MSG_ERROR([Your VA API SDK does not include SDS extensions])
 fi
 
+dnl Check for VA API drivers path
 AC_MSG_CHECKING([for VA drivers path])
 LIBVA_DRIVERS_PATH=`$PKG_CONFIG libva --variable driverdir`
 if test -z "$LIBVA_DRIVERS_PATH"; then
@@ -145,6 +147,30 @@ if test -z "$LIBVA_DRIVERS_PATH"; then
 fi
 AC_MSG_RESULT([$LIBVA_DRIVERS_PATH])
 AC_SUBST(LIBVA_DRIVERS_PATH)
+
+dnl Check for VDPAU
+AC_CACHE_CHECK([for VDPAU],
+    ac_cv_have_vdpau, [
+    saved_LIBS="$LIBS"
+    LIBS="$LIBS -lvdpau"
+    AC_TRY_LINK(
+    [#include <vdpau/vdpau_x11.h>],
+    [vdp_device_create_x11(0,0,0,0)],
+    [ac_cv_have_vdpau="yes"; HAVE_VDPAU=1],
+    [ac_cv_have_vdpau="no";  HAVE_VDPAU=0; LIBS="$saved_LIBS"])
+])
+if test "$ac_cv_have_vdpau" = "no"; then
+    AC_MSG_ERROR([you need VDPAU to build this package])
+fi
+
+VDPAU_VIDEO_CFLAGS="$LIBVA_DEPS_CFLAGS"
+VDPAU_VIDEO_LIBS="$LIBVA_DEPS_LIBS"
+if test $USE_GLX -eq 1; then
+    VDPAU_VIDEO_CFLAGS="$VDPAU_VIDEO_CFLAGS $GL_DEPS_CFLAGS"
+    VDPAU_VIDEO_LIBS="$VDPAU_VIDEO_LIBS $GL_DEPS_LIBS"
+fi
+AC_SUBST(VDPAU_VIDEO_CFLAGS)
+AC_SUBST(VDPAU_VIDEO_LIBS)
 
 AC_OUTPUT([
 	Makefile
