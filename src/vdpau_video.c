@@ -18,12 +18,14 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#define _GNU_SOURCE 1
 #include "sysdeps.h"
 #include "vdpau_video.h"
 #include <va/va_backend.h>
 #include <stdarg.h>
 #include <time.h>
 #include <errno.h>
+#include <dlfcn.h>
 
 #define DEBUG 1
 #include "debug.h"
@@ -191,6 +193,28 @@ static void delay_usec(unsigned int usec)
         was_error = select(0, NULL, NULL, NULL, &tv);
 #endif
     } while (was_error && (errno == EINTR));
+}
+
+// X error trap
+static int x11_error_code = 0;
+static int (*old_error_handler)(Display *, XErrorEvent *);
+
+static int error_handler(Display *dpy, XErrorEvent *error)
+{
+    x11_error_code = error->error_code;
+    return 0;
+}
+
+void x11_trap_errors(void)
+{
+    x11_error_code    = 0;
+    old_error_handler = XSetErrorHandler(error_handler);
+}
+
+int x11_untrap_errors(void)
+{
+    XSetErrorHandler(old_error_handler);
+    return x11_error_code;
 }
 
 // Returns X drawable dimensions
@@ -378,6 +402,342 @@ static inline int vdpau_video_dpb(void)
         g_vdpau_video_dpb = vdpau_video_dpb_1();
     return g_vdpau_video_dpb;
 }
+
+
+/* ====================================================================== */
+/* === OpenGL Gate and Helpers                                        === */
+/* ====================================================================== */
+
+#if USE_GLX
+typedef void (*GLFuncPtr)(void);
+typedef GLFuncPtr (*GLXGetProcAddressProc)(const char *);
+
+static GLFuncPtr get_proc_address_default(const char *name)
+{
+    return NULL;
+}
+
+static GLXGetProcAddressProc get_proc_address_func(void)
+{
+    GLXGetProcAddressProc get_proc_func;
+
+    dlerror();
+    get_proc_func = (GLXGetProcAddressProc)
+        dlsym(RTLD_NEXT, "glXGetProcAddress");
+    if (dlerror() == NULL)
+        return get_proc_func;
+
+    get_proc_func = (GLXGetProcAddressProc)
+        dlsym(RTLD_NEXT, "glXGetProcAddressARB");
+    if (dlerror() == NULL)
+        return get_proc_func;
+
+    return get_proc_address_default;
+}
+
+static inline GLFuncPtr get_proc_address(const char *name)
+{
+    static GLXGetProcAddressProc get_proc_func = NULL;
+    if (get_proc_func == NULL)
+        get_proc_func = get_proc_address_func();
+    return get_proc_func(name);
+}
+
+static int check_extension(const char *name, const char *ext)
+{
+    const char *end;
+    int name_len, n;
+
+    if (name == NULL || ext == NULL)
+        return 0;
+
+    end = ext + strlen(ext);
+    name_len = strlen(name);
+    while (ext < end) {
+        n = strcspn(ext, " ");
+        if (n == name_len && strncmp(name, ext, n) == 0)
+            return 1;
+        ext += (n + 1);
+    }
+    return 0;
+}
+
+static int gl_check_extensions(vdpau_driver_data_t *driver_data)
+{
+    VADriverContextP const ctx = driver_data->va_context;
+    const char *gl_extensions;
+    const char *glx_extensions;
+
+    gl_extensions  = (const char *)glGetString(GL_EXTENSIONS);
+    glx_extensions = glXQueryExtensionsString(ctx->x11_dpy, ctx->x11_screen);
+
+    if (!check_extension("GL_ARB_texture_non_power_of_two", gl_extensions))
+        return -1;
+    if (!check_extension("GLX_EXT_texture_from_pixmap", glx_extensions))
+        return -1;
+    if (!check_extension("GL_ARB_framebuffer_object", gl_extensions) &&
+        !check_extension("GL_EXT_framebuffer_object", gl_extensions))
+        return -1;
+    return 0;
+}
+
+static int gl_load_funcs(vdpau_driver_data_t *driver_data)
+{
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+
+    gl_data->glx_bind_tex_image = (PFNGLXBINDTEXIMAGEEXTPROC)
+        get_proc_address("glXBindTexImageEXT");
+    if (gl_data->glx_bind_tex_image == NULL)
+        return -1;
+    gl_data->glx_release_tex_image = (PFNGLXRELEASETEXIMAGEEXTPROC)
+        get_proc_address("glXReleaseTexImageEXT");
+    if (gl_data->glx_release_tex_image == NULL)
+        return -1;
+    gl_data->gl_gen_framebuffers = (PFNGLGENFRAMEBUFFERSEXTPROC)
+        get_proc_address("glGenFramebuffersEXT");
+    if (gl_data->gl_gen_framebuffers == NULL)
+        return -1;
+    gl_data->gl_delete_framebuffers = (PFNGLDELETEFRAMEBUFFERSEXTPROC)
+        get_proc_address("glDeleteFramebuffersEXT");
+    if (gl_data->gl_delete_framebuffers == NULL)
+        return -1;
+    gl_data->gl_bind_framebuffer = (PFNGLBINDFRAMEBUFFEREXTPROC)
+        get_proc_address("glBindFramebufferEXT");
+    if (gl_data->gl_bind_framebuffer == NULL)
+        return -1;
+    gl_data->gl_gen_renderbuffers = (PFNGLGENRENDERBUFFERSEXTPROC)
+        get_proc_address("glGenRenderbuffersEXT");
+    if (gl_data->gl_gen_renderbuffers == NULL)
+        return -1;
+    gl_data->gl_delete_renderbuffers = (PFNGLDELETERENDERBUFFERSEXTPROC)
+        get_proc_address("glDeleteRenderbuffersEXT");
+    if (gl_data->gl_delete_renderbuffers == NULL)
+        return -1;
+    gl_data->gl_bind_renderbuffer = (PFNGLBINDRENDERBUFFEREXTPROC)
+        get_proc_address("glBindRenderbufferEXT");
+    if (gl_data->gl_bind_renderbuffer == NULL)
+        return -1;
+    gl_data->gl_renderbuffer_storage = (PFNGLRENDERBUFFERSTORAGEEXTPROC)
+        get_proc_address("glRenderbufferStorageEXT");
+    if (gl_data->gl_renderbuffer_storage == NULL)
+        return -1;
+    gl_data->gl_framebuffer_renderbuffer = (PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC)
+        get_proc_address("glFramebufferRenderbufferEXT");
+    if (gl_data->gl_framebuffer_renderbuffer == NULL)
+        return -1;
+    gl_data->gl_framebuffer_texture_2d = (PFNGLFRAMEBUFFERTEXTURE2DEXTPROC)
+        get_proc_address("glFramebufferTexture2DEXT");
+    if (gl_data->gl_framebuffer_texture_2d == NULL)
+        return -1;
+    gl_data->gl_check_framebuffer_status = (PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC)
+        get_proc_address("glCheckFramebufferStatusEXT");
+    if (gl_data->gl_check_framebuffer_status == NULL)
+        return -1;
+    return 0;
+}
+
+static const char *gl_error_string(GLenum error)
+{
+    static const struct {
+        GLenum val;
+        const char *str;
+    }
+    gl_errors[] = {
+        { GL_NO_ERROR,          "no error" },
+        { GL_INVALID_ENUM,      "invalid enumerant" },
+        { GL_INVALID_VALUE,     "invalid value" },
+        { GL_INVALID_OPERATION, "invalid operation" },
+        { GL_STACK_OVERFLOW,    "stack overflow" },
+        { GL_STACK_UNDERFLOW,   "stack underflow" },
+        { GL_OUT_OF_MEMORY,     "out of memory" },
+#ifdef GL_INVALID_FRAMEBUFFER_OPERATION_EXT
+        { GL_INVALID_FRAMEBUFFER_OPERATION_EXT, "invalid framebuffer operation" },
+#endif
+        { ~0, NULL }
+    };
+
+    int i;
+    for (i = 0; gl_errors[i].str; i++) {
+        if (gl_errors[i].val == error)
+            return gl_errors[i].str;
+    }
+    return "unknown";
+}
+
+static int gl_do_check_error(int report)
+{
+    GLenum error;
+    int is_error = 0;
+#if DEBUG
+    while ((error = glGetError()) != GL_NO_ERROR) {
+        if (report)
+            vdpau_error_message("glError: %s caught\n", gl_error_string(error));
+        is_error = 1;
+    }
+#endif
+    return is_error;
+}
+
+static inline void gl_purge_errors(void)
+{
+    gl_do_check_error(0);
+}
+
+static inline int gl_check_error(void)
+{
+    return gl_do_check_error(1);
+}
+
+static int gl_get_texture_param(GLenum param, unsigned int *pval)
+{
+    GLint val;
+
+    gl_purge_errors();
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, param, &val);
+    if (gl_check_error())
+        return -1;
+    if (pval)
+        *pval = val;
+    return 0;
+}
+
+static Pixmap gen_pixmap(vdpau_driver_data_t *driver_data,
+                         unsigned int         width,
+                         unsigned int         height)
+{
+    VADriverContextP const ctx = driver_data->va_context;
+    Window root_window;
+    XWindowAttributes wattr;
+
+    root_window = RootWindow(ctx->x11_dpy, ctx->x11_screen);
+    XGetWindowAttributes(ctx->x11_dpy, root_window, &wattr);
+    return XCreatePixmap(ctx->x11_dpy, root_window, width, height, wattr.depth);
+}
+
+static GLXPixmap gen_glx_pixmap(vdpau_driver_data_t *driver_data, Pixmap pixmap)
+{
+    VADriverContextP const ctx = driver_data->va_context;
+    GLXFBConfig *fbconfig = NULL;
+    GLXPixmap glx_pixmap  = None;
+    int *attrib, n_fbconfig_attribs;
+    Window root_window;
+    int x, y;
+    unsigned int width, height, border_width, depth;
+    int status;
+
+    if (pixmap == None)
+        return -1;
+
+    x11_trap_errors();
+    status = XGetGeometry(ctx->x11_dpy,
+                          (Drawable)pixmap,
+                          &root_window,
+                          &x,
+                          &y,
+                          &width,
+                          &height,
+                          &border_width,
+                          &depth);
+    if (x11_untrap_errors() != 0 || status == 0)
+        return -1;
+    if (depth != 24 && depth != 32)
+        return -1;
+
+    int fbconfig_attribs[32] = {
+        GLX_DRAWABLE_TYPE,      GLX_PIXMAP_BIT,
+        GLX_DOUBLEBUFFER,       GL_TRUE,
+        GLX_RENDER_TYPE,        GLX_RGBA_BIT,
+        GLX_X_RENDERABLE,       GL_TRUE,
+        GLX_Y_INVERTED_EXT,     GL_TRUE,
+        GLX_RED_SIZE,           8,
+        GLX_GREEN_SIZE,         8,
+        GLX_BLUE_SIZE,          8,
+        GL_NONE,
+    };
+    for (attrib = fbconfig_attribs; *attrib != GL_NONE; attrib += 2)
+        ;
+    *attrib++ = GLX_DEPTH_SIZE;                         *attrib++ = depth;
+    if (depth == 32) {
+        *attrib++ = GLX_ALPHA_SIZE;                     *attrib++ = 8;
+        *attrib++ = GLX_BIND_TO_TEXTURE_RGBA_EXT;       *attrib++ = GL_TRUE;
+    }
+    else {
+        *attrib++ = GLX_BIND_TO_TEXTURE_RGB_EXT;        *attrib++ = GL_TRUE;
+    }
+    *attrib++ = GL_NONE;
+
+    fbconfig = glXChooseFBConfig(ctx->x11_dpy, ctx->x11_screen, fbconfig_attribs, &n_fbconfig_attribs);
+    if (fbconfig == NULL)
+        return -1;
+
+    int pixmap_attribs[10] = {
+        GLX_TEXTURE_TARGET_EXT, GLX_TEXTURE_2D_EXT,
+        GLX_MIPMAP_TEXTURE_EXT, GL_FALSE,
+        GL_NONE,
+    };
+    for (attrib = pixmap_attribs; *attrib != GL_NONE; attrib += 2)
+        ;
+    *attrib++ = GLX_TEXTURE_FORMAT_EXT;
+    if (depth == 32)
+        *attrib++ = GLX_TEXTURE_FORMAT_RGBA_EXT;
+    else
+        *attrib++ = GLX_TEXTURE_FORMAT_RGB_EXT;
+    *attrib++ = GL_NONE;
+
+    x11_trap_errors();
+    glx_pixmap = glXCreatePixmap(ctx->x11_dpy,
+                                 fbconfig[0],
+                                 pixmap,
+                                 pixmap_attribs);
+    free(fbconfig);
+    if (x11_untrap_errors() != 0)
+        return -1;
+    return glx_pixmap;
+}
+
+static int gen_fbo_data(vdpau_driver_data_t *driver_data,
+                        GLuint               texture,
+                        unsigned int         texture_width,
+                        unsigned int         texture_height,
+                        GLuint              *pfbo,
+                        GLuint              *pfbo_buffer,
+                        GLuint              *pfbo_texture)
+{
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+    GLuint fbo, fbo_buffer, fbo_texture;
+    GLenum status;
+
+    glGenTextures(1, &fbo_texture);
+    glBindTexture(GL_TEXTURE_2D, fbo_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture_width, texture_height, 0,
+                 GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+
+    gl_data->gl_gen_framebuffers(1, &fbo);
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, fbo);
+    gl_data->gl_gen_renderbuffers(1, &fbo_buffer);
+    gl_data->gl_bind_renderbuffer(GL_RENDERBUFFER_EXT, fbo_buffer);
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    gl_data->gl_framebuffer_texture_2d(GL_FRAMEBUFFER_EXT,
+                                       GL_COLOR_ATTACHMENT0_EXT,
+                                       GL_TEXTURE_2D, texture, 0);
+
+    status = gl_data->gl_check_framebuffer_status(GL_DRAW_FRAMEBUFFER_EXT);
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
+    if (status != GL_FRAMEBUFFER_COMPLETE_EXT)
+        return -1;
+
+    *pfbo         = fbo;
+    *pfbo_buffer  = fbo_buffer;
+    *pfbo_texture = fbo_texture;
+    return 0;
+}
+#endif
 
 
 /* ====================================================================== */
@@ -1901,6 +2261,36 @@ static void destroy_output_surface(vdpau_driver_data_t *driver_data, VASurfaceID
         }
     }
 
+#if USE_GLX
+    VADriverContextP const ctx = driver_data->va_context;
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+
+    if (obj_output->fbo_texture) {
+        glDeleteTextures(1, &obj_output->fbo_texture);
+        obj_output->fbo_texture = 0;
+    }
+
+    if (obj_output->fbo_buffer) {
+        gl_data->gl_delete_renderbuffers(1, &obj_output->fbo_buffer);
+        obj_output->fbo_buffer = 0;
+    }
+
+    if (obj_output->fbo) {
+        gl_data->gl_delete_framebuffers(1, &obj_output->fbo);
+        obj_output->fbo = 0;
+    }
+
+    if (obj_output->glx_pixmap) {
+        glXDestroyPixmap(ctx->x11_dpy, obj_output->glx_pixmap);
+        obj_output->glx_pixmap = None;
+    }
+
+    if (obj_output->pixmap) {
+        XFreePixmap(ctx->x11_dpy, obj_output->pixmap);
+        obj_output->pixmap = None;
+    }
+#endif
+
     object_heap_free(&driver_data->output_heap, (object_base_p)obj_output);
 }
 
@@ -1928,6 +2318,13 @@ static VASurfaceID create_output_surface(vdpau_driver_data_t *driver_data,
     obj_output->current_output_surface  = 0;
     for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++)
         obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
+#if USE_GLX
+    obj_output->pixmap                  = None;
+    obj_output->glx_pixmap              = None;
+    obj_output->fbo                     = 0;
+    obj_output->fbo_buffer              = 0;
+    obj_output->fbo_texture             = 0;
+#endif
 
     VADriverContextP const ctx = driver_data->va_context;
     uint32_t display_width, display_height;
@@ -3487,6 +3884,202 @@ vdpau_PutSurface(VADriverContextP ctx,
     return put_surface(driver_data, surface, draw, w, h, &src_rect, &dst_rect);
 }
 
+#if USE_GLX
+// vaCopySurfaceToTextureGLX
+static VAStatus
+copy_surface_glx(vdpau_driver_data_t *driver_data,
+                 VASurfaceID          surface,
+                 GLuint               texture)
+{
+    VADriverContextP const ctx = driver_data->va_context;
+
+    object_surface_p obj_surface = SURFACE(surface);
+    ASSERT(obj_surface);
+    if (obj_surface == NULL)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    object_context_p obj_context = CONTEXT(obj_surface->va_context);
+    ASSERT(obj_context);
+    if (obj_context == NULL)
+        return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+    object_output_p obj_output = OUTPUT(obj_context->output_surface);
+    ASSERT(obj_output);
+    if (obj_output == NULL)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    /* XXX: check we have RGBA texture? */
+    unsigned int border_width, width, height;
+    if (gl_get_texture_param(GL_TEXTURE_BORDER, &border_width) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+    if (gl_get_texture_param(GL_TEXTURE_WIDTH, &width) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+    if (gl_get_texture_param(GL_TEXTURE_HEIGHT, &height) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+    width  -= 2 * border_width;
+    height -= 2 * border_width;
+    if (width == 0 || height == 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    /* Check wether we have to re-create the pixmaps */
+    int width_changed  = obj_output->width  != width;
+    int height_changed = obj_output->height != height;
+
+    if (width_changed || height_changed) {
+        if (obj_output->glx_pixmap) {
+            glXDestroyPixmap(ctx->x11_dpy, obj_output->glx_pixmap);
+            obj_output->glx_pixmap = None;
+        }
+        if (obj_output->pixmap) {
+            XFreePixmap(ctx->x11_dpy, obj_output->pixmap);
+            obj_output->pixmap = None;
+        }
+    }
+
+    /* Create X11 Pixmap */
+    if (obj_output->pixmap == None || width_changed || height_changed) {
+        Pixmap pixmap = gen_pixmap(driver_data, width, height);
+        if (pixmap == None)
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        obj_output->pixmap = pixmap;
+    }
+    ASSERT(obj_output->pixmap);
+
+    /* Create GLX Pixmap */
+    if (obj_output->glx_pixmap == None) {
+        GLXPixmap glx_pixmap = gen_glx_pixmap(driver_data, obj_output->pixmap);
+        if (glx_pixmap == None)
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        obj_output->glx_pixmap = glx_pixmap;
+    }
+    ASSERT(obj_output->glx_pixmap);
+
+    /* Create FBO data */
+    if (obj_output->fbo == 0 ||
+        obj_output->fbo_buffer == 0 ||
+        obj_output->fbo_texture == 0) {
+        GLuint fbo, fbo_buffer, fbo_texture;
+        if (gen_fbo_data(driver_data,
+                         texture, width, height,
+                         &fbo, &fbo_buffer, &fbo_texture) < 0)
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        obj_output->fbo         = fbo;
+        obj_output->fbo_buffer  = fbo_buffer;
+        obj_output->fbo_texture = fbo_texture;
+    }
+    ASSERT(obj_output->fbo > 0);
+    ASSERT(obj_output->fbo_buffer > 0);
+    ASSERT(obj_output->fbo_texture > 0);
+
+    /* Render to Pixmap */
+    VAStatus va_status;
+    VdpRect src_rect, dst_rect;
+    src_rect.x0 = 0;
+    src_rect.y0 = 0;
+    src_rect.x1 = obj_surface->width;
+    src_rect.y1 = obj_surface->height;
+    dst_rect.x0 = 0;
+    dst_rect.y0 = 0;
+    dst_rect.x1 = width;
+    dst_rect.y1 = height;
+    va_status = put_surface(driver_data, surface,
+                            obj_output->pixmap, width, height,
+                            &src_rect, &dst_rect);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+    va_status = sync_surface(driver_data, obj_context, obj_surface);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    /* Render to FBO */
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_output->fbo);
+    glPushAttrib(GL_VIEWPORT_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glViewport(0, 0, width, height);
+    glTranslatef(-1.0f, -1.0f, 0.0f);
+    glScalef(2.0f / width, 2.0f / height, 1.0f);
+
+    glBindTexture(GL_TEXTURE_2D, obj_output->fbo_texture);
+    
+    x11_trap_errors();
+    gl_data->glx_bind_tex_image(ctx->x11_dpy, obj_output->glx_pixmap,
+                                GLX_FRONT_LEFT_EXT, NULL);
+    XSync(ctx->x11_dpy, False);
+    if (x11_untrap_errors() != 0)
+        vdpau_error_message("failed to bind pixmap\n");
+
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    glBegin(GL_QUADS);
+    {
+        glTexCoord2f(0.0f, 0.0f); glVertex2i(0, 0);
+        glTexCoord2f(0.0f, 1.0f); glVertex2i(0, height);
+        glTexCoord2f(1.0f, 1.0f); glVertex2i(width, height);
+        glTexCoord2f(1.0f, 0.0f); glVertex2i(width, 0);
+    }
+    glEnd();
+
+    x11_trap_errors();
+    gl_data->glx_release_tex_image(ctx->x11_dpy, obj_output->glx_pixmap,
+                                   GLX_FRONT_LEFT_EXT);
+    XSync(ctx->x11_dpy, False);
+    if (x11_untrap_errors() != 0)
+        vdpau_error_message("failed to release pixmap\n");
+
+    glPopAttrib();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
+
+    return VA_STATUS_SUCCESS;
+}
+
+static VAStatus
+vdpau_CopySurfaceToTextureGLX(VADriverContextP ctx,
+                              VASurfaceID surface,
+                              unsigned int tex,
+                              unsigned int flags)
+{
+    INIT_DRIVER_DATA;
+
+    /* XXX: only support VA_FRAME_PICTURE */
+    if (flags)
+        return VA_STATUS_ERROR_FLAG_NOT_SUPPORTED;
+
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+
+    if (gl_data->gl_status == OPENGL_STATUS_NONE) {
+        gl_data->gl_status = OPENGL_STATUS_ERROR;
+        if (gl_check_extensions(driver_data) < 0)
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+        if (gl_load_funcs(driver_data) < 0)
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+        gl_data->gl_status = OPENGL_STATUS_OK;
+    }
+    if (gl_data->gl_status != OPENGL_STATUS_OK)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    if (!glIsTexture(tex))
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+    gl_purge_errors();
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    if (gl_check_error())
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    return copy_surface_glx(driver_data, surface, tex);
+}
+#endif
+
 // vaQueryDisplayAttributes
 static VAStatus
 vdpau_QueryDisplayAttributes(VADriverContextP ctx,
@@ -3713,6 +4306,9 @@ vdpau_Initialize(VADriverContextP ctx)
 #else
     ctx->vtable.vaSetSubpicturePalette          = vdpau_SetSubpicturePalette;
     ctx->vtable.vaDbgCopySurfaceToBuffer        = vdpau_DbgCopySurfaceToBuffer;
+#endif
+#if USE_GLX
+    ctx->vtable.vaCopySurfaceToTextureGLX       = vdpau_CopySurfaceToTextureGLX;
 #endif
 
     driver_data = (struct vdpau_driver_data *)calloc(1, sizeof(*driver_data));

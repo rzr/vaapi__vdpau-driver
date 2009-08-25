@@ -2,6 +2,7 @@ vdpau-video NEWS -- summary of changes.  2009-08-DD
 Copyright (C) 2009 Splitted-Desktop Systems
 
 Version 0.4.0 - DD.Aug.2009
+* Add support for OpenGL extensions to VA API
 * Fix VAImageID pool memory leak in vaTerminate()
 
 Version 0.3.3 - 25.Aug.2009

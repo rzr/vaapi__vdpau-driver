@@ -26,6 +26,12 @@
 #include <vdpau/vdpau_x11.h>
 #include "object_heap.h"
 
+#if USE_GLX
+#include <GL/gl.h>
+#include <GL/glx.h>
+#include <GL/glext.h>
+#endif
+
 #define VDPAU_MAX_PROFILES              12
 #define VDPAU_MAX_ENTRYPOINTS           5
 #define VDPAU_MAX_CONFIG_ATTRIBUTES     10
@@ -53,6 +59,31 @@ typedef enum {
     VDP_CODEC_H264,
     VDP_CODEC_VC1
 } VdpCodec;
+
+typedef enum {
+    OPENGL_STATUS_NONE  = 0,
+    OPENGL_STATUS_OK    = 1,
+    OPENGL_STATUS_ERROR = -1
+} OpenGLStatus;
+
+typedef struct opengl_data opengl_data_t;
+struct opengl_data {
+    OpenGLStatus                        gl_status;
+#if USE_GLX
+    PFNGLXBINDTEXIMAGEEXTPROC           glx_bind_tex_image;
+    PFNGLXRELEASETEXIMAGEEXTPROC        glx_release_tex_image;
+    PFNGLGENFRAMEBUFFERSEXTPROC         gl_gen_framebuffers;
+    PFNGLDELETEFRAMEBUFFERSEXTPROC      gl_delete_framebuffers;
+    PFNGLBINDFRAMEBUFFEREXTPROC         gl_bind_framebuffer;
+    PFNGLGENRENDERBUFFERSEXTPROC        gl_gen_renderbuffers;
+    PFNGLDELETERENDERBUFFERSEXTPROC     gl_delete_renderbuffers;
+    PFNGLBINDRENDERBUFFEREXTPROC        gl_bind_renderbuffer;
+    PFNGLRENDERBUFFERSTORAGEEXTPROC     gl_renderbuffer_storage;
+    PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC gl_framebuffer_renderbuffer;
+    PFNGLFRAMEBUFFERTEXTURE2DEXTPROC    gl_framebuffer_texture_2d;
+    PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC  gl_check_framebuffer_status;
+#endif
+};
 
 typedef struct vdpau_vtable vdpau_vtable_t;
 struct vdpau_vtable {
@@ -93,6 +124,7 @@ struct vdpau_driver_data {
     struct object_heap           buffer_heap;
     struct object_heap           output_heap;
     struct object_heap           image_heap;
+    struct opengl_data           gl_data;
     VdpDevice                    vdp_device;
     VdpGetProcAddress           *vdp_get_proc_address;
     struct vdpau_vtable          vdp_vtable;
@@ -181,6 +213,13 @@ struct object_output {
     uint32_t                     output_surface_height;
     VdpOutputSurface             vdp_output_surfaces[VDPAU_MAX_OUTPUT_SURFACES];
     int                          current_output_surface;
+#if USE_GLX
+    Pixmap                       pixmap;
+    GLXPixmap                    glx_pixmap;
+    GLuint                       fbo;
+    GLuint                       fbo_buffer;
+    GLuint                       fbo_texture;
+#endif
 };
 
 typedef struct object_image object_image_t;
