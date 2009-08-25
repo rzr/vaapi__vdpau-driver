@@ -3523,6 +3523,9 @@ vdpau_Terminate(VADriverContextP ctx)
     object_heap_destroy(&driver_data->output_heap);
 
     /* TODO cleanup */
+    object_heap_destroy(&driver_data->image_heap);
+
+    /* TODO cleanup */
     object_heap_destroy(&driver_data->surface_heap);
 
     /* TODO cleanup */
