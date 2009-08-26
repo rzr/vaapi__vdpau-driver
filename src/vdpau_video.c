@@ -2265,6 +2265,8 @@ static void destroy_output_surface(vdpau_driver_data_t *driver_data, VASurfaceID
     VADriverContextP const ctx = driver_data->va_context;
     opengl_data_t * const gl_data = &driver_data->gl_data;
 
+    /* XXX: unbind pixmap */
+
     if (obj_output->fbo_texture) {
         glDeleteTextures(1, &obj_output->fbo_texture);
         obj_output->fbo_texture = 0;
@@ -2319,6 +2321,7 @@ static VASurfaceID create_output_surface(vdpau_driver_data_t *driver_data,
     for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++)
         obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
 #if USE_GLX
+    obj_output->is_bound                = 0;
     obj_output->pixmap                  = None;
     obj_output->glx_pixmap              = None;
     obj_output->fbo                     = 0;
@@ -3885,13 +3888,201 @@ vdpau_PutSurface(VADriverContextP ctx,
 }
 
 #if USE_GLX
-// vaCopySurfaceToTextureGLX
-static VAStatus
-copy_surface_glx(vdpau_driver_data_t *driver_data,
-                 VASurfaceID          surface,
-                 GLuint               texture)
+// Ensure GLX TFP and FBO extensions are available
+static int
+glx_ensure_extensions(vdpau_driver_data_t *driver_data)
+{
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+
+    if (gl_data->gl_status == OPENGL_STATUS_NONE) {
+        gl_data->gl_status = OPENGL_STATUS_ERROR;
+        if (gl_check_extensions(driver_data) < 0)
+            return -1;
+        if (gl_load_funcs(driver_data) < 0)
+            return -1;
+        gl_data->gl_status = OPENGL_STATUS_OK;
+    }
+
+    if (gl_data->gl_status != OPENGL_STATUS_OK)
+        return -1;
+    return 0;
+}
+
+// Ensure X11 and GLX pixmaps are on par with texture requirements
+static int
+glx_ensure_pixmaps(vdpau_driver_data_t *driver_data,
+                   object_output_p      obj_output,
+                   GLuint               texture)
 {
     VADriverContextP const ctx = driver_data->va_context;
+
+    /* XXX: check we have RGBA texture? */
+    GLint gl_width;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &gl_width);
+    unsigned int border_width, width, height;
+    if (gl_get_texture_param(GL_TEXTURE_BORDER, &border_width) < 0)
+        return -1;
+    if (gl_get_texture_param(GL_TEXTURE_WIDTH, &width) < 0)
+        return -1;
+    if (gl_get_texture_param(GL_TEXTURE_HEIGHT, &height) < 0)
+        return -1;
+    width  -= 2 * border_width;
+    height -= 2 * border_width;
+    if (width == 0 || height == 0)
+        return -1;
+
+    /* Check wether we have to re-create the pixmaps */
+    int width_changed  = obj_output->width  != width;
+    int height_changed = obj_output->height != height;
+
+    if (width_changed || height_changed) {
+        if (obj_output->glx_pixmap) {
+            glXDestroyPixmap(ctx->x11_dpy, obj_output->glx_pixmap);
+            obj_output->glx_pixmap = None;
+        }
+        if (obj_output->pixmap) {
+            XFreePixmap(ctx->x11_dpy, obj_output->pixmap);
+            obj_output->pixmap = None;
+        }
+        obj_output->width  = width;
+        obj_output->height = height;
+    }
+
+    /* Create X11 Pixmap */
+    if (obj_output->pixmap == None || width_changed || height_changed) {
+        Pixmap pixmap = gen_pixmap(driver_data, width, height);
+        if (pixmap == None)
+            return -1;
+        obj_output->pixmap = pixmap;
+    }
+    ASSERT(obj_output->pixmap);
+
+    /* Create GLX Pixmap */
+    if (obj_output->glx_pixmap == None) {
+        GLXPixmap glx_pixmap = gen_glx_pixmap(driver_data, obj_output->pixmap);
+        if (glx_pixmap == None)
+            return -1;
+        obj_output->glx_pixmap = glx_pixmap;
+    }
+    ASSERT(obj_output->glx_pixmap);
+    return 0;
+}
+
+// Bind GLX Pixmap to texture
+static int
+glx_bind_pixmap(vdpau_driver_data_t *driver_data, object_output_p obj_output)
+{
+    VADriverContextP const ctx = driver_data->va_context;
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+
+    if (obj_output->is_bound)
+        return 0;
+
+    x11_trap_errors();
+    gl_data->glx_bind_tex_image(ctx->x11_dpy, obj_output->glx_pixmap,
+                                GLX_FRONT_LEFT_EXT, NULL);
+    XSync(ctx->x11_dpy, False);
+    if (x11_untrap_errors() != 0) {
+        vdpau_error_message("failed to bind pixmap\n");
+        return -1;
+    }
+
+    obj_output->is_bound = 1;
+    return 0;
+}
+
+// Release GLX Pixmap from texture
+static int
+glx_release_pixmap(vdpau_driver_data_t *driver_data, object_output_p obj_output)
+{
+    VADriverContextP const ctx = driver_data->va_context;
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+
+    if (!obj_output->is_bound)
+        return 0;
+
+    x11_trap_errors();
+    gl_data->glx_release_tex_image(ctx->x11_dpy, obj_output->glx_pixmap,
+                                   GLX_FRONT_LEFT_EXT);
+    XSync(ctx->x11_dpy, False);
+    if (x11_untrap_errors() != 0) {
+        vdpau_error_message("failed to release pixmap\n");
+        return -1;
+    }
+
+    obj_output->is_bound = 0;
+    return 0;
+}
+
+// Render GLX Pixmap to texture
+static int
+glx_render_pixmap(vdpau_driver_data_t *driver_data, object_output_p obj_output)
+{
+    const unsigned int w = obj_output->width;
+    const unsigned int h = obj_output->height;
+
+    glBindTexture(GL_TEXTURE_2D, obj_output->fbo_texture);
+    if (glx_bind_pixmap(driver_data, obj_output) < 0)
+        return -1;
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    glBegin(GL_QUADS);
+    {
+        glTexCoord2f(0.0f, 0.0f); glVertex2i(0, 0);
+        glTexCoord2f(0.0f, 1.0f); glVertex2i(0, h);
+        glTexCoord2f(1.0f, 1.0f); glVertex2i(w, h);
+        glTexCoord2f(1.0f, 0.0f); glVertex2i(w, 0);
+    }
+    glEnd();
+    if (glx_release_pixmap(driver_data, obj_output) < 0)
+        return -1;
+    return 0;
+}
+
+// Setup matrices to match the FBO texture dimensions
+static int
+glx_fbo_enter(vdpau_driver_data_t *driver_data, object_output_p obj_output)
+{
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+    const unsigned int width  = obj_output->width;
+    const unsigned int height = obj_output->height;
+
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_output->fbo);
+    glPushAttrib(GL_VIEWPORT_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glViewport(0, 0, width, height);
+    glTranslatef(-1.0f, -1.0f, 0.0f);
+    glScalef(2.0f / width, 2.0f / height, 1.0f);
+    return 0;
+}
+
+// Restore original OpenGL matrices
+static int
+glx_fbo_leave(vdpau_driver_data_t *driver_data)
+{
+    opengl_data_t * const gl_data = &driver_data->gl_data;
+
+    glPopAttrib();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
+    return 0;
+}
+
+// vaCopySurfaceToTextureGLX
+static VAStatus
+vdpau_CopySurfaceToTextureGLX(VADriverContextP  ctx,
+                              VASurfaceID       surface,
+                              unsigned int      texture,
+                              unsigned int      flags)
+{
+    INIT_DRIVER_DATA;
 
     object_surface_p obj_surface = SURFACE(surface);
     ASSERT(obj_surface);
@@ -3908,51 +4099,30 @@ copy_surface_glx(vdpau_driver_data_t *driver_data,
     if (obj_output == NULL)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    /* XXX: check we have RGBA texture? */
-    unsigned int border_width, width, height;
-    if (gl_get_texture_param(GL_TEXTURE_BORDER, &border_width) < 0)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-    if (gl_get_texture_param(GL_TEXTURE_WIDTH, &width) < 0)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-    if (gl_get_texture_param(GL_TEXTURE_HEIGHT, &height) < 0)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-    width  -= 2 * border_width;
-    height -= 2 * border_width;
-    if (width == 0 || height == 0)
+    /* XXX: only support VA_FRAME_PICTURE */
+    if (flags)
+        return VA_STATUS_ERROR_FLAG_NOT_SUPPORTED;
+
+    /* Make sure we have the necessary GLX extensions */
+    if (glx_ensure_extensions(driver_data) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
-    /* Check wether we have to re-create the pixmaps */
-    int width_changed  = obj_output->width  != width;
-    int height_changed = obj_output->height != height;
+    /* Make sure it is a valid GL texture object */
+    if (!glIsTexture(texture))
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
 
-    if (width_changed || height_changed) {
-        if (obj_output->glx_pixmap) {
-            glXDestroyPixmap(ctx->x11_dpy, obj_output->glx_pixmap);
-            obj_output->glx_pixmap = None;
-        }
-        if (obj_output->pixmap) {
-            XFreePixmap(ctx->x11_dpy, obj_output->pixmap);
-            obj_output->pixmap = None;
-        }
-    }
+    /* Make sure binding succeeds */
+    gl_purge_errors();
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    if (gl_check_error())
+        return VA_STATUS_ERROR_OPERATION_FAILED;
 
-    /* Create X11 Pixmap */
-    if (obj_output->pixmap == None || width_changed || height_changed) {
-        Pixmap pixmap = gen_pixmap(driver_data, width, height);
-        if (pixmap == None)
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        obj_output->pixmap = pixmap;
-    }
-    ASSERT(obj_output->pixmap);
-
-    /* Create GLX Pixmap */
-    if (obj_output->glx_pixmap == None) {
-        GLXPixmap glx_pixmap = gen_glx_pixmap(driver_data, obj_output->pixmap);
-        if (glx_pixmap == None)
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        obj_output->glx_pixmap = glx_pixmap;
-    }
-    ASSERT(obj_output->glx_pixmap);
+    /* Ensure Pixmaps are on par with the underlying texture */
+    if (glx_ensure_pixmaps(driver_data, obj_output, texture) < 0)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    unsigned int width  = obj_output->width;
+    unsigned int height = obj_output->height;
 
     /* Create FBO data */
     if (obj_output->fbo == 0 ||
@@ -3992,93 +4162,115 @@ copy_surface_glx(vdpau_driver_data_t *driver_data,
         return va_status;
 
     /* Render to FBO */
-    opengl_data_t * const gl_data = &driver_data->gl_data;
-
-    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_output->fbo);
-    glPushAttrib(GL_VIEWPORT_BIT);
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-    glViewport(0, 0, width, height);
-    glTranslatef(-1.0f, -1.0f, 0.0f);
-    glScalef(2.0f / width, 2.0f / height, 1.0f);
-
-    glBindTexture(GL_TEXTURE_2D, obj_output->fbo_texture);
-    
-    x11_trap_errors();
-    gl_data->glx_bind_tex_image(ctx->x11_dpy, obj_output->glx_pixmap,
-                                GLX_FRONT_LEFT_EXT, NULL);
-    XSync(ctx->x11_dpy, False);
-    if (x11_untrap_errors() != 0)
-        vdpau_error_message("failed to bind pixmap\n");
-
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    glBegin(GL_QUADS);
-    {
-        glTexCoord2f(0.0f, 0.0f); glVertex2i(0, 0);
-        glTexCoord2f(0.0f, 1.0f); glVertex2i(0, height);
-        glTexCoord2f(1.0f, 1.0f); glVertex2i(width, height);
-        glTexCoord2f(1.0f, 0.0f); glVertex2i(width, 0);
-    }
-    glEnd();
-
-    x11_trap_errors();
-    gl_data->glx_release_tex_image(ctx->x11_dpy, obj_output->glx_pixmap,
-                                   GLX_FRONT_LEFT_EXT);
-    XSync(ctx->x11_dpy, False);
-    if (x11_untrap_errors() != 0)
-        vdpau_error_message("failed to release pixmap\n");
-
-    glPopAttrib();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
-
+    glx_fbo_enter(driver_data, obj_output);
+    glx_render_pixmap(driver_data, obj_output);
+    glx_fbo_leave(driver_data);
     return VA_STATUS_SUCCESS;
 }
 
+// vaBindSurfaceToTextureGLX
 static VAStatus
-vdpau_CopySurfaceToTextureGLX(VADriverContextP ctx,
+vdpau_BindSurfaceToTextureGLX(VADriverContextP ctx,
                               VASurfaceID surface,
-                              unsigned int tex,
+                              unsigned int texture,
                               unsigned int flags)
 {
     INIT_DRIVER_DATA;
+
+    object_surface_p obj_surface = SURFACE(surface);
+    ASSERT(obj_surface);
+    if (obj_surface == NULL)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    object_context_p obj_context = CONTEXT(obj_surface->va_context);
+    ASSERT(obj_context);
+    if (obj_context == NULL)
+        return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+    object_output_p obj_output = OUTPUT(obj_context->output_surface);
+    ASSERT(obj_output);
+    if (obj_output == NULL)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     /* XXX: only support VA_FRAME_PICTURE */
     if (flags)
         return VA_STATUS_ERROR_FLAG_NOT_SUPPORTED;
 
-    opengl_data_t * const gl_data = &driver_data->gl_data;
-
-    if (gl_data->gl_status == OPENGL_STATUS_NONE) {
-        gl_data->gl_status = OPENGL_STATUS_ERROR;
-        if (gl_check_extensions(driver_data) < 0)
-            return VA_STATUS_ERROR_OPERATION_FAILED;
-        if (gl_load_funcs(driver_data) < 0)
-            return VA_STATUS_ERROR_OPERATION_FAILED;
-        gl_data->gl_status = OPENGL_STATUS_OK;
-    }
-    if (gl_data->gl_status != OPENGL_STATUS_OK)
+    /* Make sure we have the necessary GLX extensions */
+    if (glx_ensure_extensions(driver_data) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
-    if (!glIsTexture(tex))
+    /* Make sure it is a valid GL texture object */
+    if (!glIsTexture(texture))
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
+    /* Make sure binding succeeds */
     gl_purge_errors();
     glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, tex);
+    glBindTexture(GL_TEXTURE_2D, texture);
     if (gl_check_error())
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
-    VAStatus va_status = copy_surface_glx(driver_data, surface, tex);
+    /* Ensure Pixmaps are on par with the underlying texture */
+    if (glx_ensure_pixmaps(driver_data, obj_output, texture) < 0)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    unsigned int width  = obj_output->width;
+    unsigned int height = obj_output->height;
+
+    /* Render to Pixmap */
+    VAStatus va_status;
+    VdpRect src_rect, dst_rect;
+    src_rect.x0 = 0;
+    src_rect.y0 = 0;
+    src_rect.x1 = obj_surface->width;
+    src_rect.y1 = obj_surface->height;
+    dst_rect.x0 = 0;
+    dst_rect.y0 = 0;
+    dst_rect.x1 = width;
+    dst_rect.y1 = height;
+    va_status = put_surface(driver_data, surface,
+                            obj_output->pixmap, width, height,
+                            &src_rect, &dst_rect);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+    va_status = sync_surface(driver_data, obj_context, obj_surface);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    /* Bind GLX Pixmap */
+    if (glx_bind_pixmap(driver_data, obj_output) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    return VA_STATUS_SUCCESS;
+}
+
+// vaReleaseSurfaceFromTextureGLX
+static VAStatus
+vdpau_ReleaseSurfaceFromTextureGLX(VADriverContextP ctx, VASurfaceID surface)
+{
+    INIT_DRIVER_DATA;
+
+    object_surface_p obj_surface = SURFACE(surface);
+    ASSERT(obj_surface);
+    if (obj_surface == NULL)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    object_context_p obj_context = CONTEXT(obj_surface->va_context);
+    ASSERT(obj_context);
+    if (obj_context == NULL)
+        return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+    object_output_p obj_output = OUTPUT(obj_context->output_surface);
+    ASSERT(obj_output);
+    if (obj_output == NULL)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    /* Unbind GLX Pixmap */
+    if (glx_release_pixmap(driver_data, obj_output) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     glBindTexture(GL_TEXTURE_2D, 0);
-    return va_status;
+    return VA_STATUS_SUCCESS;
 }
 #endif
 
@@ -4311,6 +4503,8 @@ vdpau_Initialize(VADriverContextP ctx)
 #endif
 #if USE_GLX
     ctx->vtable.vaCopySurfaceToTextureGLX       = vdpau_CopySurfaceToTextureGLX;
+    ctx->vtable.vaBindSurfaceToTextureGLX       = vdpau_BindSurfaceToTextureGLX;
+    ctx->vtable.vaReleaseSurfaceFromTextureGLX  = vdpau_ReleaseSurfaceFromTextureGLX;
 #endif
 
     driver_data = (struct vdpau_driver_data *)calloc(1, sizeof(*driver_data));

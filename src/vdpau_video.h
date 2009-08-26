@@ -214,6 +214,7 @@ struct object_output {
     VdpOutputSurface             vdp_output_surfaces[VDPAU_MAX_OUTPUT_SURFACES];
     int                          current_output_surface;
 #if USE_GLX
+    int                          is_bound;
     Pixmap                       pixmap;
     GLXPixmap                    glx_pixmap;
     GLuint                       fbo;
