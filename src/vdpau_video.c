@@ -4076,7 +4076,9 @@ vdpau_CopySurfaceToTextureGLX(VADriverContextP ctx,
     if (gl_check_error())
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
-    return copy_surface_glx(driver_data, surface, tex);
+    VAStatus va_status = copy_surface_glx(driver_data, surface, tex);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return va_status;
 }
 #endif
 
