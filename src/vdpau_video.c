@@ -598,6 +598,28 @@ static inline int gl_check_error(void)
     return gl_do_check_error(1);
 }
 
+static int gl_get_current_color(float color[4])
+{
+    gl_purge_errors();
+    glGetFloatv(GL_CURRENT_COLOR, color);
+    if (gl_check_error())
+        return -1;
+    return 0;
+}
+
+static int gl_get_param(GLenum param, unsigned int *pval)
+{
+    GLint val;
+
+    gl_purge_errors();
+    glGetIntegerv(param, &val);
+    if (gl_check_error())
+        return -1;
+    if (pval)
+        *pval = val;
+    return 0;
+}
+
 static int gl_get_texture_param(GLenum param, unsigned int *pval)
 {
     GLint val;
@@ -3866,8 +3888,11 @@ glx_ensure_pixmaps(vdpau_driver_data_t *driver_data,
 {
     VADriverContextP const ctx = driver_data->va_context;
 
-    /* XXX: check we have RGBA texture? */
-    unsigned int border_width, width, height;
+    unsigned int internal_format, border_width, width, height;
+    if (gl_get_texture_param(GL_TEXTURE_INTERNAL_FORMAT, &internal_format) < 0)
+        return -1;
+    if (internal_format != GL_RGBA)
+        return -1;
     if (gl_get_texture_param(GL_TEXTURE_BORDER, &border_width) < 0)
         return -1;
     if (gl_get_texture_param(GL_TEXTURE_WIDTH, &width) < 0)
@@ -3968,10 +3993,12 @@ glx_render_pixmap(vdpau_driver_data_t *driver_data, object_output_p obj_output)
 {
     const unsigned int w = obj_output->width;
     const unsigned int h = obj_output->height;
+    float old_color[4];
 
     glBindTexture(GL_TEXTURE_2D, obj_output->fbo_texture);
     if (glx_bind_pixmap(driver_data, obj_output) < 0)
         return -1;
+    gl_get_current_color(old_color);
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     glBegin(GL_QUADS);
     {
@@ -3981,6 +4008,7 @@ glx_render_pixmap(vdpau_driver_data_t *driver_data, object_output_p obj_output)
         glTexCoord2f(1.0f, 0.0f); glVertex2i(w, 0);
     }
     glEnd();
+    glColor4fv(old_color);
     if (glx_release_pixmap(driver_data, obj_output) < 0)
         return -1;
     return 0;
@@ -4059,12 +4087,21 @@ vdpau_CopySurfaceToTextureGLX(VADriverContextP  ctx,
     if (!glIsTexture(texture))
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
-    /* Make sure binding succeeds */
-    gl_purge_errors();
-    glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    if (gl_check_error())
+    /* Enable 2D texture */
+    int was_texture_2d = glIsEnabled(GL_TEXTURE_2D);
+    if (!was_texture_2d)
+        glEnable(GL_TEXTURE_2D);
+
+    /* Make sure binding succeeds, if texture was not already bound */
+    GLuint old_texture = 0;
+    if (was_texture_2d && gl_get_param(GL_TEXTURE_BINDING_2D, &old_texture) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
+    if (texture != old_texture) {
+        gl_purge_errors();
+        glBindTexture(GL_TEXTURE_2D, texture);
+        if (gl_check_error())
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
 
     /* Ensure Pixmaps are on par with the underlying texture */
     if (glx_ensure_pixmaps(driver_data, obj_output, texture) < 0)
@@ -4113,6 +4150,12 @@ vdpau_CopySurfaceToTextureGLX(VADriverContextP  ctx,
     glx_fbo_enter(driver_data, obj_output);
     glx_render_pixmap(driver_data, obj_output);
     glx_fbo_leave(driver_data);
+
+    /* Restore previous state */
+    if (was_texture_2d)
+        glBindTexture(GL_TEXTURE_2D, old_texture);
+    else
+        glDisable(GL_TEXTURE_2D);
     return VA_STATUS_SUCCESS;
 }
 
