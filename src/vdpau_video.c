@@ -3867,8 +3867,6 @@ glx_ensure_pixmaps(vdpau_driver_data_t *driver_data,
     VADriverContextP const ctx = driver_data->va_context;
 
     /* XXX: check we have RGBA texture? */
-    GLint gl_width;
-    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &gl_width);
     unsigned int border_width, width, height;
     if (gl_get_texture_param(GL_TEXTURE_BORDER, &border_width) < 0)
         return -1;
