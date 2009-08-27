@@ -250,6 +250,15 @@ static const char *string_of_VABufferType(VABufferType type)
         _(VAResidualDataBufferType);
         _(VADeblockingParameterBufferType);
         _(VAImageBufferType);
+#if VA_CHECK_VERSION(0,30,0)
+        _(VAProtectedSliceDataBufferType);
+        _(VAEncCodedBufferType);
+        _(VAEncSequenceParameterBufferType);
+        _(VAEncPictureParameterBufferType);
+        _(VAEncSliceParameterBufferType);
+        _(VAEncH264VUIBufferType);
+        _(VAEncH264SEIBufferType);
+#endif
 #undef _
     }
     return str;
@@ -339,6 +348,7 @@ static VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
     case VAProfileVC1Simple:    return VDP_DECODER_PROFILE_VC1_SIMPLE;
     case VAProfileVC1Main:      return VDP_DECODER_PROFILE_VC1_MAIN;
     case VAProfileVC1Advanced:  return VDP_DECODER_PROFILE_VC1_ADVANCED;
+    default:                    break;
     }
     ASSERT(profile);
     return (VdpDecoderProfile)-1;
@@ -1202,7 +1212,7 @@ vdpau_is_supported_image_format(vdpau_driver_data_t *driver_data,
                                 uint32_t             format)
 {
     VdpBool is_supported = VDP_FALSE;
-    VdpStatus vdp_status;
+    VdpStatus vdp_status = VDP_STATUS_INVALID_VALUE;
     switch (type) {
     case VDP_IMAGE_FORMAT_TYPE_YCBCR:
         vdp_status = vdpau_video_surface_query_ycbcr_caps(driver_data,
@@ -1322,11 +1332,10 @@ static void trace_indent(int inc)
 }
 #define DUMPx(S, M)             TRACE("." #M " = 0x%08x;\n", S->M)
 #define DUMPi(S, M)             TRACE("." #M " = %d;\n", S->M)
-#define DUMPm(S, M, I, J)       dump_matrix_NxM_1(#M, (uint8_t *)S->M, I, J, I * J)
-#define DUMPm16(S, M, I, J)     dump_matrix_NxM_2(#M, (uint16_t *)S->M, I, J, I * J)
+#define DUMPm(S, M, I, J)       dump_matrix_NxM(#M, (uint8_t *)S->M, I, J, I * J)
 
 // Dumps matrix[N][M] = N rows x M columns (uint8_t)
-static void dump_matrix_NxM_1(const char *label, uint8_t *matrix, int N, int M, int L)
+static void dump_matrix_NxM(const char *label, const uint8_t *matrix, int N, int M, int L)
 {
     int i, j, n = 0;
 
@@ -1339,31 +1348,6 @@ static void dump_matrix_NxM_1(const char *label, uint8_t *matrix, int N, int M, 
             if (i > 0)
                 TRACE(", ");
             TRACE("0x%02x", matrix[n]);
-        }
-        if (j < (N - 1))
-            TRACE(",");
-        TRACE("\n");
-        if (n >= L)
-            break;
-    }
-    INDENT(-1);
-    TRACE("}\n");
-}
-
-// Dumps matrix[N][M] = N rows x M columns (uint16_t)
-static void dump_matrix_NxM_2(const char *label, uint16_t *matrix, int N, int M, int L)
-{
-    int i, j, n = 0;
-
-    TRACE(".%s = {\n", label);
-    INDENT(1);
-    for (j = 0; j < N; j++) {
-        for (i = 0; i < M; i++, n++) {
-            if (n >= L)
-                break;
-            if (i > 0)
-                TRACE(", ");
-            TRACE("0x%04x", matrix[n]);
         }
         if (j < (N - 1))
             TRACE(",");
@@ -1517,7 +1501,7 @@ static void dump_VdpBitstreamBuffer(VdpBitstreamBuffer *bitstream_buffer)
     INDENT(1);
     TRACE("VdpBitstreamBuffer (%d bytes) = {\n", size);
     INDENT(1);
-    dump_matrix_NxM_1("buffer", buffer, 10, 15, size);
+    dump_matrix_NxM("buffer", buffer, 10, 15, size);
     INDENT(-1);
     TRACE("};\n");
     INDENT(-1);
@@ -1615,8 +1599,6 @@ vdpau_translate_VASliceDataBuffer(vdpau_driver_data_t *driver_data,
                                   object_context_p     obj_context,
                                   object_buffer_p      obj_buffer)
 {
-    VdpBitstreamBuffer *vdp_bitstream_buffer;
-
     if (obj_context->vdp_codec == VDP_CODEC_H264) {
         /* Check we have the start code */
         /* XXX: check for other codecs too? */
@@ -2093,8 +2075,6 @@ vdpau_translate_VASliceParameterBufferVC1(vdpau_driver_data_t *driver_data,
                                           object_buffer_p      obj_buffer)
 {
     VdpPictureInfoVC1 * const pinfo = &obj_context->vdp_picture_info.vc1;
-    VASliceParameterBufferVC1 * const slice_params = obj_buffer->buffer_data;
-    VASliceParameterBufferVC1 * const slice_param = &slice_params[obj_buffer->num_elements - 1];
 
     pinfo->slice_count                 += obj_buffer->num_elements;
     obj_context->last_slice_params      = obj_buffer->buffer_data;
@@ -2380,7 +2360,6 @@ vdpau_QueryConfigProfiles(VADriverContextP ctx,
     int i, n = 0;
     for (i = 0; i < ARRAY_ELEMS(va_profiles); i++) {
         VAProfile profile = va_profiles[i];
-        VdpDecoderProfile vdp_profile = get_VdpDecoderProfile(profile);
         if (vdpau_is_supported_profile(driver_data, profile))
             profile_list[n++] = profile;
     }
@@ -2400,7 +2379,6 @@ vdpau_QueryConfigEntrypoints(VADriverContextP ctx,
                              VAEntrypoint *entrypoint_list,     /* out */
                              int *num_entrypoints               /* out */)
 {
-    INIT_DRIVER_DATA;
     VAEntrypoint entrypoint;
 
     switch (profile) {
@@ -2439,7 +2417,6 @@ vdpau_GetConfigAttributes(VADriverContextP ctx,
                           VAConfigAttrib *attrib_list,  /* in/out */
                           int num_attribs)
 {
-    INIT_DRIVER_DATA;
     int i;
 
     for (i = 0; i < num_attribs; i++) {
@@ -2485,10 +2462,9 @@ vdpau_DestroyConfig(VADriverContextP ctx, VAConfigID config_id)
 {
     INIT_DRIVER_DATA;
 
-    VAStatus va_status;
-    object_config_p obj_config;
-
-    if ((obj_config = CONFIG(config_id)) == NULL)
+    object_config_p obj_config = CONFIG(config_id);
+    ASSERT(obj_config);
+    if (obj_config == NULL)
         return VA_STATUS_ERROR_INVALID_CONFIG;
 
     object_heap_free(&driver_data->config_heap, (object_base_p)obj_config);
@@ -3175,8 +3151,6 @@ vdpau_DeriveImage(VADriverContextP ctx,
                   VASurfaceID surface,
                   VAImage *image)                       /* out */
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3187,8 +3161,6 @@ vdpau_SetImagePalette(VADriverContextP ctx,
                       VAImageID image,
                       unsigned char *palette)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3303,8 +3275,6 @@ vdpau_PutImage(VADriverContextP ctx,
                int dest_x,
                int dest_y)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3323,8 +3293,6 @@ vdpau_PutImage2(VADriverContextP ctx,
                 unsigned int dest_width,
                 unsigned int dest_height)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3336,8 +3304,6 @@ vdpau_QuerySubpictureFormats(VADriverContextP ctx,
                              unsigned int *flags,       /* out */
                              unsigned int *num_formats) /* out */
 {
-    INIT_DRIVER_DATA;
-
     if (num_formats)
       *num_formats = 0;
 
@@ -3350,8 +3316,6 @@ vdpau_CreateSubpicture(VADriverContextP ctx,
                        VAImageID image,
                        VASubpictureID *subpicture)      /* out */
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3361,8 +3325,6 @@ static VAStatus
 vdpau_DestroySubpicture(VADriverContextP ctx,
                         VASubpictureID subpicture)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3373,8 +3335,6 @@ vdpau_SetSubpictureImage(VADriverContextP ctx,
                          VASubpictureID subpicture,
                          VAImageID image)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3385,8 +3345,6 @@ vdpau_SetSubpicturePalette(VADriverContextP ctx,
                            VASubpictureID subpicture,
                            unsigned char *palette)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3399,8 +3357,6 @@ vdpau_SetSubpictureChromakey(VADriverContextP ctx,
                              unsigned int chromakey_max,
                              unsigned int chromakey_mask)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3411,8 +3367,6 @@ vdpau_SetSubpictureGlobalAlpha(VADriverContextP ctx,
                                VASubpictureID subpicture,
                                float global_alpha)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3431,8 +3385,6 @@ vdpau_AssociateSubpicture(VADriverContextP ctx,
                           unsigned short height,
                           unsigned int flags)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3453,8 +3405,6 @@ vdpau_AssociateSubpicture2(VADriverContextP ctx,
                            unsigned short dest_height,
                            unsigned int flags)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3466,8 +3416,6 @@ vdpau_DeassociateSubpicture(VADriverContextP ctx,
                             VASurfaceID *target_surfaces,
                             int num_surfaces)
 {
-    INIT_DRIVER_DATA;
-
     /* TODO */
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
@@ -3601,6 +3549,8 @@ vdpau_EndPicture(VADriverContextP ctx,
             break;
         case VDP_CODEC_VC1:
             dump_VdpPictureInfoVC1(&obj_context->vdp_picture_info.vc1);
+            break;
+        default:
             break;
         }
         for (i = 0; i < obj_context->vdp_bitstream_buffers_count; i++)
@@ -4361,11 +4311,8 @@ static VAStatus
 vdpau_Terminate(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
-    object_image_p obj_image;
     object_buffer_p obj_buffer;
     object_output_p obj_output;
-    object_surface_p obj_surface;
-    object_context_p obj_context;
     object_config_p obj_config;
     object_heap_iterator iter;
 
@@ -4428,8 +4375,7 @@ vdpau_Initialize(VADriverContextP ctx)
 {
     struct vdpau_driver_data *driver_data;
     static char vendor[256] = {0, };
-    object_base_p obj;
-    int i, result;
+    int result;
     VdpStatus vdp_status;
 
     if (vendor[0] == '\0')
