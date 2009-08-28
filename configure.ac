@@ -93,7 +93,11 @@ dnl Check for OpenGL
 USE_GLX=1
 GL_DEPS_CFLAGS=""
 GL_DEPS_LIBS=""
-AC_CHECK_HEADERS([GL/gl.h GL/glext.h GL/glx.h], [], [USE_GLX=0])
+AC_CHECK_HEADERS([GL/gl.h GL/glext.h GL/glx.h], [], [USE_GLX=0], [
+#ifdef HAVE_GL_GL_H
+# include <GL/gl.h>
+#endif
+])
 AC_CHECK_LIB(GL, glXCreateContext, [GL_DEPS_LIBS="-lGL -ldl"], [USE_GLX=0])
 AC_SUBST(GL_DEPS_CFLAGS)
 AC_SUBST(GL_DEPS_LIBS)
