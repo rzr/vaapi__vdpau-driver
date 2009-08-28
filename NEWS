@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-08-27
+vdpau-video NEWS -- summary of changes.  2009-09-DD
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.4.1 - DD.Sep.2009
+* Add support for OpenGL extensions to VA API (v3)
 
 Version 0.4.0 - 27.Aug.2009
 * Add support for OpenGL extensions to VA API

@@ -121,6 +121,7 @@ struct vdpau_driver_data {
     struct object_heap           config_heap;
     struct object_heap           context_heap;
     struct object_heap           surface_heap;
+    struct object_heap           glx_surface_heap;
     struct object_heap           buffer_heap;
     struct object_heap           output_heap;
     struct object_heap           image_heap;
@@ -191,6 +192,24 @@ struct object_surface {
     }                            vdp_ref_frame;
 };
 
+typedef struct object_glx_surface object_glx_surface_t;
+struct object_glx_surface {
+    struct object_base           base;
+#if USE_GLX
+    GLenum                       target;
+    GLuint                       texture;
+    VASurfaceID                  va_surface;
+    unsigned int                 width;
+    unsigned int                 height;
+    int                          is_bound;
+    Pixmap                       pixmap;
+    GLXPixmap                    glx_pixmap;
+    GLuint                       fbo;
+    GLuint                       fbo_buffer;
+    GLuint                       fbo_texture;
+#endif
+};
+
 typedef struct object_buffer object_buffer_t;
 struct object_buffer {
     struct object_base           base;
@@ -213,14 +232,6 @@ struct object_output {
     uint32_t                     output_surface_height;
     VdpOutputSurface             vdp_output_surfaces[VDPAU_MAX_OUTPUT_SURFACES];
     int                          current_output_surface;
-#if USE_GLX
-    int                          is_bound;
-    Pixmap                       pixmap;
-    GLXPixmap                    glx_pixmap;
-    GLuint                       fbo;
-    GLuint                       fbo_buffer;
-    GLuint                       fbo_texture;
-#endif
 };
 
 typedef struct object_image object_image_t;
@@ -233,6 +244,7 @@ struct object_image {
 typedef object_config_t         *object_config_p;
 typedef object_context_t        *object_context_p;
 typedef object_surface_t        *object_surface_p;
+typedef object_glx_surface_t    *object_glx_surface_p;
 typedef object_buffer_t         *object_buffer_p;
 typedef object_output_t         *object_output_p;
 typedef object_image_t          *object_image_p;
