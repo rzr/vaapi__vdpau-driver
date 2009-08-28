@@ -4195,7 +4195,7 @@ VAStatus vdpau_DestroySurfaceGLX(
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     glx_destroy_surface(driver_data, obj_glx_surface->base.id);
     return VA_STATUS_SUCCESS;
@@ -4211,7 +4211,7 @@ VAStatus vdpau_DeassociateSurfaceGLX(
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     if (glx_release_pixmap(driver_data, obj_glx_surface) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
@@ -4232,11 +4232,11 @@ VAStatus vdpau_AssociateSurfaceGLX(
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_surface_p obj_surface = SURFACE(surface);
     if (!obj_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     /* XXX: only support VA_FRAME_PICTURE */
     if (flags != VA_FRAME_PICTURE)
@@ -4281,11 +4281,11 @@ VAStatus vdpau_SyncSurfaceGLX(
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_surface_p obj_surface = SURFACE(obj_glx_surface->va_surface);
     if (!obj_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_context_p obj_context = CONTEXT(obj_surface->va_context);
     if (!obj_context)
@@ -4304,7 +4304,7 @@ VAStatus vdpau_BeginRenderSurfaceGLX(
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     VAStatus va_status = vdpau_SyncSurfaceGLX(ctx, gl_surface);
     if (va_status != VA_STATUS_SUCCESS)
@@ -4326,7 +4326,7 @@ VAStatus vdpau_EndRenderSurfaceGLX(
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     if (glx_release_pixmap(driver_data, obj_glx_surface) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
@@ -4346,11 +4346,11 @@ VAStatus vdpau_CopySurfaceGLX(
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_surface_p obj_surface = SURFACE(surface);
     if (!obj_surface)
-        return VA_INVALID_SURFACE;
+        return VA_STATUS_ERROR_INVALID_SURFACE;
 
     /* XXX: only support VA_FRAME_PICTURE */
     if (flags != VA_FRAME_PICTURE)
