@@ -49,7 +49,7 @@ int trace_enabled(void)
 {
     static int g_trace_enabled = -1;
     if (g_trace_enabled < 0) {
-        if (getenv_yesno("XVBA_VIDEO_TRACE", &g_trace_enabled) < 0)
+        if (getenv_yesno("VDPAU_VIDEO_TRACE", &g_trace_enabled) < 0)
             g_trace_enabled = 0;
     }
     return g_trace_enabled;
@@ -59,7 +59,7 @@ static int trace_indent_width(void)
 {
     static int g_indent_width = -1;
     if (g_indent_width < 0) {
-        if (getenv_int("XVBA_VIDEO_TRACE_INDENT_WIDTH", &g_indent_width) < 0)
+        if (getenv_int("VDPAU_VIDEO_TRACE_INDENT_WIDTH", &g_indent_width) < 0)
             g_indent_width = 4;
     }
     return g_indent_width;
