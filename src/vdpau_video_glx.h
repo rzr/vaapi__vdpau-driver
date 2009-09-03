@@ -25,33 +25,10 @@
 
 #include <GL/gl.h>
 #include <GL/glx.h>
-#include <GL/glext.h>
 
 typedef struct opengl_data         opengl_data_t;
 typedef struct object_glx_surface  object_glx_surface_t;
 typedef struct object_glx_surface *object_glx_surface_p;
-
-typedef enum {
-    OPENGL_STATUS_NONE  = 0,
-    OPENGL_STATUS_OK    = 1,
-    OPENGL_STATUS_ERROR = -1
-} OpenGLStatus;
-
-struct opengl_data {
-    OpenGLStatus                        gl_status;
-    PFNGLXBINDTEXIMAGEEXTPROC           glx_bind_tex_image;
-    PFNGLXRELEASETEXIMAGEEXTPROC        glx_release_tex_image;
-    PFNGLGENFRAMEBUFFERSEXTPROC         gl_gen_framebuffers;
-    PFNGLDELETEFRAMEBUFFERSEXTPROC      gl_delete_framebuffers;
-    PFNGLBINDFRAMEBUFFEREXTPROC         gl_bind_framebuffer;
-    PFNGLGENRENDERBUFFERSEXTPROC        gl_gen_renderbuffers;
-    PFNGLDELETERENDERBUFFERSEXTPROC     gl_delete_renderbuffers;
-    PFNGLBINDRENDERBUFFEREXTPROC        gl_bind_renderbuffer;
-    PFNGLRENDERBUFFERSTORAGEEXTPROC     gl_renderbuffer_storage;
-    PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC gl_framebuffer_renderbuffer;
-    PFNGLFRAMEBUFFERTEXTURE2DEXTPROC    gl_framebuffer_texture_2d;
-    PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC  gl_check_framebuffer_status;
-};
 
 struct object_glx_surface {
     struct object_base  base;

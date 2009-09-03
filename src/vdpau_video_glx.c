@@ -25,10 +25,40 @@
 #include "vdpau_video_x11.h"
 #include "utils.h"
 #include <dlfcn.h>
+#include <GL/glext.h>
+#include <GL/glxext.h>
 
 #define DEBUG 1
 #include "debug.h"
 
+#if GLX_GLXEXT_VERSION < 18
+typedef void (*PFNGLXBINDTEXIMAGEEXTPROC)(Display *, GLXDrawable, int, const int *);
+typedef void (*PFNGLXRELEASETEXIMAGEEXTPROC)(Display *, GLXDrawable, int);
+#endif
+
+
+// OpenGL VTable
+typedef enum {
+    OPENGL_STATUS_NONE  = 0,
+    OPENGL_STATUS_OK    = 1,
+    OPENGL_STATUS_ERROR = -1
+} OpenGLStatus;
+
+struct opengl_data {
+    OpenGLStatus                        gl_status;
+    PFNGLXBINDTEXIMAGEEXTPROC           glx_bind_tex_image;
+    PFNGLXRELEASETEXIMAGEEXTPROC        glx_release_tex_image;
+    PFNGLGENFRAMEBUFFERSEXTPROC         gl_gen_framebuffers;
+    PFNGLDELETEFRAMEBUFFERSEXTPROC      gl_delete_framebuffers;
+    PFNGLBINDFRAMEBUFFEREXTPROC         gl_bind_framebuffer;
+    PFNGLGENRENDERBUFFERSEXTPROC        gl_gen_renderbuffers;
+    PFNGLDELETERENDERBUFFERSEXTPROC     gl_delete_renderbuffers;
+    PFNGLBINDRENDERBUFFEREXTPROC        gl_bind_renderbuffer;
+    PFNGLRENDERBUFFERSTORAGEEXTPROC     gl_renderbuffer_storage;
+    PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC gl_framebuffer_renderbuffer;
+    PFNGLFRAMEBUFFERTEXTURE2DEXTPROC    gl_framebuffer_texture_2d;
+    PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC  gl_check_framebuffer_status;
+};
 
 // Lookup GLX function
 typedef void (*GLFuncPtr)(void);
