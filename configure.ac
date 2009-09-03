@@ -10,8 +10,10 @@ m4_define([libva_sds_version_0_29], [8])
 m4_define([libva_sds_package_version_0_29], [0.29-2+sds11])
 m4_define([libva_sds_version_0_30], [1])
 m4_define([libva_sds_package_version_0_30], [0.30-1+sds1])
-m4_define([libva_sds_version], [libva_sds_version_0_30])
-m4_define([libva_sds_package_version], [libva_sds_package_version_0_30])
+m4_define([libva_glx_sds_version_0_30], [5])
+m4_define([libva_glx_sds_package_version_0_30], [0.30-1+sds6])
+m4_define([libva_sds_version], [libva_glx_sds_version_0_30])
+m4_define([libva_sds_package_version], [libva_glx_sds_package_version_0_30])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])
@@ -22,6 +24,7 @@ AM_CONFIG_HEADER([src/config.h])
 
 LIBVA_SDS_VERSION_0_29=libva_sds_version_0_29
 LIBVA_SDS_VERSION_0_30=libva_sds_version_0_30
+LIBVA_GLX_SDS_VERSION_0_30=libva_glx_sds_version_0_30
 LIBVA_SDS_VERSION=libva_sds_version
 LIBVA_SDS_PACKAGE_VERSION=libva_sds_package_version
 AC_SUBST(LIBVA_SDS_PACKAGE_VERSION)
@@ -91,6 +94,9 @@ fi
 
 dnl Check for OpenGL
 USE_GLX=1
+if test "$enable_glx" != "yes"; then
+    USE_GLX=0
+fi
 GL_DEPS_CFLAGS=""
 GL_DEPS_LIBS=""
 AC_CHECK_HEADERS([GL/gl.h GL/glext.h GL/glx.h], [], [USE_GLX=0], [
@@ -106,7 +112,6 @@ dnl Check for VA API
 PKG_CHECK_MODULES(LIBVA_DEPS,	  [libva])
 PKG_CHECK_MODULES(LIBVA_X11_DEPS, [libva-x11])
 PKG_CHECK_MODULES(LIBVA_GLX_DEPS, [libva-glx], [], [USE_GLX=0])
-AC_DEFINE_UNQUOTED(USE_GLX, $USE_GLX, [Defined to 1 if GLX is enabled])
 
 dnl Check for SDS extensions to VA API
 AC_CACHE_CHECK([for VA API],
@@ -141,6 +146,26 @@ else
     AC_MSG_ERROR([Your VA API SDK does not include SDS extensions])
 fi
 
+dnl Check for OpenGL rendering extensions to VA API
+AC_CACHE_CHECK([for VA API (GLX extensions)],
+  ac_cv_libva_glx_extensions, [
+  saved_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS $LIBVA_DEPS_CFLAGS"
+  AC_TRY_COMPILE([
+    #include <va/va_version.h>
+    #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 30
+    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_GLX_SDS_VERSION_0_30)
+    #  error "VA API version >= 0.30.0-sds$LIBVA_GLX_SDS_VERSION_0_30 is required"
+    # endif
+    #else
+    # error "This version of VA API is not supported for OpenGL rendering"
+    #endif
+  ], [],
+  [ac_cv_libva_glx_extensions="yes"],
+  [ac_cv_libva_glx_extensions="no" USE_GLX=0])
+  CFLAGS="$saved_CFLAGS"
+])
+
 dnl Check for VA API drivers path
 AC_MSG_CHECKING([for VA drivers path])
 LIBVA_DRIVERS_PATH=`$PKG_CONFIG libva --variable driverdir`
@@ -164,6 +189,9 @@ AC_CACHE_CHECK([for VDPAU],
 if test "$ac_cv_have_vdpau" = "no"; then
     AC_MSG_ERROR([you need VDPAU to build this package])
 fi
+
+AC_DEFINE_UNQUOTED(USE_GLX, $USE_GLX, [Defined to 1 if GLX is enabled])
+AM_CONDITIONAL(USE_GLX, test $USE_GLX -eq 1)
 
 VDPAU_VIDEO_CFLAGS="$LIBVA_DEPS_CFLAGS"
 VDPAU_VIDEO_LIBS="$LIBVA_DEPS_LIBS"

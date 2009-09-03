@@ -5,8 +5,10 @@ LDADD = \
 	$(VDPAU_VIDEO_LT_LDFLAGS) -module \
 	-no-undefined -module -Wl,--no-undefined
 
+if USE_GLX
 source_glx_h = vdpau_video_glx.h
 source_glx_c = vdpau_video_glx.c
+endif
 
 source_x11_h = vdpau_video_x11.h
 source_x11_c = vdpau_video_x11.c
