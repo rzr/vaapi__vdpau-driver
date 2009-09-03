@@ -18,6 +18,7 @@ source_h = \
 	utils.h		\
 	vdpau_driver.h	\
 	vdpau_gate.h	\
+	vdpau_image.h	\
 	vdpau_subpic.h	\
 	vdpau_video.h	\
 	$(source_glx_h)	\
@@ -29,6 +30,7 @@ source_c = \
 	utils.c		\
 	vdpau_driver.c	\
 	vdpau_gate.c	\
+	vdpau_image.c	\
 	vdpau_subpic.c	\
 	vdpau_video.c	\
 	$(source_glx_c)	\
