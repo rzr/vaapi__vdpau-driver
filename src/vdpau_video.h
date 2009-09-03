@@ -154,20 +154,6 @@ struct object_buffer {
     int                          num_elements;
 };
 
-typedef struct object_output object_output_t;
-struct object_output {
-    struct object_base           base;
-    Drawable                     drawable;
-    uint32_t                     width;
-    uint32_t                     height;
-    VdpPresentationQueue         vdp_flip_queue;
-    VdpPresentationQueueTarget   vdp_flip_target;
-    uint32_t                     output_surface_width;
-    uint32_t                     output_surface_height;
-    VdpOutputSurface             vdp_output_surfaces[VDPAU_MAX_OUTPUT_SURFACES];
-    int                          current_output_surface;
-};
-
 typedef struct object_image object_image_t;
 struct object_image {
     struct object_base           base;
