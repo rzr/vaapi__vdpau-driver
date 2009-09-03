@@ -52,5 +52,11 @@ nvidia_drv_video_la_LDFLAGS	= $(LDADD)
 
 noinst_HEADERS = $(source_h)
 
+EXTRA_DIST = \
+	$(source_glx_c) \
+	$(source_glx_h)	\
+	$(source_x11_c)	\
+	$(source_x11_h)
+
 # Extra clean files so that maintainer-clean removes *everything*
 MAINTAINERCLEANFILES = Makefile.in config.h.in
