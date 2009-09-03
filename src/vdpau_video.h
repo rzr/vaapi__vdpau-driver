@@ -23,12 +23,6 @@
 
 #include "vdpau_driver.h"
 
-#if USE_GLX
-#include <GL/gl.h>
-#include <GL/glx.h>
-#include <GL/glext.h>
-#endif
-
 typedef enum {
     VDP_IMAGE_FORMAT_TYPE_YCBCR = 1,
     VDP_IMAGE_FORMAT_TYPE_RGBA,
@@ -42,31 +36,6 @@ typedef enum {
     VDP_CODEC_H264,
     VDP_CODEC_VC1
 } VdpCodec;
-
-typedef enum {
-    OPENGL_STATUS_NONE  = 0,
-    OPENGL_STATUS_OK    = 1,
-    OPENGL_STATUS_ERROR = -1
-} OpenGLStatus;
-
-typedef struct opengl_data opengl_data_t;
-struct opengl_data {
-    OpenGLStatus                        gl_status;
-#if USE_GLX
-    PFNGLXBINDTEXIMAGEEXTPROC           glx_bind_tex_image;
-    PFNGLXRELEASETEXIMAGEEXTPROC        glx_release_tex_image;
-    PFNGLGENFRAMEBUFFERSEXTPROC         gl_gen_framebuffers;
-    PFNGLDELETEFRAMEBUFFERSEXTPROC      gl_delete_framebuffers;
-    PFNGLBINDFRAMEBUFFEREXTPROC         gl_bind_framebuffer;
-    PFNGLGENRENDERBUFFERSEXTPROC        gl_gen_renderbuffers;
-    PFNGLDELETERENDERBUFFERSEXTPROC     gl_delete_renderbuffers;
-    PFNGLBINDRENDERBUFFEREXTPROC        gl_bind_renderbuffer;
-    PFNGLRENDERBUFFERSTORAGEEXTPROC     gl_renderbuffer_storage;
-    PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC gl_framebuffer_renderbuffer;
-    PFNGLFRAMEBUFFERTEXTURE2DEXTPROC    gl_framebuffer_texture_2d;
-    PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC  gl_check_framebuffer_status;
-#endif
-};
 
 typedef struct object_config object_config_t;
 struct object_config {
@@ -126,24 +95,6 @@ struct object_surface {
     }                            vdp_ref_frame;
 };
 
-typedef struct object_glx_surface object_glx_surface_t;
-struct object_glx_surface {
-    struct object_base           base;
-#if USE_GLX
-    GLenum                       target;
-    GLuint                       texture;
-    VASurfaceID                  va_surface;
-    unsigned int                 width;
-    unsigned int                 height;
-    int                          is_bound;
-    Pixmap                       pixmap;
-    GLXPixmap                    glx_pixmap;
-    GLuint                       fbo;
-    GLuint                       fbo_buffer;
-    GLuint                       fbo_texture;
-#endif
-};
-
 typedef struct object_buffer object_buffer_t;
 struct object_buffer {
     struct object_base           base;
@@ -160,7 +111,5 @@ struct object_image {
     VAImage                     *image;
     VdpOutputSurface             vdp_rgba_surface;
 };
-
-typedef object_glx_surface_t    *object_glx_surface_p;
 
 #endif /* VDPAU_VIDEO_H */

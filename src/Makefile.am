@@ -5,6 +5,9 @@ LDADD = \
 	$(VDPAU_VIDEO_LT_LDFLAGS) -module \
 	-no-undefined -module -Wl,--no-undefined
 
+source_glx_h = vdpau_video_glx.h
+source_glx_c = vdpau_video_glx.c
+
 source_x11_h = vdpau_video_x11.h
 source_x11_c = vdpau_video_x11.c
 
@@ -17,6 +20,7 @@ source_h = \
 	vdpau_gate.h	\
 	vdpau_subpic.h	\
 	vdpau_video.h	\
+	$(source_glx_h)	\
 	$(source_x11_h)
 
 source_c = \
@@ -27,6 +31,7 @@ source_c = \
 	vdpau_gate.c	\
 	vdpau_subpic.c	\
 	vdpau_video.c	\
+	$(source_glx_c)	\
 	$(source_x11_c)
 
 nvidia_drv_video_la_LTLIBRARIES	= nvidia_drv_video.la
