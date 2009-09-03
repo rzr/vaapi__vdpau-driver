@@ -9,11 +9,13 @@ source_h = \
 	debug.h		\
 	object_heap.h	\
 	sysdeps.h	\
+	vdpau_gate.h	\
 	vdpau_video.h
 
 source_c = \
 	debug.c		\
 	object_heap.c	\
+	vdpau_gate.c	\
 	vdpau_video.c
 
 nvidia_drv_video_la_LTLIBRARIES	= nvidia_drv_video.la
