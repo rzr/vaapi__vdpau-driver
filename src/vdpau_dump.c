@@ -83,12 +83,23 @@ const char *string_of_VdpCodec(VdpCodec codec)
     return str;
 }
 
+#if USE_TRACER
 #define TRACE               trace_print
 #define INDENT(INC)         trace_indent(INC)
 #define DUMPi(S, M)         TRACE("." #M " = %d,\n", S->M)
 #define DUMPx(S, M)         TRACE("." #M " = 0x%08x,\n", S->M)
 #define DUMPp(S, M)         TRACE("." #M " = %p,\n", S->M)
 #define DUMPm(S, M, I, J)   dump_matrix_NxM(#M, (uint8_t *)S->M, I, J, I * J)
+#else
+#define trace_enabled()     (0)
+#define do_nothing()        do { } while (0)
+#define TRACE(FORMAT,...)   do_nothing()
+#define INDENT(INC)         do_nothing()
+#define DUMPi(S, M)         do_nothing()
+#define DUMPx(S, M)         do_nothing()
+#define DUMPp(S, M)         do_nothing()
+#define DUMPm(S, M, I, J)   do_nothing()
+#endif
 
 // Dumps matrix[N][M] = N rows x M columns (uint8_t)
 static void

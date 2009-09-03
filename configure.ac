@@ -39,10 +39,34 @@ AC_DEFINE([VDPAU_VIDEO_MICRO_VERSION], [vdpau_video_micro_version], [Micro versi
 VDPAU_VIDEO_LT_LDFLAGS="-avoid-version"
 AC_SUBST(VDPAU_VIDEO_LT_LDFLAGS)
 
+AC_DEFUN([AC_DEFINE_01], [
+    if test "$2" = "yes" -o "$2" = "guessing yes"; then
+        AC_DEFINE($1, 1, $3)
+    else
+        AC_DEFINE($1, 0, $3)
+    fi
+])
+
 AC_ARG_ENABLE(glx,
-              AC_HELP_STRING([--enable-glx],
-                             [enable OpenGL/X11 @<:@default=yes@:>@]),
-              [], [enable_glx="yes"])
+    AC_HELP_STRING([--enable-glx],
+                   [enable OpenGL/X11 @<:@default=yes@:>@]),
+    [], [enable_glx="yes"])
+
+AC_ARG_ENABLE(debug,
+    AC_HELP_STRING([--enable-debug],
+                   [enable debugging information]),
+    [], [enable_debug="yes"])
+
+AC_DEFINE_01(USE_DEBUG, "$enable_debug",
+    [Enable debugging information])
+
+AC_ARG_ENABLE(tracer,
+    AC_HELP_STRING([--enable-tracer],
+                   [enable VDPAU tracer]),
+    [], [enable_tracer="yes"])
+
+AC_DEFINE_01(USE_TRACER, "$enable_tracer",
+    [Enable VDPAU tracer])
 
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
