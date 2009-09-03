@@ -185,9 +185,16 @@ vdpau_QuerySurfaceStatus(
     VASurfaceStatus    *status
 ) attribute_hidden;
 
-// vaSyncSurface
+// vaSyncSurface 2-args variant (>= 0.31)
 VAStatus
-vdpau_SyncSurface(
+vdpau_SyncSurface2(
+    VADriverContextP    ctx,
+    VASurfaceID         render_target
+) attribute_hidden;
+
+// vaSyncSurface 3-args variant (<= 0.30)
+VAStatus
+vdpau_SyncSurface3(
     VADriverContextP    ctx,
     VAContextID         context,
     VASurfaceID         render_target

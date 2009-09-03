@@ -668,7 +668,31 @@ sync_surface(
 
 // vaSyncSurface
 VAStatus
-vdpau_SyncSurface(
+vdpau_SyncSurface2(
+    VADriverContextP    ctx,
+    VASurfaceID         render_target
+)
+{
+    VDPAU_DRIVER_DATA_INIT;
+
+    object_surface_p obj_surface = VDPAU_SURFACE(render_target);
+    ASSERT(obj_surface);
+    if (obj_surface == NULL)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
+    ASSERT(obj_context);
+    if (obj_context == NULL)
+        return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+    /* Assume that this shouldn't be called before vaEndPicture() */
+    ASSERT(obj_context->current_render_target != obj_surface->base.id);
+
+    return sync_surface(driver_data, obj_context, obj_surface);
+}
+
+VAStatus
+vdpau_SyncSurface3(
     VADriverContextP    ctx,
     VAContextID         context,
     VASurfaceID         render_target

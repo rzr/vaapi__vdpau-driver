@@ -238,7 +238,11 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     ctx->vtable.vaBeginPicture              = vdpau_BeginPicture;
     ctx->vtable.vaRenderPicture             = vdpau_RenderPicture;
     ctx->vtable.vaEndPicture                = vdpau_EndPicture;
-    ctx->vtable.vaSyncSurface               = vdpau_SyncSurface;
+#if VA_CHECK_VERSION(0,31,0)
+    ctx->vtable.vaSyncSurface               = vdpau_SyncSurface2;
+#else
+    ctx->vtable.vaSyncSurface               = vdpau_SyncSurface3;
+#endif
     ctx->vtable.vaQuerySurfaceStatus        = vdpau_QuerySurfaceStatus;
     ctx->vtable.vaPutSurface                = vdpau_PutSurface;
     ctx->vtable.vaQueryImageFormats         = vdpau_QueryImageFormats;
@@ -247,16 +251,24 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     ctx->vtable.vaDestroyImage              = vdpau_DestroyImage;
     ctx->vtable.vaSetImagePalette           = vdpau_SetImagePalette;
     ctx->vtable.vaGetImage                  = vdpau_GetImage;
+#if VA_CHECK_VERSION(0,31,0)
+    ctx->vtable.vaPutImage                  = vdpau_PutImage_full;
+#else
     ctx->vtable.vaPutImage                  = vdpau_PutImage;
     ctx->vtable.vaPutImage2                 = vdpau_PutImage_full;
+#endif
     ctx->vtable.vaQuerySubpictureFormats    = vdpau_QuerySubpictureFormats;
     ctx->vtable.vaCreateSubpicture          = vdpau_CreateSubpicture;
     ctx->vtable.vaDestroySubpicture         = vdpau_DestroySubpicture;
     ctx->vtable.vaSetSubpictureImage        = vdpau_SetSubpictureImage;
     ctx->vtable.vaSetSubpictureChromakey    = vdpau_SetSubpictureChromakey;
     ctx->vtable.vaSetSubpictureGlobalAlpha  = vdpau_SetSubpictureGlobalAlpha;
+#if VA_CHECK_VERSION(0,31,0)
+    ctx->vtable.vaAssociateSubpicture       = vdpau_AssociateSubpicture_full;
+#else
     ctx->vtable.vaAssociateSubpicture       = vdpau_AssociateSubpicture;
     ctx->vtable.vaAssociateSubpicture2      = vdpau_AssociateSubpicture_full;
+#endif
     ctx->vtable.vaDeassociateSubpicture     = vdpau_DeassociateSubpicture;
     ctx->vtable.vaQueryDisplayAttributes    = vdpau_QueryDisplayAttributes;
     ctx->vtable.vaGetDisplayAttributes      = vdpau_GetDisplayAttributes;

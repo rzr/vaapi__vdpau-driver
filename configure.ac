@@ -12,8 +12,10 @@ m4_define([libva_sds_version_0_30], [1])
 m4_define([libva_sds_package_version_0_30], [0.30-1+sds1])
 m4_define([libva_glx_sds_version_0_30], [5])
 m4_define([libva_glx_sds_package_version_0_30], [0.30-1+sds6])
-m4_define([libva_sds_version], [libva_glx_sds_version_0_30])
-m4_define([libva_sds_package_version], [libva_glx_sds_package_version_0_30])
+m4_define([libva_glx_sds_version_0_31], [1])
+m4_define([libva_glx_sds_package_version_0_31], [0.31-1+sds1])
+m4_define([libva_sds_version], [libva_glx_sds_version_0_31])
+m4_define([libva_sds_package_version], [libva_glx_sds_package_version_0_31])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])
@@ -25,6 +27,7 @@ AM_CONFIG_HEADER([src/config.h])
 LIBVA_SDS_VERSION_0_29=libva_sds_version_0_29
 LIBVA_SDS_VERSION_0_30=libva_sds_version_0_30
 LIBVA_GLX_SDS_VERSION_0_30=libva_glx_sds_version_0_30
+LIBVA_GLX_SDS_VERSION_0_31=libva_glx_sds_version_0_31
 LIBVA_SDS_VERSION=libva_sds_version
 LIBVA_SDS_PACKAGE_VERSION=libva_sds_package_version
 AC_SUBST(LIBVA_SDS_PACKAGE_VERSION)
@@ -152,8 +155,8 @@ AC_CACHE_CHECK([for VA API],
     # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION_0_30)
     #  error "VA API version >= 0.30.0-sds$LIBVA_SDS_VERSION_0_30 is required"
     # endif
-    #elif !VA_CHECK_VERSION(0,50,0)
-    # error "VA API version >= 0.50 is required"
+    #elif !VA_CHECK_VERSION(0,31,0)
+    # error "VA API version >= 0.31 is required"
     #endif
   ], [],
   [ac_cv_libva_sds_extensions="yes"],
@@ -180,6 +183,10 @@ AC_CACHE_CHECK([for VA API (GLX extensions)],
     #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 30
     # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_GLX_SDS_VERSION_0_30)
     #  error "VA API version >= 0.30.0-sds$LIBVA_GLX_SDS_VERSION_0_30 is required"
+    # endif
+    #elif VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 31
+    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_GLX_SDS_VERSION_0_31)
+    #  error "VA API version >= 0.31.0-sds$LIBVA_GLX_SDS_VERSION_0_31 is required"
     # endif
     #else
     # error "This version of VA API is not supported for OpenGL rendering"
