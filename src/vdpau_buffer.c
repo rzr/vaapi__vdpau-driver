@@ -29,10 +29,6 @@
 #include "debug.h"
 
 
-#ifndef VA_INVALID_BUFFER
-#define VA_INVALID_BUFFER VA_INVALID_ID
-#endif
-
 // Create VA buffer object
 object_buffer_p
 create_va_buffer(

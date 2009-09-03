@@ -25,6 +25,19 @@
 #include "vdpau_gate.h"
 #include "object_heap.h"
 
+#ifndef VA_INVALID_ID
+#define VA_INVALID_ID                   0xffffffff
+#endif
+#ifndef VA_INVALID_BUFFER
+#define VA_INVALID_BUFFER               VA_INVALID_ID
+#endif
+#ifndef VA_INVALID_SURFACE
+#define VA_INVALID_SURFACE              VA_INVALID_ID
+#endif
+#ifndef VA_STATUS_ERROR_UNIMPLEMENTED
+#define VA_STATUS_ERROR_UNIMPLEMENTED   0x00000014
+#endif
+
 #define VDPAU_DRIVER_DATA_INIT                           \
         struct vdpau_driver_data *driver_data =          \
             (struct vdpau_driver_data *)ctx->pDriverData

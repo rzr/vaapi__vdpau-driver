@@ -31,10 +31,6 @@
    with polling. */
 #define VDPAU_SYNC_DELAY 5000
 
-#ifndef VA_INVALID_SURFACE
-#define VA_INVALID_SURFACE 0xffffffff
-#endif
-
 // Translates VdpDecoderProfile to VdpCodec
 static VdpCodec get_VdpCodec(VdpDecoderProfile profile)
 {
