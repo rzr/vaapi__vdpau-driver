@@ -10,6 +10,7 @@ source_h = \
 	object_heap.h	\
 	sysdeps.h	\
 	utils.h		\
+	vdpau_driver.h	\
 	vdpau_gate.h	\
 	vdpau_video.h
 

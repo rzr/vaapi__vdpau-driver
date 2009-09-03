@@ -341,6 +341,19 @@ static inline int vdpau_video_tfp_workaround(void)
     return g_vdpau_video_tfp_workaround;
 }
 
+static inline opengl_data_t *vdpau_get_gl_data(vdpau_driver_data_t *driver_data)
+{
+    opengl_data_t *gl_data = driver_data->gl_data;
+
+    if (!gl_data) {
+        gl_data = calloc(1, sizeof(*gl_data));
+        if (gl_data)
+            driver_data->gl_data = gl_data;
+    }
+    ASSERT(gl_data);
+    return gl_data;
+}
+
 typedef void (*GLFuncPtr)(void);
 typedef GLFuncPtr (*GLXGetProcAddressProc)(const char *);
 
@@ -415,7 +428,7 @@ static int gl_check_extensions(vdpau_driver_data_t *driver_data)
 
 static int gl_load_funcs(vdpau_driver_data_t *driver_data)
 {
-    opengl_data_t * const gl_data = &driver_data->gl_data;
+    opengl_data_t * const gl_data = vdpau_get_gl_data(driver_data);
 
     gl_data->glx_bind_tex_image = (PFNGLXBINDTEXIMAGEEXTPROC)
         get_proc_address("glXBindTexImageEXT");
@@ -657,7 +670,7 @@ static int gen_fbo_data(vdpau_driver_data_t *driver_data,
                         GLuint              *pfbo_buffer,
                         GLuint              *pfbo_texture)
 {
-    opengl_data_t * const gl_data = &driver_data->gl_data;
+    opengl_data_t * const gl_data = vdpau_get_gl_data(driver_data);
     GLuint fbo, fbo_buffer, fbo_texture;
     GLenum status;
 
@@ -3373,7 +3386,7 @@ glx_unbind_texture(opengl_texture_state_t *ts)
 static int
 glx_ensure_extensions(vdpau_driver_data_t *driver_data)
 {
-    opengl_data_t * const gl_data = &driver_data->gl_data;
+    opengl_data_t * const gl_data = vdpau_get_gl_data(driver_data);
 
     if (gl_data->gl_status == OPENGL_STATUS_NONE) {
         gl_data->gl_status = OPENGL_STATUS_ERROR;
@@ -3395,7 +3408,7 @@ glx_bind_pixmap(vdpau_driver_data_t *driver_data,
                 object_glx_surface_p obj_glx_surface)
 {
     VADriverContextP const ctx = driver_data->va_context;
-    opengl_data_t * const gl_data = &driver_data->gl_data;
+    opengl_data_t * const gl_data = vdpau_get_gl_data(driver_data);
 
     if (obj_glx_surface->is_bound)
         return 0;
@@ -3419,7 +3432,7 @@ glx_release_pixmap(vdpau_driver_data_t *driver_data,
                    object_glx_surface_p obj_glx_surface)
 {
     VADriverContextP const ctx = driver_data->va_context;
-    opengl_data_t * const gl_data = &driver_data->gl_data;
+    opengl_data_t * const gl_data = vdpau_get_gl_data(driver_data);
 
     if (!obj_glx_surface->is_bound)
         return 0;
@@ -3464,7 +3477,7 @@ static void
 glx_fbo_enter(vdpau_driver_data_t *driver_data,
               object_glx_surface_p obj_glx_surface)
 {
-    opengl_data_t * const gl_data = &driver_data->gl_data;
+    opengl_data_t * const gl_data = vdpau_get_gl_data(driver_data);
     const unsigned int width  = obj_glx_surface->width;
     const unsigned int height = obj_glx_surface->height;
 
@@ -3487,7 +3500,7 @@ glx_fbo_enter(vdpau_driver_data_t *driver_data,
 static void
 glx_fbo_leave(vdpau_driver_data_t *driver_data)
 {
-    opengl_data_t * const gl_data = &driver_data->gl_data;
+    opengl_data_t * const gl_data = vdpau_get_gl_data(driver_data);
 
     glPopAttrib();
     glMatrixMode(GL_PROJECTION);
@@ -3503,7 +3516,7 @@ glx_destroy_surface(vdpau_driver_data_t *driver_data,
                     VASurfaceID          surface)
 {
     VADriverContextP const ctx = driver_data->va_context;
-    opengl_data_t * const gl_data = &driver_data->gl_data;
+    opengl_data_t * const gl_data = vdpau_get_gl_data(driver_data);
     object_glx_surface_p obj_glx_surface = GLX_SURFACE(surface);
 
     glx_release_pixmap(driver_data, obj_glx_surface);
@@ -4008,6 +4021,8 @@ vdpau_Terminate(VADriverContextP ctx)
     }
     object_heap_destroy(&driver_data->config_heap);
 
+    free(driver_data->gl_data);
+
     free(ctx->pDriverData);
     ctx->pDriverData = NULL;
 
@@ -4046,7 +4061,7 @@ vdpau_Initialize(VADriverContextP ctx)
     ctx->max_entrypoints        = VDPAU_MAX_ENTRYPOINTS;
     ctx->max_attributes         = VDPAU_MAX_CONFIG_ATTRIBUTES;
     ctx->max_image_formats      = VDPAU_MAX_IMAGE_FORMATS;
-    ctx->max_subpic_formats     = VDPAU_MAX_SUBPIC_FORMATS;
+    ctx->max_subpic_formats     = VDPAU_MAX_SUBPICTURE_FORMATS;
     ctx->max_display_attributes = VDPAU_MAX_DISPLAY_ATTRIBUTES;
     ctx->str_vendor             = vendor;
 

@@ -21,30 +21,13 @@
 #ifndef VDPAU_VIDEO_H
 #define VDPAU_VIDEO_H
 
-#include <va/va.h>
-#include <vdpau/vdpau.h>
-#include <vdpau/vdpau_x11.h>
-#include "object_heap.h"
+#include "vdpau_driver.h"
 
 #if USE_GLX
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glext.h>
 #endif
-
-#define VDPAU_MAX_PROFILES              12
-#define VDPAU_MAX_ENTRYPOINTS           5
-#define VDPAU_MAX_CONFIG_ATTRIBUTES     10
-#define VDPAU_MAX_IMAGE_FORMATS         10
-#define VDPAU_MAX_SUBPIC_FORMATS        4
-#define VDPAU_MAX_DISPLAY_ATTRIBUTES    4
-#define VDPAU_MAX_OUTPUT_SURFACES       2
-#define VDPAU_STR_DRIVER_VENDOR         "Splitted-Desktop Systems"
-#define VDPAU_STR_DRIVER_NAME           "VDPAU backend for VA API"
-
-typedef enum {
-    VDP_IMPLEMENTATION_NVIDIA = 1,
-} VdpImplementation;
 
 typedef enum {
     VDP_IMAGE_FORMAT_TYPE_YCBCR = 1,
@@ -83,55 +66,6 @@ struct opengl_data {
     PFNGLFRAMEBUFFERTEXTURE2DEXTPROC    gl_framebuffer_texture_2d;
     PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC  gl_check_framebuffer_status;
 #endif
-};
-
-typedef struct vdpau_vtable vdpau_vtable_t;
-struct vdpau_vtable {
-    VdpDeviceDestroy            *vdp_device_destroy;
-    VdpVideoSurfaceCreate       *vdp_video_surface_create;
-    VdpVideoSurfaceDestroy      *vdp_video_surface_destroy;
-    VdpVideoSurfaceGetBitsYCbCr *vdp_video_surface_get_bits_ycbcr;
-    VdpOutputSurfaceCreate      *vdp_output_surface_create;
-    VdpOutputSurfaceDestroy     *vdp_output_surface_destroy;
-    VdpOutputSurfaceGetBitsNative *vdp_output_surface_get_bits_native;
-    VdpVideoMixerCreate         *vdp_video_mixer_create;
-    VdpVideoMixerDestroy        *vdp_video_mixer_destroy;
-    VdpVideoMixerRender         *vdp_video_mixer_render;
-    VdpPresentationQueueCreate  *vdp_presentation_queue_create;
-    VdpPresentationQueueDestroy *vdp_presentation_queue_destroy;
-    VdpPresentationQueueDisplay *vdp_presentation_queue_display;
-    VdpPresentationQueueBlockUntilSurfaceIdle *vdp_presentation_queue_block_until_surface_idle;
-    VdpPresentationQueueQuerySurfaceStatus *vdp_presentation_queue_query_surface_status;
-    VdpPresentationQueueTargetCreateX11 *vdp_presentation_queue_target_create_x11;
-    VdpPresentationQueueTargetDestroy   *vdp_presentation_queue_target_destroy;
-    VdpDecoderCreate            *vdp_decoder_create;
-    VdpDecoderDestroy           *vdp_decoder_destroy;
-    VdpDecoderRender            *vdp_decoder_render;
-    VdpDecoderQueryCapabilities *vdp_decoder_query_capabilities;
-    VdpVideoSurfaceQueryGetPutBitsYCbCrCapabilities *vdp_video_surface_query_ycbcr_caps;
-    VdpOutputSurfaceQueryGetPutBitsNativeCapabilities *vdp_output_surface_query_rgba_caps;
-    VdpGetApiVersion            *vdp_get_api_version;
-    VdpGetInformationString     *vdp_get_information_string;
-    VdpGetErrorString           *vdp_get_error_string;
-};
-
-typedef struct vdpau_driver_data vdpau_driver_data_t;
-struct vdpau_driver_data {
-    void                        *va_context;
-    struct object_heap           config_heap;
-    struct object_heap           context_heap;
-    struct object_heap           surface_heap;
-    struct object_heap           glx_surface_heap;
-    struct object_heap           buffer_heap;
-    struct object_heap           output_heap;
-    struct object_heap           image_heap;
-    struct opengl_data           gl_data;
-    VdpDevice                    vdp_device;
-    VdpGetProcAddress           *vdp_get_proc_address;
-    struct vdpau_vtable          vdp_vtable;
-    VdpChromaType                vdp_chroma_format; /* XXX: move elsewhere? */
-    VdpImplementation            vdp_impl_type;
-    uint32_t                     vdp_impl_version;
 };
 
 typedef struct object_config object_config_t;
@@ -241,12 +175,6 @@ struct object_image {
     VdpOutputSurface             vdp_rgba_surface;
 };
 
-typedef object_config_t         *object_config_p;
-typedef object_context_t        *object_context_p;
-typedef object_surface_t        *object_surface_p;
 typedef object_glx_surface_t    *object_glx_surface_p;
-typedef object_buffer_t         *object_buffer_p;
-typedef object_output_t         *object_output_p;
-typedef object_image_t          *object_image_p;
 
 #endif /* VDPAU_VIDEO_H */
