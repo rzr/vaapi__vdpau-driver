@@ -35,11 +35,6 @@
 #include "debug.h"
 
 
-/* Define to 1 if we want to workaround some weird TFP bug whereby subsequent
-   calls to glGetTexLevelParameteriv(GL_TEXTURE_{WIDTH,HEIGHT},...) would
-   return 0 after a glXReleaseTexImageEXT() call. */
-#define VDPAU_VIDEO_TFP_WORKAROUND 0
-
 /* Define to 1 if we want this VDPAU backend to handle H.264 DPB itself and not
    strictly replicate VAPictureParameterBufferH264.ReferenceFrames[]. */
 #define VDPAU_VIDEO_DPB 1
@@ -319,29 +314,6 @@ static inline int vdpau_video_dpb(void)
 /* ====================================================================== */
 
 #if USE_GLX
-// Returns 1 if we want to workaround some TFP bug
-static int vdpau_video_tfp_workaround_1(void)
-{
-    const char *vdpau_video_tfp_workaround_str = getenv("VDPAU_VIDEO_TFP_WORKAROUND");
-    if (vdpau_video_tfp_workaround_str) {
-        if (strcmp(vdpau_video_tfp_workaround_str, "1") == 0 ||
-            strcmp(vdpau_video_tfp_workaround_str, "yes") == 0)
-            return 1;
-        else if (strcmp(vdpau_video_tfp_workaround_str, "0") == 0 ||
-                 strcmp(vdpau_video_tfp_workaround_str, "no") == 0)
-            return 0;
-    }
-    return VDPAU_VIDEO_TFP_WORKAROUND;
-}
-
-static inline int vdpau_video_tfp_workaround(void)
-{
-    static int g_vdpau_video_tfp_workaround = -1;
-    if (g_vdpau_video_tfp_workaround < 0)
-        g_vdpau_video_tfp_workaround = vdpau_video_tfp_workaround_1();
-    return g_vdpau_video_tfp_workaround;
-}
-
 static inline opengl_data_t *vdpau_get_gl_data(vdpau_driver_data_t *driver_data)
 {
     opengl_data_t *gl_data = driver_data->gl_data;
