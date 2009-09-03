@@ -43,6 +43,9 @@ realloc_buffer(
     unsigned int  element_size
 ) attribute_hidden;
 
+int find_string(const char *name, const char *ext, const char *sep)
+    attribute_hidden;
+
 void x11_trap_errors(void)
     attribute_hidden;
 

@@ -183,6 +183,26 @@ realloc_buffer(
     return buffer;
 }
 
+// Lookup for substring NAME in string EXT using SEP as separators
+int find_string(const char *name, const char *ext, const char *sep)
+{
+    const char *end;
+    int name_len, n;
+
+    if (name == NULL || ext == NULL)
+        return 0;
+
+    end = ext + strlen(ext);
+    name_len = strlen(name);
+    while (ext < end) {
+        n = strcspn(ext, sep);
+        if (n == name_len && strncmp(name, ext, n) == 0)
+            return 1;
+        ext += (n + 1);
+    }
+    return 0;
+}
+
 // X error trap
 static int x11_error_code = 0;
 static int (*old_error_handler)(Display *, XErrorEvent *);
