@@ -26,6 +26,83 @@
 #include "debug.h"
 
 
+// Initialize VDPAU hooks
+int vdpau_gate_init(vdpau_driver_data_t *driver_data)
+{
+    VdpStatus vdp_status;
+
+#define VDP_INIT_PROC(FUNC_ID, FUNC) do {                       \
+        vdp_status = driver_data->vdp_get_proc_address          \
+            (driver_data->vdp_device,                           \
+             VDP_FUNC_ID_##FUNC_ID,                             \
+             (void *)&driver_data->vdp_vtable.vdp_##FUNC);      \
+        ASSERT(vdp_status == VDP_STATUS_OK);                    \
+        if (vdp_status != VDP_STATUS_OK)                        \
+            return -1;                                          \
+    } while (0)
+
+    VDP_INIT_PROC(DEVICE_DESTROY,
+                  device_destroy);
+    VDP_INIT_PROC(VIDEO_SURFACE_CREATE,
+                  video_surface_create);
+    VDP_INIT_PROC(VIDEO_SURFACE_DESTROY,
+                  video_surface_destroy);
+    VDP_INIT_PROC(VIDEO_SURFACE_GET_BITS_Y_CB_CR,
+                  video_surface_get_bits_ycbcr);
+    VDP_INIT_PROC(OUTPUT_SURFACE_CREATE,
+                  output_surface_create);
+    VDP_INIT_PROC(OUTPUT_SURFACE_DESTROY,
+                  output_surface_destroy);
+    VDP_INIT_PROC(OUTPUT_SURFACE_GET_BITS_NATIVE,
+                  output_surface_get_bits_native);
+    VDP_INIT_PROC(VIDEO_MIXER_CREATE,
+                  video_mixer_create);
+    VDP_INIT_PROC(VIDEO_MIXER_DESTROY,
+                  video_mixer_destroy);
+    VDP_INIT_PROC(VIDEO_MIXER_RENDER,
+                  video_mixer_render);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_CREATE,
+                  presentation_queue_create);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_DESTROY,
+                  presentation_queue_destroy);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_DISPLAY,
+                  presentation_queue_display);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_BLOCK_UNTIL_SURFACE_IDLE,
+                  presentation_queue_block_until_surface_idle);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_QUERY_SURFACE_STATUS,
+                  presentation_queue_query_surface_status);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_TARGET_CREATE_X11,
+                  presentation_queue_target_create_x11);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_TARGET_DESTROY,
+                  presentation_queue_target_destroy);
+    VDP_INIT_PROC(DECODER_CREATE,
+                  decoder_create);
+    VDP_INIT_PROC(DECODER_DESTROY,
+                  decoder_destroy);
+    VDP_INIT_PROC(DECODER_RENDER,
+                  decoder_render);
+    VDP_INIT_PROC(DECODER_QUERY_CAPABILITIES,
+                  decoder_query_capabilities);
+    VDP_INIT_PROC(VIDEO_SURFACE_QUERY_GET_PUT_BITS_Y_CB_CR_CAPABILITIES,
+                  video_surface_query_ycbcr_caps);
+    VDP_INIT_PROC(OUTPUT_SURFACE_QUERY_GET_PUT_BITS_NATIVE_CAPABILITIES,
+                  output_surface_query_rgba_caps);
+    VDP_INIT_PROC(GET_API_VERSION,
+                  get_api_version);
+    VDP_INIT_PROC(GET_INFORMATION_STRING,
+                  get_information_string);
+    VDP_INIT_PROC(GET_ERROR_STRING,
+                  get_error_string);
+
+#undef VDP_INIT_PROC
+    return 0;
+}
+
+// Deinitialize VDPAU hooks
+void vdpau_gate_exit(vdpau_driver_data_t *driver_data)
+{
+}
+
 // VdpVideoSurfaceCreate
 VdpStatus
 vdpau_video_surface_create(

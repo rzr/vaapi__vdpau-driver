@@ -58,6 +58,14 @@ struct vdpau_vtable {
     VdpGetErrorString           *vdp_get_error_string;
 };
 
+// Initialize VDPAU hooks
+int vdpau_gate_init(vdpau_driver_data_p driver_data)
+    attribute_hidden;
+
+// Deinitialize VDPAU hooks
+void vdpau_gate_exit(vdpau_driver_data_p driver_data)
+    attribute_hidden;
+
 // VdpGetApiVersion
 VdpStatus
 vdpau_get_api_version(vdpau_driver_data_p driver_data, uint32_t *api_version)
