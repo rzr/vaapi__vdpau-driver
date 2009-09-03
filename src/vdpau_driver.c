@@ -128,15 +128,12 @@ destroy_heap(
                                       sizeof(struct object_##type), \
                                       VDPAU_##id##_ID_OFFSET);      \
         ASSERT(result == 0);                                        \
-        if (result != 0) {                                          \
-            vdpau_Terminate(ctx);                                   \
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;               \
-        }                                                           \
+        if (result != 0)                                            \
+            return VA_STATUS_ERROR_UNKNOWN;                         \
     } while (0)
 
 // vaTerminate
-static VAStatus
-vdpau_Terminate(VADriverContextP ctx)
+static VAStatus vdpau_Terminate(VADriverContextP ctx)
 {
     VDPAU_DRIVER_DATA_INIT;
 
@@ -160,13 +157,49 @@ vdpau_Terminate(VADriverContextP ctx)
 }
 
 // vaInitialize
-static VAStatus
-vdpau_Initialize(VADriverContextP ctx)
+static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
 {
-    struct vdpau_driver_data *driver_data;
-    static char vendor[256] = {0, };
-    VdpStatus vdp_status;
+    VDPAU_DRIVER_DATA_INIT;
 
+    VdpStatus vdp_status;
+    vdp_status = vdp_device_create_x11(ctx->x11_dpy, ctx->x11_screen,
+                                       &driver_data->vdp_device,
+                                       &driver_data->vdp_get_proc_address);
+    ASSERT(vdp_status == VDP_STATUS_OK);
+    if (vdp_status != VDP_STATUS_OK)
+        return VA_STATUS_ERROR_UNKNOWN;
+
+    if (vdpau_gate_init(driver_data) < 0)
+        return VA_STATUS_ERROR_UNKNOWN;
+
+    uint32_t api_version;
+    vdp_status = vdpau_get_api_version(driver_data, &api_version);
+    ASSERT(vdp_status == VDP_STATUS_OK);
+    if (vdp_status != VDP_STATUS_OK)
+        return vdpau_get_VAStatus(driver_data, vdp_status);
+    if (api_version != VDPAU_VERSION)
+        return VA_STATUS_ERROR_UNKNOWN;
+
+    const char *impl_string = NULL;
+    vdp_status = vdpau_get_information_string(driver_data, &impl_string);
+    ASSERT(vdp_status == VDP_STATUS_OK);
+    if (vdp_status != VDP_STATUS_OK)
+        return vdpau_get_VAStatus(driver_data, vdp_status);
+    if (impl_string) {
+        /* XXX: set impl_type and impl_version if there is any useful info */
+    }
+
+    CREATE_HEAP(config, CONFIG);
+    CREATE_HEAP(context, CONTEXT);
+    CREATE_HEAP(surface, SURFACE);
+    CREATE_HEAP(buffer, BUFFER);
+    CREATE_HEAP(output, OUTPUT);
+    CREATE_HEAP(image, IMAGE);
+#if USE_GLX
+    CREATE_HEAP(glx_surface, GLX_SURFACE);
+#endif
+
+    static char vendor[256] = {0, };
     if (vendor[0] == '\0')
         sprintf(vendor, "%s %s - %d.%d.%d",
                 VDPAU_STR_DRIVER_VENDOR,
@@ -185,114 +218,85 @@ vdpau_Initialize(VADriverContextP ctx)
     ctx->max_display_attributes = VDPAU_MAX_DISPLAY_ATTRIBUTES;
     ctx->str_vendor             = vendor;
 
-    ctx->vtable.vaTerminate                     = vdpau_Terminate;
-    ctx->vtable.vaQueryConfigEntrypoints        = vdpau_QueryConfigEntrypoints;
-    ctx->vtable.vaQueryConfigProfiles           = vdpau_QueryConfigProfiles;
-    ctx->vtable.vaQueryConfigEntrypoints        = vdpau_QueryConfigEntrypoints;
-    ctx->vtable.vaQueryConfigAttributes         = vdpau_QueryConfigAttributes;
-    ctx->vtable.vaCreateConfig                  = vdpau_CreateConfig;
-    ctx->vtable.vaDestroyConfig                 = vdpau_DestroyConfig;
-    ctx->vtable.vaGetConfigAttributes           = vdpau_GetConfigAttributes;
-    ctx->vtable.vaCreateSurfaces                = vdpau_CreateSurfaces;
-    ctx->vtable.vaDestroySurfaces               = vdpau_DestroySurfaces;
-    ctx->vtable.vaCreateContext                 = vdpau_CreateContext;
-    ctx->vtable.vaDestroyContext                = vdpau_DestroyContext;
-    ctx->vtable.vaCreateBuffer                  = vdpau_CreateBuffer;
-    ctx->vtable.vaBufferSetNumElements          = vdpau_BufferSetNumElements;
-    ctx->vtable.vaMapBuffer                     = vdpau_MapBuffer;
-    ctx->vtable.vaUnmapBuffer                   = vdpau_UnmapBuffer;
-    ctx->vtable.vaDestroyBuffer                 = vdpau_DestroyBuffer;
-    ctx->vtable.vaBeginPicture                  = vdpau_BeginPicture;
-    ctx->vtable.vaRenderPicture                 = vdpau_RenderPicture;
-    ctx->vtable.vaEndPicture                    = vdpau_EndPicture;
-    ctx->vtable.vaSyncSurface                   = vdpau_SyncSurface;
-    ctx->vtable.vaQuerySurfaceStatus            = vdpau_QuerySurfaceStatus;
-    ctx->vtable.vaPutSurface                    = vdpau_PutSurface;
-    ctx->vtable.vaQueryImageFormats             = vdpau_QueryImageFormats;
-    ctx->vtable.vaCreateImage                   = vdpau_CreateImage;
-    ctx->vtable.vaDeriveImage                   = vdpau_DeriveImage;
-    ctx->vtable.vaDestroyImage                  = vdpau_DestroyImage;
-    ctx->vtable.vaSetImagePalette               = vdpau_SetImagePalette;
-    ctx->vtable.vaGetImage                      = vdpau_GetImage;
-    ctx->vtable.vaPutImage                      = vdpau_PutImage;
-    ctx->vtable.vaPutImage2                     = vdpau_PutImage_full;
-    ctx->vtable.vaQuerySubpictureFormats        = vdpau_QuerySubpictureFormats;
-    ctx->vtable.vaCreateSubpicture              = vdpau_CreateSubpicture;
-    ctx->vtable.vaDestroySubpicture             = vdpau_DestroySubpicture;
-    ctx->vtable.vaSetSubpictureImage            = vdpau_SetSubpictureImage;
-    ctx->vtable.vaSetSubpictureChromakey        = vdpau_SetSubpictureChromakey;
-    ctx->vtable.vaSetSubpictureGlobalAlpha      = vdpau_SetSubpictureGlobalAlpha;
-    ctx->vtable.vaAssociateSubpicture           = vdpau_AssociateSubpicture;
-    ctx->vtable.vaAssociateSubpicture2          = vdpau_AssociateSubpicture_full;
-    ctx->vtable.vaDeassociateSubpicture         = vdpau_DeassociateSubpicture;
-    ctx->vtable.vaQueryDisplayAttributes        = vdpau_QueryDisplayAttributes;
-    ctx->vtable.vaGetDisplayAttributes          = vdpau_GetDisplayAttributes;
-    ctx->vtable.vaSetDisplayAttributes          = vdpau_SetDisplayAttributes;
+    ctx->vtable.vaTerminate                 = vdpau_Terminate;
+    ctx->vtable.vaQueryConfigEntrypoints    = vdpau_QueryConfigEntrypoints;
+    ctx->vtable.vaQueryConfigProfiles       = vdpau_QueryConfigProfiles;
+    ctx->vtable.vaQueryConfigEntrypoints    = vdpau_QueryConfigEntrypoints;
+    ctx->vtable.vaQueryConfigAttributes     = vdpau_QueryConfigAttributes;
+    ctx->vtable.vaCreateConfig              = vdpau_CreateConfig;
+    ctx->vtable.vaDestroyConfig             = vdpau_DestroyConfig;
+    ctx->vtable.vaGetConfigAttributes       = vdpau_GetConfigAttributes;
+    ctx->vtable.vaCreateSurfaces            = vdpau_CreateSurfaces;
+    ctx->vtable.vaDestroySurfaces           = vdpau_DestroySurfaces;
+    ctx->vtable.vaCreateContext             = vdpau_CreateContext;
+    ctx->vtable.vaDestroyContext            = vdpau_DestroyContext;
+    ctx->vtable.vaCreateBuffer              = vdpau_CreateBuffer;
+    ctx->vtable.vaBufferSetNumElements      = vdpau_BufferSetNumElements;
+    ctx->vtable.vaMapBuffer                 = vdpau_MapBuffer;
+    ctx->vtable.vaUnmapBuffer               = vdpau_UnmapBuffer;
+    ctx->vtable.vaDestroyBuffer             = vdpau_DestroyBuffer;
+    ctx->vtable.vaBeginPicture              = vdpau_BeginPicture;
+    ctx->vtable.vaRenderPicture             = vdpau_RenderPicture;
+    ctx->vtable.vaEndPicture                = vdpau_EndPicture;
+    ctx->vtable.vaSyncSurface               = vdpau_SyncSurface;
+    ctx->vtable.vaQuerySurfaceStatus        = vdpau_QuerySurfaceStatus;
+    ctx->vtable.vaPutSurface                = vdpau_PutSurface;
+    ctx->vtable.vaQueryImageFormats         = vdpau_QueryImageFormats;
+    ctx->vtable.vaCreateImage               = vdpau_CreateImage;
+    ctx->vtable.vaDeriveImage               = vdpau_DeriveImage;
+    ctx->vtable.vaDestroyImage              = vdpau_DestroyImage;
+    ctx->vtable.vaSetImagePalette           = vdpau_SetImagePalette;
+    ctx->vtable.vaGetImage                  = vdpau_GetImage;
+    ctx->vtable.vaPutImage                  = vdpau_PutImage;
+    ctx->vtable.vaPutImage2                 = vdpau_PutImage_full;
+    ctx->vtable.vaQuerySubpictureFormats    = vdpau_QuerySubpictureFormats;
+    ctx->vtable.vaCreateSubpicture          = vdpau_CreateSubpicture;
+    ctx->vtable.vaDestroySubpicture         = vdpau_DestroySubpicture;
+    ctx->vtable.vaSetSubpictureImage        = vdpau_SetSubpictureImage;
+    ctx->vtable.vaSetSubpictureChromakey    = vdpau_SetSubpictureChromakey;
+    ctx->vtable.vaSetSubpictureGlobalAlpha  = vdpau_SetSubpictureGlobalAlpha;
+    ctx->vtable.vaAssociateSubpicture       = vdpau_AssociateSubpicture;
+    ctx->vtable.vaAssociateSubpicture2      = vdpau_AssociateSubpicture_full;
+    ctx->vtable.vaDeassociateSubpicture     = vdpau_DeassociateSubpicture;
+    ctx->vtable.vaQueryDisplayAttributes    = vdpau_QueryDisplayAttributes;
+    ctx->vtable.vaGetDisplayAttributes      = vdpau_GetDisplayAttributes;
+    ctx->vtable.vaSetDisplayAttributes      = vdpau_SetDisplayAttributes;
 #if VA_CHECK_VERSION(0,30,0)
-    ctx->vtable.vaCreateSurfaceFromCIFrame      = vdpau_CreateSurfaceFromCIFrame;
-    ctx->vtable.vaCreateSurfaceFromV4L2Buf      = vdpau_CreateSurfaceFromV4L2Buf;
-    ctx->vtable.vaCopySurfaceToBuffer           = vdpau_CopySurfaceToBuffer;
+    ctx->vtable.vaCreateSurfaceFromCIFrame  = vdpau_CreateSurfaceFromCIFrame;
+    ctx->vtable.vaCreateSurfaceFromV4L2Buf  = vdpau_CreateSurfaceFromV4L2Buf;
+    ctx->vtable.vaCopySurfaceToBuffer       = vdpau_CopySurfaceToBuffer;
 #else
-    ctx->vtable.vaSetSubpicturePalette          = vdpau_SetSubpicturePalette;
-    ctx->vtable.vaDbgCopySurfaceToBuffer        = vdpau_DbgCopySurfaceToBuffer;
+    ctx->vtable.vaSetSubpicturePalette      = vdpau_SetSubpicturePalette;
+    ctx->vtable.vaDbgCopySurfaceToBuffer    = vdpau_DbgCopySurfaceToBuffer;
 #endif
 #if USE_GLX
-    ctx->vtable.vaCreateSurfaceGLX              = vdpau_CreateSurfaceGLX;
-    ctx->vtable.vaDestroySurfaceGLX             = vdpau_DestroySurfaceGLX;
-    ctx->vtable.vaAssociateSurfaceGLX           = vdpau_AssociateSurfaceGLX;
-    ctx->vtable.vaDeassociateSurfaceGLX         = vdpau_DeassociateSurfaceGLX;
-    ctx->vtable.vaSyncSurfaceGLX                = vdpau_SyncSurfaceGLX;
-    ctx->vtable.vaBeginRenderSurfaceGLX         = vdpau_BeginRenderSurfaceGLX;
-    ctx->vtable.vaEndRenderSurfaceGLX           = vdpau_EndRenderSurfaceGLX;
-    ctx->vtable.vaCopySurfaceGLX                = vdpau_CopySurfaceGLX;
-#endif
-
-    driver_data = (struct vdpau_driver_data *)calloc(1, sizeof(*driver_data));
-    if (!driver_data) {
-        vdpau_Terminate(ctx);
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    }
-    ctx->pDriverData = (void *)driver_data;
-    driver_data->va_context = ctx;
-
-    vdp_status = vdp_device_create_x11(ctx->x11_dpy, ctx->x11_screen,
-                                       &driver_data->vdp_device,
-                                       &driver_data->vdp_get_proc_address);
-    ASSERT(vdp_status == VDP_STATUS_OK);
-    if (vdp_status != VDP_STATUS_OK) {
-        vdpau_Terminate(ctx);
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    if (vdpau_gate_init(driver_data) < 0) {
-        vdpau_Terminate(ctx);
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    uint32_t api_version;
-    vdp_status = vdpau_get_api_version(driver_data, &api_version);
-    ASSERT(vdp_status == VDP_STATUS_OK);
-    if (api_version != VDPAU_VERSION)
-        return VA_STATUS_ERROR_UNKNOWN;
-
-    const char *impl_string = NULL;
-    vdp_status = vdpau_get_information_string(driver_data, &impl_string);
-    ASSERT(vdp_status == VDP_STATUS_OK);
-    if (impl_string) {
-        /* XXX: set impl_type and impl_version if there is any useful info */
-    }
-
-    CREATE_HEAP(config, CONFIG);
-    CREATE_HEAP(context, CONTEXT);
-    CREATE_HEAP(surface, SURFACE);
-    CREATE_HEAP(buffer, BUFFER);
-    CREATE_HEAP(output, OUTPUT);
-    CREATE_HEAP(image, IMAGE);
-#if USE_GLX
-    CREATE_HEAP(glx_surface, GLX_SURFACE);
+    ctx->vtable.vaCreateSurfaceGLX          = vdpau_CreateSurfaceGLX;
+    ctx->vtable.vaDestroySurfaceGLX         = vdpau_DestroySurfaceGLX;
+    ctx->vtable.vaAssociateSurfaceGLX       = vdpau_AssociateSurfaceGLX;
+    ctx->vtable.vaDeassociateSurfaceGLX     = vdpau_DeassociateSurfaceGLX;
+    ctx->vtable.vaSyncSurfaceGLX            = vdpau_SyncSurfaceGLX;
+    ctx->vtable.vaBeginRenderSurfaceGLX     = vdpau_BeginRenderSurfaceGLX;
+    ctx->vtable.vaEndRenderSurfaceGLX       = vdpau_EndRenderSurfaceGLX;
+    ctx->vtable.vaCopySurfaceGLX            = vdpau_CopySurfaceGLX;
 #endif
 
     return VA_STATUS_SUCCESS;
+}
+
+static VAStatus vdpau_Initialize(VADriverContextP ctx)
+{
+    struct vdpau_driver_data *driver_data;
+
+    driver_data = (struct vdpau_driver_data *)calloc(1, sizeof(*driver_data));
+    if (!driver_data)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    ctx->pDriverData = (void *)driver_data;
+    driver_data->va_context = ctx;
+
+    VAStatus va_status = vdpau_do_Initialize(ctx);
+    if (va_status != VA_STATUS_SUCCESS)
+        vdpau_Terminate(ctx);
+    return va_status;
 }
 
 VAStatus VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
