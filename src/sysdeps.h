@@ -43,4 +43,17 @@
 # define attribute_hidden
 #endif
 
+#undef ASSERT
+#if USE_DEBUG
+# define ASSERT assert
+#else
+# define ASSERT(expr) do {                                              \
+        if (!(expr)) {                                                  \
+            vdpau_error_message("Assertion failed in file %s at line %d\n", \
+                                __FILE__, __LINE__);                    \
+            abort();                                                    \
+        }                                                               \
+} while (0)
+#endif
+
 #endif /* SYSDEPS_H */
