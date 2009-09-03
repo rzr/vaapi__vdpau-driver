@@ -460,8 +460,7 @@ destroy_tfp_surface(
     object_glx_surface_p obj_glx_surface
 )
 {
-    VADriverContextP const ctx     = driver_data->va_context;
-    opengl_data_t * const  gl_data = get_gl_data(driver_data);
+    VADriverContextP const ctx = driver_data->va_context;
 
     if (obj_glx_surface->glx_pixmap) {
         glXDestroyPixmap(ctx->x11_dpy, obj_glx_surface->glx_pixmap);
