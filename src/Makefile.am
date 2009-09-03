@@ -9,12 +9,14 @@ source_h = \
 	debug.h		\
 	object_heap.h	\
 	sysdeps.h	\
+	utils.h		\
 	vdpau_gate.h	\
 	vdpau_video.h
 
 source_c = \
 	debug.c		\
 	object_heap.c	\
+	utils.c		\
 	vdpau_gate.c	\
 	vdpau_video.c
 
