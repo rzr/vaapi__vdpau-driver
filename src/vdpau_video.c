@@ -22,6 +22,7 @@
 #include "sysdeps.h"
 #include "vdpau_video.h"
 #include "vdpau_gate.h"
+#include "vdpau_subpic.h"
 #include "utils.h"
 #include <va/va_backend.h>
 #include <stdarg.h>
@@ -2781,129 +2782,6 @@ vdpau_PutImage2(VADriverContextP ctx,
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
-// vaQuerySubpictureFormats
-static VAStatus
-vdpau_QuerySubpictureFormats(VADriverContextP ctx,
-                             VAImageFormat *format_list,/* out */
-                             unsigned int *flags,       /* out */
-                             unsigned int *num_formats) /* out */
-{
-    if (num_formats)
-      *num_formats = 0;
-
-    return VA_STATUS_SUCCESS;
-}
-
-// vaCreateSubpicture
-static VAStatus
-vdpau_CreateSubpicture(VADriverContextP ctx,
-                       VAImageID image,
-                       VASubpictureID *subpicture)      /* out */
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaDestroySubpicture
-static VAStatus
-vdpau_DestroySubpicture(VADriverContextP ctx,
-                        VASubpictureID subpicture)
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetSubpictureImage
-static VAStatus
-vdpau_SetSubpictureImage(VADriverContextP ctx,
-                         VASubpictureID subpicture,
-                         VAImageID image)
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetSubpicturePalette (not a PUBLIC interface)
-static VAStatus
-vdpau_SetSubpicturePalette(VADriverContextP ctx,
-                           VASubpictureID subpicture,
-                           unsigned char *palette)
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetSubpictureChromaKey
-static VAStatus
-vdpau_SetSubpictureChromakey(VADriverContextP ctx,
-                             VASubpictureID subpicture,
-                             unsigned int chromakey_min,
-                             unsigned int chromakey_max,
-                             unsigned int chromakey_mask)
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaSetSubpictureGlobalAlpha
-static VAStatus
-vdpau_SetSubpictureGlobalAlpha(VADriverContextP ctx,
-                               VASubpictureID subpicture,
-                               float global_alpha)
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaAssociateSubpicture
-static VAStatus
-vdpau_AssociateSubpicture(VADriverContextP ctx,
-                          VASubpictureID subpicture,
-                          VASurfaceID *target_surfaces,
-                          int num_surfaces,
-                          short src_x, /* upper left offset in subpicture */
-                          short src_y,
-                          short dest_x, /* upper left offset in surface */
-                          short dest_y,
-                          unsigned short width,
-                          unsigned short height,
-                          unsigned int flags)
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaAssociateSubpicture2
-static VAStatus
-vdpau_AssociateSubpicture2(VADriverContextP ctx,
-                           VASubpictureID subpicture,
-                           VASurfaceID *target_surfaces,
-                           int num_surfaces,
-                           short src_x, /* upper left offset in subpicture */
-                           short src_y,
-                           unsigned short src_width,
-                           unsigned short src_height,
-                           short dest_x, /* upper left offset in surface */
-                           short dest_y,
-                           unsigned short dest_width,
-                           unsigned short dest_height,
-                           unsigned int flags)
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
-// vaDeassociateSubpicture
-static VAStatus
-vdpau_DeassociateSubpicture(VADriverContextP ctx,
-                            VASubpictureID subpicture,
-                            VASurfaceID *target_surfaces,
-                            int num_surfaces)
-{
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
-}
-
 // vaBeginPicture
 static VAStatus
 vdpau_BeginPicture(VADriverContextP ctx,
@@ -4103,7 +3981,7 @@ vdpau_Initialize(VADriverContextP ctx)
     ctx->vtable.vaSetSubpictureChromakey        = vdpau_SetSubpictureChromakey;
     ctx->vtable.vaSetSubpictureGlobalAlpha      = vdpau_SetSubpictureGlobalAlpha;
     ctx->vtable.vaAssociateSubpicture           = vdpau_AssociateSubpicture;
-    ctx->vtable.vaAssociateSubpicture2          = vdpau_AssociateSubpicture2;
+    ctx->vtable.vaAssociateSubpicture2          = vdpau_AssociateSubpicture_full;
     ctx->vtable.vaDeassociateSubpicture         = vdpau_DeassociateSubpicture;
     ctx->vtable.vaQueryDisplayAttributes        = vdpau_QueryDisplayAttributes;
     ctx->vtable.vaGetDisplayAttributes          = vdpau_GetDisplayAttributes;

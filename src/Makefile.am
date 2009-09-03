@@ -12,6 +12,7 @@ source_h = \
 	utils.h		\
 	vdpau_driver.h	\
 	vdpau_gate.h	\
+	vdpau_subpic.h	\
 	vdpau_video.h
 
 source_c = \
@@ -19,6 +20,7 @@ source_c = \
 	object_heap.c	\
 	utils.c		\
 	vdpau_gate.c	\
+	vdpau_subpic.c	\
 	vdpau_video.c
 
 nvidia_drv_video_la_LTLIBRARIES	= nvidia_drv_video.la
