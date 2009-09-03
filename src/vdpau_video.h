@@ -22,20 +22,7 @@
 #define VDPAU_VIDEO_H
 
 #include "vdpau_driver.h"
-
-typedef enum {
-    VDP_IMAGE_FORMAT_TYPE_YCBCR = 1,
-    VDP_IMAGE_FORMAT_TYPE_RGBA,
-    VDP_IMAGE_FORMAT_TYPE_INDEXED
-} VdpImageFormatType;
-
-typedef enum {
-    VDP_CODEC_MPEG1 = 1,
-    VDP_CODEC_MPEG2,
-    VDP_CODEC_MPEG4,
-    VDP_CODEC_H264,
-    VDP_CODEC_VC1
-} VdpCodec;
+#include "vdpau_decode.h"
 
 typedef struct object_config object_config_t;
 struct object_config {
@@ -95,16 +82,6 @@ struct object_surface {
     }                            vdp_ref_frame;
 };
 
-typedef struct object_buffer object_buffer_t;
-struct object_buffer {
-    struct object_base           base;
-    VABufferType                 type;
-    void                        *buffer_data;
-    uint32_t                     buffer_size;
-    int                          max_num_elements;
-    int                          num_elements;
-};
-
 // Query surface status
 VAStatus
 query_surface_status(
@@ -122,6 +99,84 @@ sync_surface(
     object_surface_p     obj_surface
 ) attribute_hidden;
 
+// vaGetConfigAttributes
+VAStatus
+vdpau_GetConfigAttributes(
+    VADriverContextP    ctx,
+    VAProfile           profile,
+    VAEntrypoint        entrypoint,
+    VAConfigAttrib     *attrib_list,
+    int                 num_attribs
+) attribute_hidden;
+
+// vaCreateConfig
+VAStatus
+vdpau_CreateConfig(
+    VADriverContextP    ctx,
+    VAProfile           profile,
+    VAEntrypoint        entrypoint,
+    VAConfigAttrib     *attrib_list,
+    int                 num_attribs,
+    VAConfigID         *config_id
+) attribute_hidden;
+
+// vaDestroyConfig
+VAStatus
+vdpau_DestroyConfig(
+    VADriverContextP    ctx,
+    VAConfigID          config_id
+) attribute_hidden;
+
+// vaQueryConfigAttributes
+VAStatus
+vdpau_QueryConfigAttributes(
+    VADriverContextP    ctx,
+    VAConfigID          config_id,
+    VAProfile          *profile,
+    VAEntrypoint       *entrypoint,
+    VAConfigAttrib     *attrib_list,
+    int                *num_attribs
+) attribute_hidden;
+
+// vaCreateSurfaces
+VAStatus
+vdpau_CreateSurfaces(
+    VADriverContextP    ctx,
+    int                 width,
+    int                 height,
+    int                 format,
+    int                 num_surfaces,
+    VASurfaceID        *surfaces
+) attribute_hidden;
+
+// vaDestroySurfaces
+VAStatus
+vdpau_DestroySurfaces(
+    VADriverContextP    ctx,
+    VASurfaceID        *surface_list,
+    int                 num_surfaces
+) attribute_hidden;
+
+// vaCreateContext
+VAStatus
+vdpau_CreateContext(
+    VADriverContextP    ctx,
+    VAConfigID          config_id,
+    int                 picture_width,
+    int                 picture_height,
+    int                 flag,
+    VASurfaceID        *render_targets,
+    int                 num_render_targets,
+    VAContextID        *context
+) attribute_hidden;
+
+// vaDestroyContext
+VAStatus
+vdpau_DestroyContext(
+    VADriverContextP    ctx,
+    VAContextID         context
+) attribute_hidden;
+
 // vaQuerySurfaceStatus
 VAStatus
 vdpau_QuerySurfaceStatus(
@@ -137,5 +192,73 @@ vdpau_SyncSurface(
     VAContextID         context,
     VASurfaceID         render_target
 ) attribute_hidden;
+
+// vaQueryDisplayAttributes
+VAStatus
+vdpau_QueryDisplayAttributes(
+    VADriverContextP    ctx,
+    VADisplayAttribute *attr_list,
+    int                *num_attributes
+) attribute_hidden;
+
+// vaGetDisplayAttributes
+VAStatus
+vdpau_GetDisplayAttributes(
+    VADriverContextP    ctx,
+    VADisplayAttribute *attr_list,
+    int                 num_attributes
+) attribute_hidden;
+
+// vaSetDisplayAttributes
+VAStatus
+vdpau_SetDisplayAttributes(
+    VADriverContextP    ctx,
+    VADisplayAttribute *attr_list,
+    int                 num_attributes
+) attribute_hidden;
+
+// vaDbgCopySurfaceToBuffer (not a PUBLIC interface)
+VAStatus
+vdpau_DbgCopySurfaceToBuffer(
+    VADriverContextP    ctx,
+    VASurfaceID         surface,
+    void              **buffer,
+    unsigned int       *stride
+) attribute_hidden;
+
+#if VA_CHECK_VERSION(0,30,0)
+// vaCreateSurfaceFromCIFrame
+VAStatus
+vdpau_CreateSurfaceFromCIFrame(
+    VADriverContextP    ctx,
+    unsigned long       frame_id,
+    VASurfaceID        *surface
+) attribute_hidden;
+
+// vaCreateSurfaceFromV4L2Buf
+VAStatus
+vdpau_CreateSurfaceFromV4L2Buf(
+    VADriverContextP    ctx,
+    int                 v4l2_fd,
+    struct v4l2_format *v4l2_fmt,
+    struct v4l2_buffer *v4l2_buf,
+    VASurfaceID        *surface
+) attribute_hidden;
+
+// vaCopySurfaceToBuffer
+VAStatus
+vdpau_CopySurfaceToBuffer(
+    VADriverContextP    ctx,
+    VASurfaceID         surface,
+    unsigned int       *fourcc,
+    unsigned int       *luma_stride,
+    unsigned int       *chroma_u_stride,
+    unsigned int       *chroma_v_stride,
+    unsigned int       *luma_offset,
+    unsigned int       *chroma_u_offset,
+    unsigned int       *chroma_v_offset,
+    void              **buffer
+) attribute_hidden;
+#endif
 
 #endif /* VDPAU_VIDEO_H */

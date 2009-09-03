@@ -21,12 +21,19 @@
 #include "sysdeps.h"
 #include "vdpau_image.h"
 #include "vdpau_video.h"
+#include "vdpau_buffer.h"
 
 #define DEBUG 1
 #include "debug.h"
 
 
 // List of supported image formats
+typedef enum {
+    VDP_IMAGE_FORMAT_TYPE_YCBCR = 1,
+    VDP_IMAGE_FORMAT_TYPE_RGBA,
+    VDP_IMAGE_FORMAT_TYPE_INDEXED
+} VdpImageFormatType;
+
 typedef struct {
     VdpImageFormatType type;
     uint32_t format;
