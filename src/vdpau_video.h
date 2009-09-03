@@ -112,4 +112,37 @@ struct object_image {
     VdpOutputSurface             vdp_rgba_surface;
 };
 
+// Query surface status
+VAStatus
+query_surface_status(
+    vdpau_driver_data_t *driver_data,
+    object_context_p     obj_context,
+    object_surface_p     obj_surface,
+    VASurfaceStatus     *status
+) attribute_hidden;
+
+// Wait for the surface to complete pending operations
+VAStatus
+sync_surface(
+    vdpau_driver_data_t *driver_data,
+    object_context_p     obj_context,
+    object_surface_p     obj_surface
+) attribute_hidden;
+
+// vaQuerySurfaceStatus
+VAStatus
+vdpau_QuerySurfaceStatus(
+    VADriverContextP    ctx,
+    VASurfaceID         render_target,
+    VASurfaceStatus    *status
+) attribute_hidden;
+
+// vaSyncSurface
+VAStatus
+vdpau_SyncSurface(
+    VADriverContextP    ctx,
+    VAContextID         context,
+    VASurfaceID         render_target
+) attribute_hidden;
+
 #endif /* VDPAU_VIDEO_H */

@@ -2403,12 +2403,14 @@ vdpau_EndPicture(VADriverContextP ctx,
     return va_status;
 }
 
-// vaQuerySurfaceStatus
-static VAStatus
-query_surface_status(vdpau_driver_data_t *driver_data,
-                     object_context_p     obj_context,
-                     object_surface_p     obj_surface,
-                     VASurfaceStatus     *status)
+// Query surface status
+VAStatus
+query_surface_status(
+    vdpau_driver_data_t *driver_data,
+    object_context_p     obj_context,
+    object_surface_p     obj_surface,
+    VASurfaceStatus     *status
+)
 {
     VAStatus va_status = VA_STATUS_SUCCESS;
 
@@ -2441,10 +2443,13 @@ query_surface_status(vdpau_driver_data_t *driver_data,
     return va_status;
 }
 
-static VAStatus
-vdpau_QuerySurfaceStatus(VADriverContextP ctx,
-                         VASurfaceID render_target,
-                         VASurfaceStatus *status)       /* out */
+// vaQuerySurfaceStatus
+VAStatus
+vdpau_QuerySurfaceStatus(
+    VADriverContextP    ctx,
+    VASurfaceID         render_target,
+    VASurfaceStatus    *status
+)
 {
     INIT_DRIVER_DATA;
 
@@ -2461,11 +2466,13 @@ vdpau_QuerySurfaceStatus(VADriverContextP ctx,
     return query_surface_status(driver_data, obj_context, obj_surface, status);
 }
 
-// vaSyncSurface
-static VAStatus
-sync_surface(vdpau_driver_data_t *driver_data,
-             object_context_p     obj_context,
-             object_surface_p     obj_surface)
+// Wait for the surface to complete pending operations
+VAStatus
+sync_surface(
+    vdpau_driver_data_t *driver_data,
+    object_context_p     obj_context,
+    object_surface_p     obj_surface
+)
 {
     /* VDPAU only supports status interface for in-progress display */
     /* XXX: polling is bad but there currently is no alternative */
@@ -2486,10 +2493,13 @@ sync_surface(vdpau_driver_data_t *driver_data,
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus
-vdpau_SyncSurface(VADriverContextP ctx,
-                  VAContextID context,
-                  VASurfaceID render_target)
+// vaSyncSurface
+VAStatus
+vdpau_SyncSurface(
+    VADriverContextP    ctx,
+    VAContextID         context,
+    VASurfaceID         render_target
+)
 {
     INIT_DRIVER_DATA;
 
