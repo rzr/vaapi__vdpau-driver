@@ -41,3 +41,57 @@ void vdpau_information_message(const char *msg, ...)
     vfprintf(stderr, msg, args);
     va_end(args);
 }
+
+static int g_trace_is_new_line  = 1;
+static int g_trace_indent       = 0;
+
+int trace_enabled(void)
+{
+    static int g_trace_enabled = -1;
+    if (g_trace_enabled < 0) {
+        if (getenv_yesno("XVBA_VIDEO_TRACE", &g_trace_enabled) < 0)
+            g_trace_enabled = 0;
+    }
+    return g_trace_enabled;
+}
+
+static int trace_indent_width(void)
+{
+    static int g_indent_width = -1;
+    if (g_indent_width < 0) {
+        if (getenv_int("XVBA_VIDEO_TRACE_INDENT_WIDTH", &g_indent_width) < 0)
+            g_indent_width = 4;
+    }
+    return g_indent_width;
+}
+
+void trace_indent(int inc)
+{
+    g_trace_indent += inc;
+}
+
+void trace_print(const char *format, ...)
+{
+    va_list args;
+
+    if (g_trace_is_new_line) {
+        int i, j, n;
+        printf("%s: ", PACKAGE_NAME);
+        n = trace_indent_width();
+        for (i = 0; i < g_trace_indent; i++) {
+            for (j = 0; j < n / 4; j++)
+                printf("    ");
+            for (j = 0; j < n % 4; j++)
+                printf(" ");
+        }
+    }
+
+    va_start(args, format);
+    vfprintf(stdout, format, args);
+    va_end(args);
+
+    g_trace_is_new_line = (strchr(format, '\n') != NULL);
+
+    if (g_trace_is_new_line)
+        fflush(stdout);
+}

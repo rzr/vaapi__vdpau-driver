@@ -34,4 +34,16 @@ void vdpau_information_message(const char *msg, ...)
 # define D(x)
 #endif
 
+// Returns TRUE if debug trace is enabled
+int trace_enabled(void)
+    attribute_hidden;
+
+// Increase or decrease indentation level
+void trace_indent(int inc)
+    attribute_hidden;
+
+// Print message on the debug trace output
+void trace_print(const char *format, ...)
+    attribute_hidden;
+
 #endif /* DEBUG_H */
