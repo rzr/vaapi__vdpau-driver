@@ -19,6 +19,7 @@ source_c = \
 	debug.c		\
 	object_heap.c	\
 	utils.c		\
+	vdpau_driver.c	\
 	vdpau_gate.c	\
 	vdpau_subpic.c	\
 	vdpau_video.c
