@@ -20,6 +20,7 @@
 
 #include "sysdeps.h"
 #include "debug.h"
+#include "utils.h"
 #include <stdarg.h>
 
 void vdpau_error_message(const char *msg, ...)
