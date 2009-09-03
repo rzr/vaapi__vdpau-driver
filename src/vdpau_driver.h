@@ -88,6 +88,11 @@ typedef struct object_buffer   *object_buffer_p;
 typedef struct object_output   *object_output_p;
 typedef struct object_image    *object_image_p;
 
+// Return TRUE if underlying VDPAU implementation is NVIDIA
+VdpBool
+vdpau_is_nvidia(vdpau_driver_data_t *driver_data, int *major, int *minor)
+    attribute_hidden;
+
 // Translate VdpStatus to an appropriate VAStatus
 VAStatus
 vdpau_get_VAStatus(vdpau_driver_data_t *driver_data, VdpStatus vdp_status)

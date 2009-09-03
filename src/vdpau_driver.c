@@ -25,6 +25,21 @@
 #include "debug.h"
 
 
+// Return TRUE if underlying VDPAU implementation is NVIDIA
+VdpBool
+vdpau_is_nvidia(vdpau_driver_data_t *driver_data, int *major, int *minor)
+{
+    uint32_t nvidia_version = 0;
+
+    if (driver_data->vdp_impl_type == VDP_IMPLEMENTATION_NVIDIA)
+        nvidia_version = driver_data->vdp_impl_version;
+    if (major)
+        *major = nvidia_version >> 16;
+    if (minor)
+        *minor = nvidia_version & 0xffff;
+    return nvidia_version != 0;
+}
+
 // Translate VdpStatus to an appropriate VAStatus
 VAStatus
 vdpau_get_VAStatus(vdpau_driver_data_t *driver_data, VdpStatus vdp_status)
