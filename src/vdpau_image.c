@@ -103,14 +103,14 @@ static VdpRGBAFormat get_VdpRGBAFormat(const VAImageFormat *image_format)
 
 // Checks whether the VDPAU implementation supports the specified image format
 static inline VdpBool
-vdpau_is_supported_image_format(
+is_supported_format(
     vdpau_driver_data_t *driver_data,
     VdpImageFormatType   type,
     uint32_t             format
 )
 {
     VdpBool is_supported = VDP_FALSE;
-    VdpStatus vdp_status = VDP_STATUS_INVALID_VALUE;
+    VdpStatus vdp_status;
 
     switch (type) {
     case VDP_IMAGE_FORMAT_TYPE_YCBCR:
@@ -127,6 +127,9 @@ vdpau_is_supported_image_format(
                                                  driver_data->vdp_device,
                                                  format,
                                                  &is_supported);
+        break;
+    default:
+        vdp_status = VDP_STATUS_INVALID_VALUE;
         break;
     }
     return vdp_status == VDP_STATUS_OK && is_supported;
@@ -151,7 +154,7 @@ vdpau_QueryImageFormats(
     int i, n = 0;
     for (i = 0; i < ARRAY_ELEMS(vdpau_image_formats_map); i++) {
         const vdpau_image_format_map_t * const f = &vdpau_image_formats_map[i];
-        if (vdpau_is_supported_image_format(driver_data, f->type, f->format))
+        if (is_supported_format(driver_data, f->type, f->format))
             format_list[n++] = f->va_format;
     }
 

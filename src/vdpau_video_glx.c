@@ -23,6 +23,7 @@
 #include "vdpau_video.h"
 #include "vdpau_video_glx.h"
 #include "vdpau_video_x11.h"
+#include "utils.h"
 #include <dlfcn.h>
 
 #define DEBUG 1
