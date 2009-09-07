@@ -75,11 +75,6 @@ typedef enum {
     VDP_IMPLEMENTATION_NVIDIA = 1,
 } VdpImplementation;
 
-enum {
-    VA_DISPLAY_ATTRIB_DIRECT_SURFACE = 0,
-    VA_DISPLAY_ATTRIB_COUNT
-};
-
 typedef struct vdpau_driver_data vdpau_driver_data_t;
 struct vdpau_driver_data {
     void                       *va_context;
@@ -97,8 +92,8 @@ struct vdpau_driver_data {
     VdpChromaType               vdp_chroma_format; /* XXX: move elsewhere? */
     VdpImplementation           vdp_impl_type;
     uint32_t                    vdp_impl_version;
-    VADisplayAttribute          va_display_attrs[VA_DISPLAY_ATTRIB_COUNT];
-    unsigned int                va_display_attrs_ready : 1;
+    VADisplayAttribute          va_display_attrs[VDPAU_MAX_DISPLAY_ATTRIBUTES];
+    unsigned int                va_display_attrs_count;
 };
 
 typedef struct object_config   *object_config_p;

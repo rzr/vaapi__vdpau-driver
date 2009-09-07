@@ -717,17 +717,19 @@ static int ensure_display_attributes(vdpau_driver_data_t *driver_data)
 {
     VADisplayAttribute *attr;
 
-    if (driver_data->va_display_attrs_ready)
+    if (driver_data->va_display_attrs_count > 0)
         return 0;
 
-    attr = &driver_data->va_display_attrs[VA_DISPLAY_ATTRIB_DIRECT_SURFACE];
+    attr = &driver_data->va_display_attrs[0];
+
     attr->type      = VADisplayAttribDirectSurface;
     attr->min_value = 0;
     attr->max_value = 0;
     attr->value     = 0; /* VdpVideoSurface is copied into VdpOutputSurface */
     attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE;
+    attr++;
 
-    driver_data->va_display_attrs_ready = 1;
+    driver_data->va_display_attrs_count = attr - driver_data->va_display_attrs;
     return 0;
 }
 
@@ -742,7 +744,7 @@ get_display_attribute(
         return NULL;
 
     unsigned int i;
-    for (i = 0; i < VA_DISPLAY_ATTRIB_COUNT; i++) {
+    for (i = 0; i < driver_data->va_display_attrs_count; i++) {
         if (driver_data->va_display_attrs[i].type == type)
             return &driver_data->va_display_attrs[i];
     }
@@ -767,7 +769,7 @@ vdpau_QueryDisplayAttributes(
                sizeof(driver_data->va_display_attrs));
 
     if (num_attributes)
-        *num_attributes = VA_DISPLAY_ATTRIB_COUNT;
+        *num_attributes = driver_data->va_display_attrs_count;
 
     return VA_STATUS_SUCCESS;
 }
