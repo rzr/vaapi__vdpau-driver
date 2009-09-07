@@ -766,7 +766,7 @@ vdpau_QueryDisplayAttributes(
 
     if (attr_list)
         memcpy(attr_list, driver_data->va_display_attrs,
-               sizeof(driver_data->va_display_attrs));
+               driver_data->va_display_attrs_count * sizeof(attr_list[0]));
 
     if (num_attributes)
         *num_attributes = driver_data->va_display_attrs_count;
