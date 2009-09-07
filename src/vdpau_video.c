@@ -723,9 +723,9 @@ static int ensure_display_attributes(vdpau_driver_data_t *driver_data)
     attr = &driver_data->va_display_attrs[0];
 
     attr->type      = VADisplayAttribDirectSurface;
-    attr->min_value = 0;
-    attr->max_value = 0;
     attr->value     = 0; /* VdpVideoSurface is copied into VdpOutputSurface */
+    attr->min_value = attr->value;
+    attr->max_value = attr->value;
     attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE;
     attr++;
 
