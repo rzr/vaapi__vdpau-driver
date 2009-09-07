@@ -712,6 +712,43 @@ vdpau_SyncSurface3(
     return sync_surface(driver_data, obj_context, obj_surface);
 }
 
+// Ensure VA Display Attributes are initialized
+static int ensure_display_attributes(vdpau_driver_data_t *driver_data)
+{
+    VADisplayAttribute *attr;
+
+    if (driver_data->va_display_attrs_ready)
+        return 0;
+
+    attr = &driver_data->va_display_attrs[VA_DISPLAY_ATTRIB_DIRECT_SURFACE];
+    attr->type      = VADisplayAttribDirectSurface;
+    attr->min_value = 0;
+    attr->max_value = 0;
+    attr->value     = 0; /* VdpVideoSurface is copied into VdpOutputSurface */
+    attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE;
+
+    driver_data->va_display_attrs_ready = 1;
+    return 0;
+}
+
+// Look up for the specified VA display attribute
+static VADisplayAttribute *
+get_display_attribute(
+    vdpau_driver_data_t *driver_data,
+    VADisplayAttribType  type
+)
+{
+    if (ensure_display_attributes(driver_data) < 0)
+        return NULL;
+
+    unsigned int i;
+    for (i = 0; i < VA_DISPLAY_ATTRIB_COUNT; i++) {
+        if (driver_data->va_display_attrs[i].type == type)
+            return &driver_data->va_display_attrs[i];
+    }
+    return NULL;
+}
+
 // vaQueryDisplayAttributes
 VAStatus
 vdpau_QueryDisplayAttributes(
@@ -720,8 +757,19 @@ vdpau_QueryDisplayAttributes(
     int                *num_attributes
 )
 {
-    /* TODO */
-    return VA_STATUS_ERROR_UNKNOWN;
+    VDPAU_DRIVER_DATA_INIT;
+
+    if (ensure_display_attributes(driver_data) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    if (attr_list)
+        memcpy(attr_list, driver_data->va_display_attrs,
+               sizeof(driver_data->va_display_attrs));
+
+    if (num_attributes)
+        *num_attributes = VA_DISPLAY_ATTRIB_COUNT;
+
+    return VA_STATUS_SUCCESS;
 }
 
 // vaGetDisplayAttributes
@@ -732,8 +780,23 @@ vdpau_GetDisplayAttributes(
     int                 num_attributes
 )
 {
-    /* TODO */
-    return VA_STATUS_ERROR_UNKNOWN;
+    VDPAU_DRIVER_DATA_INIT;
+
+    unsigned int i;
+    for (i = 0; i < num_attributes; i++) {
+        VADisplayAttribute * const dst_attr = &attr_list[i];
+        VADisplayAttribute *src_attr;
+
+        src_attr = get_display_attribute(driver_data, dst_attr->type);
+        if (src_attr && (src_attr->flags & VA_DISPLAY_ATTRIB_GETTABLE) != 0) {
+            dst_attr->min_value = src_attr->min_value;
+            dst_attr->max_value = src_attr->max_value;
+            dst_attr->value     = src_attr->value;
+        }
+        else
+            dst_attr->flags    &= ~VA_DISPLAY_ATTRIB_GETTABLE;
+    }
+    return VA_STATUS_SUCCESS;
 }
 
 // vaSetDisplayAttributes
@@ -744,8 +807,21 @@ vdpau_SetDisplayAttributes(
     int                 num_attributes
 )
 {
-    /* TODO */
-    return VA_STATUS_ERROR_UNKNOWN;
+    VDPAU_DRIVER_DATA_INIT;
+
+    unsigned int i;
+    for (i = 0; i < num_attributes; i++) {
+        VADisplayAttribute * const src_attr = &attr_list[i];
+        VADisplayAttribute *dst_attr;
+
+        dst_attr = get_display_attribute(driver_data, src_attr->type);
+        if (!dst_attr)
+            return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
+
+        if ((dst_attr->flags & VA_DISPLAY_ATTRIB_SETTABLE) != 0)
+            dst_attr->value = src_attr->value;
+    }
+    return VA_STATUS_SUCCESS;
 }
 
 // vaDbgCopySurfaceToBuffer (not a PUBLIC interface)
