@@ -34,6 +34,15 @@
 #include "debug.h"
 
 
+// Check for VA/GLX changes from libVA API >= 0.31.0-sds2
+#if VA_CHECK_VERSION(0,31,1) || (VA_CHECK_VERSION(0,31,0) && VA_SDS_VERSION >= 2)
+#define VA_DRIVER_VTABLE_GLX(ctx) (&(ctx)->vtable.glx)
+typedef struct VADriverVTableGLX *VADriverVTableGLXP;
+#else
+#define VA_DRIVER_VTABLE_GLX(ctx) (&(ctx)->vtable)
+typedef struct VADriverVTable    *VADriverVTableGLXP;
+#endif
+
 // Return TRUE if underlying VDPAU implementation is NVIDIA
 VdpBool
 vdpau_is_nvidia(vdpau_driver_data_t *driver_data, int *major, int *minor)
@@ -281,15 +290,17 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     ctx->vtable.vaSetSubpicturePalette      = vdpau_SetSubpicturePalette;
     ctx->vtable.vaDbgCopySurfaceToBuffer    = vdpau_DbgCopySurfaceToBuffer;
 #endif
+
 #if USE_GLX
-    ctx->vtable.vaCreateSurfaceGLX          = vdpau_CreateSurfaceGLX;
-    ctx->vtable.vaDestroySurfaceGLX         = vdpau_DestroySurfaceGLX;
-    ctx->vtable.vaAssociateSurfaceGLX       = vdpau_AssociateSurfaceGLX;
-    ctx->vtable.vaDeassociateSurfaceGLX     = vdpau_DeassociateSurfaceGLX;
-    ctx->vtable.vaSyncSurfaceGLX            = vdpau_SyncSurfaceGLX;
-    ctx->vtable.vaBeginRenderSurfaceGLX     = vdpau_BeginRenderSurfaceGLX;
-    ctx->vtable.vaEndRenderSurfaceGLX       = vdpau_EndRenderSurfaceGLX;
-    ctx->vtable.vaCopySurfaceGLX            = vdpau_CopySurfaceGLX;
+    VADriverVTableGLXP const glx_vtable     = VA_DRIVER_VTABLE_GLX(ctx);
+    glx_vtable->vaCreateSurfaceGLX          = vdpau_CreateSurfaceGLX;
+    glx_vtable->vaDestroySurfaceGLX         = vdpau_DestroySurfaceGLX;
+    glx_vtable->vaAssociateSurfaceGLX       = vdpau_AssociateSurfaceGLX;
+    glx_vtable->vaDeassociateSurfaceGLX     = vdpau_DeassociateSurfaceGLX;
+    glx_vtable->vaSyncSurfaceGLX            = vdpau_SyncSurfaceGLX;
+    glx_vtable->vaBeginRenderSurfaceGLX     = vdpau_BeginRenderSurfaceGLX;
+    glx_vtable->vaEndRenderSurfaceGLX       = vdpau_EndRenderSurfaceGLX;
+    glx_vtable->vaCopySurfaceGLX            = vdpau_CopySurfaceGLX;
 #endif
 
     return VA_STATUS_SUCCESS;
