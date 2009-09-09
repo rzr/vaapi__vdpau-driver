@@ -1,3 +1,6 @@
+DRIVERS  = nvidia
+DRIVERS += s3g		# native VA API driver is too old, so use VDPAU based one
+
 INCLUDES = \
 	$(VDPAU_VIDEO_CFLAGS)
 
@@ -44,11 +47,11 @@ source_c = \
 	$(source_glx_c)	\
 	$(source_x11_c)
 
-nvidia_drv_video_la_LTLIBRARIES	= nvidia_drv_video.la
-nvidia_drv_video_ladir		= @LIBVA_DRIVERS_PATH@
-nvidia_drv_video_la_SOURCES	= $(source_c)
-nvidia_drv_video_la_LIBADD	= $(VDPAU_VIDEO_LIBS) -lX11
-nvidia_drv_video_la_LDFLAGS	= $(LDADD)
+vdpau_drv_video_la_LTLIBRARIES	= vdpau_drv_video.la
+vdpau_drv_video_ladir		= @LIBVA_DRIVERS_PATH@
+vdpau_drv_video_la_SOURCES	= $(source_c)
+vdpau_drv_video_la_LIBADD	= $(VDPAU_VIDEO_LIBS) -lX11
+vdpau_drv_video_la_LDFLAGS	= $(LDADD)
 
 noinst_HEADERS = $(source_h)
 
@@ -57,6 +60,12 @@ EXTRA_DIST = \
 	$(source_glx_h)	\
 	$(source_x11_c)	\
 	$(source_x11_h)
+
+install-data-hook:
+	cd $(DESTDIR)$(LIBVA_DRIVERS_PATH) ;			\
+	for drv in $(DRIVERS); do				\
+	    ln -s vdpau_drv_video.so $${drv}_drv_video.so;	\
+	done
 
 # Extra clean files so that maintainer-clean removes *everything*
 MAINTAINERCLEANFILES = Makefile.in config.h.in
