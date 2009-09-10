@@ -46,6 +46,46 @@ static inline int vdpau_video_dpb(void)
     return g_vdpau_video_dpb;
 }
 
+// Translates VdpDecoderProfile to VdpCodec
+VdpCodec get_VdpCodec(VdpDecoderProfile profile)
+{
+    switch (profile) {
+    case VDP_DECODER_PROFILE_MPEG1:
+        return VDP_CODEC_MPEG1;
+    case VDP_DECODER_PROFILE_MPEG2_SIMPLE:
+    case VDP_DECODER_PROFILE_MPEG2_MAIN:
+        return VDP_CODEC_MPEG2;
+    case VDP_DECODER_PROFILE_H264_BASELINE:
+    case VDP_DECODER_PROFILE_H264_MAIN:
+    case VDP_DECODER_PROFILE_H264_HIGH:
+        return VDP_CODEC_H264;
+    case VDP_DECODER_PROFILE_VC1_SIMPLE:
+    case VDP_DECODER_PROFILE_VC1_MAIN:
+    case VDP_DECODER_PROFILE_VC1_ADVANCED:
+        return VDP_CODEC_VC1;
+    }
+    ASSERT(profile);
+    return 0;
+}
+
+// Translates VAProfile to VdpDecoderProfile
+VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
+{
+    switch (profile) {
+    case VAProfileMPEG2Simple:  return VDP_DECODER_PROFILE_MPEG2_SIMPLE;
+    case VAProfileMPEG2Main:    return VDP_DECODER_PROFILE_MPEG2_MAIN;
+    case VAProfileH264Baseline: return VDP_DECODER_PROFILE_H264_BASELINE;
+    case VAProfileH264Main:     return VDP_DECODER_PROFILE_H264_MAIN;
+    case VAProfileH264High:     return VDP_DECODER_PROFILE_H264_HIGH;
+    case VAProfileVC1Simple:    return VDP_DECODER_PROFILE_VC1_SIMPLE;
+    case VAProfileVC1Main:      return VDP_DECODER_PROFILE_VC1_MAIN;
+    case VAProfileVC1Advanced:  return VDP_DECODER_PROFILE_VC1_ADVANCED;
+    default:                    break;
+    }
+    ASSERT(profile);
+    return (VdpDecoderProfile)-1;
+}
+
 // Checks whether the VDPAU implementation supports the specified profile
 static inline VdpBool
 is_supported_profile(
@@ -831,7 +871,8 @@ vdpau_QueryConfigProfiles(
     int i, n = 0;
     for (i = 0; i < ARRAY_ELEMS(va_profiles); i++) {
         VAProfile profile = va_profiles[i];
-        if (is_supported_profile(driver_data, profile))
+        VdpDecoderProfile vdp_profile = get_VdpDecoderProfile(profile);
+        if (is_supported_profile(driver_data, vdp_profile))
             profile_list[n++] = profile;
     }
 

@@ -31,6 +31,14 @@ typedef enum {
     VDP_CODEC_VC1
 } VdpCodec;
 
+// Translates VdpDecoderProfile to VdpCodec
+VdpCodec get_VdpCodec(VdpDecoderProfile profile)
+    attribute_hidden;
+
+// Translates VAProfile to VdpDecoderProfile
+VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
+    attribute_hidden;
+
 // vaQueryConfigProfiles
 VAStatus
 vdpau_QueryConfigProfiles(

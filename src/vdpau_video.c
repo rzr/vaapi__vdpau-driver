@@ -21,6 +21,7 @@
 #include "sysdeps.h"
 #include "vdpau_video.h"
 #include "vdpau_video_x11.h"
+#include "vdpau_decode.h"
 #include "utils.h"
 
 #define DEBUG 1
@@ -30,28 +31,6 @@
 /* Define wait delay (in microseconds) for vaSyncSurface() implementation
    with polling. */
 #define VDPAU_SYNC_DELAY 5000
-
-// Translates VdpDecoderProfile to VdpCodec
-static VdpCodec get_VdpCodec(VdpDecoderProfile profile)
-{
-    switch (profile) {
-    case VDP_DECODER_PROFILE_MPEG1:
-        return VDP_CODEC_MPEG1;
-    case VDP_DECODER_PROFILE_MPEG2_SIMPLE:
-    case VDP_DECODER_PROFILE_MPEG2_MAIN:
-        return VDP_CODEC_MPEG2;
-    case VDP_DECODER_PROFILE_H264_BASELINE:
-    case VDP_DECODER_PROFILE_H264_MAIN:
-    case VDP_DECODER_PROFILE_H264_HIGH:
-        return VDP_CODEC_H264;
-    case VDP_DECODER_PROFILE_VC1_SIMPLE:
-    case VDP_DECODER_PROFILE_VC1_MAIN:
-    case VDP_DECODER_PROFILE_VC1_ADVANCED:
-        return VDP_CODEC_VC1;
-    }
-    ASSERT(profile);
-    return 0;
-}
 
 // Translates VA API chroma format to VdpChromaType
 static VdpChromaType get_VdpChromaType(int format)
@@ -63,24 +42,6 @@ static VdpChromaType get_VdpChromaType(int format)
     }
     ASSERT(format);
     return (VdpChromaType)-1;
-}
-
-// Translates VAProfile to VdpDecoderProfile
-static VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
-{
-    switch (profile) {
-    case VAProfileMPEG2Simple:  return VDP_DECODER_PROFILE_MPEG2_SIMPLE;
-    case VAProfileMPEG2Main:    return VDP_DECODER_PROFILE_MPEG2_MAIN;
-    case VAProfileH264Baseline: return VDP_DECODER_PROFILE_H264_BASELINE;
-    case VAProfileH264Main:     return VDP_DECODER_PROFILE_H264_MAIN;
-    case VAProfileH264High:     return VDP_DECODER_PROFILE_H264_HIGH;
-    case VAProfileVC1Simple:    return VDP_DECODER_PROFILE_VC1_SIMPLE;
-    case VAProfileVC1Main:      return VDP_DECODER_PROFILE_VC1_MAIN;
-    case VAProfileVC1Advanced:  return VDP_DECODER_PROFILE_VC1_ADVANCED;
-    default:                    break;
-    }
-    ASSERT(profile);
-    return (VdpDecoderProfile)-1;
 }
 
 
