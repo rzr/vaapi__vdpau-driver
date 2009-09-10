@@ -893,8 +893,13 @@ vdpau_QueryConfigEntrypoints(
     int                *num_entrypoints
 )
 {
-    VAEntrypoint entrypoint;
+    VDPAU_DRIVER_DATA_INIT;
 
+    VdpDecoderProfile vdp_profile = get_VdpDecoderProfile(profile);
+    if (!is_supported_profile(driver_data, vdp_profile))
+        return VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
+
+    VAEntrypoint entrypoint;
     switch (profile) {
     case VAProfileMPEG2Simple:
     case VAProfileMPEG2Main:
