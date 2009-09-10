@@ -1,10 +1,10 @@
-vdpau-video NEWS -- summary of changes.  2009-09-DD
+vdpau-video NEWS -- summary of changes.  2009-09-09
 Copyright (C) 2009 Splitted-Desktop Systems
 
-Version 0.4.1 - DD.Sep.2009
+Version 0.4.1 - 09.Sep.2009
+* Add VADisplayAttributes
 * Add support for VA API 0.31
 * Add support for OpenGL extensions to VA API (v3)
-* Implement VADisplayAttributes
 
 Version 0.4.0 - 27.Aug.2009
 * Add support for OpenGL extensions to VA API
