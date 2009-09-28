@@ -189,8 +189,8 @@ put_surface(
     Drawable             drawable,
     unsigned int         drawable_width,
     unsigned int         drawable_height,
-    const VdpRect       *source_rect,
-    const VdpRect       *target_rect
+    const VARectangle   *source_rect,
+    const VARectangle   *target_rect
 )
 {
     object_surface_p obj_surface = VDPAU_SURFACE(surface);
@@ -247,6 +247,16 @@ put_surface(
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(driver_data, vdp_status);
 
+    VdpRect src_rect, dst_rect;
+    src_rect.x0 = MAX(source_rect->x, 0);
+    src_rect.y0 = MAX(source_rect->y, 0);
+    src_rect.x1 = MIN(source_rect->x + source_rect->width,  obj_surface->width);
+    src_rect.y1 = MIN(source_rect->y + source_rect->height, obj_surface->height);
+    dst_rect.x0 = MAX(target_rect->x, 0);
+    dst_rect.y0 = MAX(target_rect->y, 0);
+    dst_rect.x1 = MIN(target_rect->x + target_rect->width,  drawable_width);
+    dst_rect.y1 = MIN(target_rect->y + target_rect->height, drawable_height);
+
     vdp_status = vdpau_video_mixer_render(driver_data,
                                           obj_context->vdp_video_mixer,
                                           VDP_INVALID_HANDLE,
@@ -255,10 +265,10 @@ put_surface(
                                           0, NULL,
                                           obj_surface->vdp_surface,
                                           0, NULL,
-                                          source_rect,
+                                          &src_rect,
                                           vdp_output_surface,
                                           NULL,
-                                          target_rect,
+                                          &dst_rect,
                                           0, NULL);
 
     if (vdp_status != VDP_STATUS_OK)
@@ -315,14 +325,14 @@ vdpau_PutSurface(
     unsigned int w, h;
     get_drawable_size(ctx->x11_dpy, draw, &w, &h);
 
-    VdpRect src_rect, dst_rect;
-    src_rect.x0 = srcx;
-    src_rect.y0 = srcy;
-    src_rect.x1 = src_rect.x0 + srcw;
-    src_rect.y1 = src_rect.y0 + srch;
-    dst_rect.x0 = destx;
-    dst_rect.y0 = desty;
-    dst_rect.x1 = dst_rect.x0 + destw;
-    dst_rect.y1 = dst_rect.y0 + desth;
+    VARectangle src_rect, dst_rect;
+    src_rect.x      = srcx;
+    src_rect.y      = srcy;
+    src_rect.width  = srcw;
+    src_rect.height = srch;
+    dst_rect.x      = destx;
+    dst_rect.y      = desty;
+    dst_rect.width  = destw;
+    dst_rect.height = desth;
     return put_surface(driver_data, surface, draw, w, h, &src_rect, &dst_rect);
 }

@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-09-10
+vdpau-video NEWS -- summary of changes.  2009-10-DD
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.4.2 - DD.Oct.2009
+* Fix vaPutSurface() display bounds
 
 Version 0.4.1 - 10.Sep.2009
 * Add VADisplayAttributes

@@ -823,15 +823,15 @@ vdpau_AssociateSurfaceGLX(
         return va_status;
 
     /* Render to Pixmap */
-    VdpRect src_rect, dst_rect;
-    src_rect.x0 = 0;
-    src_rect.y0 = 0;
-    src_rect.x1 = obj_surface->width;
-    src_rect.y1 = obj_surface->height;
-    dst_rect.x0 = 0;
-    dst_rect.y0 = 0;
-    dst_rect.x1 = obj_glx_surface->width;
-    dst_rect.y1 = obj_glx_surface->height;
+    VARectangle src_rect, dst_rect;
+    src_rect.x      = 0;
+    src_rect.y      = 0;
+    src_rect.width  = obj_surface->width;
+    src_rect.height = obj_surface->height;
+    dst_rect.x      = 0;
+    dst_rect.y      = 0;
+    dst_rect.width  = obj_glx_surface->width;
+    dst_rect.height = obj_glx_surface->height;
     va_status = put_surface(driver_data, surface,
                             obj_glx_surface->pixmap,
                             obj_glx_surface->width,
