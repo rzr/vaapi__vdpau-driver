@@ -377,6 +377,14 @@ vdpau_GetImage(
     }
 
     if (is_yuv_format) {
+        if (image->format.fourcc == VA_FOURCC('Y','V','1','2')) {
+            /* VDPAU exposes YV12 pixels as Y/U/V planes, which turns
+               out to be I420, whereas VA-API expects standard Y/V/U order */
+            src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
+            src_stride[1] = image->pitches[2];
+            src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
+            src_stride[2] = image->pitches[1];
+        }
         vdp_status = vdpau_video_surface_get_bits_ycbcr(driver_data,
                                                         obj_surface->vdp_surface,
                                                         ycbcr_format,
