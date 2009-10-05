@@ -117,6 +117,15 @@ void vdpau_gate_exit(vdpau_driver_data_t *driver_data)
 {
 }
 
+#define VDPAU_INVOKE_(retval, func, ...)               \
+    (driver_data && driver_data->vdp_vtable.vdp_##func \
+     ? driver_data->vdp_vtable.vdp_##func(__VA_ARGS__) \
+     : (retval))
+
+#define VDPAU_INVOKE(func, ...)                        \
+    VDPAU_INVOKE_(VDP_STATUS_INVALID_POINTER,          \
+                  func, __VA_ARGS__)
+
 // VdpVideoSurfaceCreate
 VdpStatus
 vdpau_video_surface_create(
@@ -128,15 +137,12 @@ vdpau_video_surface_create(
     VdpVideoSurface     *surface
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_video_surface_create == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_video_surface_create(device,
-                                                            chroma_type,
-                                                            width,
-                                                            height,
-                                                            surface);
+    return VDPAU_INVOKE(video_surface_create,
+                        device,
+                        chroma_type,
+                        width,
+                        height,
+                        surface);
 }
 
 // VdpVideoSurfaceDestroy
@@ -146,11 +152,7 @@ vdpau_video_surface_destroy(
     VdpVideoSurface      surface
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_video_surface_destroy == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_video_surface_destroy(surface);
+    return VDPAU_INVOKE(video_surface_destroy, surface);
 }
 
 // VdpVideoSurfaceGetBitsYCbCr
@@ -163,13 +165,11 @@ vdpau_video_surface_get_bits_ycbcr(
     uint32_t            *stride
 )
 {
-    if (driver_data < 0)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_video_surface_get_bits_ycbcr == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_video_surface_get_bits_ycbcr(surface, format,
-                                                                    (void * const *)dest,
-                                                                    stride);
+    return VDPAU_INVOKE(video_surface_get_bits_ycbcr,
+                        surface,
+                        format,
+                        (void * const *)dest,
+                        stride);
 }
 
 // VdpVideoSurfacePutBitsYCbCr
@@ -182,14 +182,11 @@ vdpau_video_surface_put_bits_ycbcr(
     uint32_t            *stride
 )
 {
-    if (!driver_data)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_video_surface_put_bits_ycbcr == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_video_surface_put_bits_ycbcr(surface,
-                                                                    format,
-                                                                    (const void * const *)src,
-                                                                    stride);
+    return VDPAU_INVOKE(video_surface_put_bits_ycbcr,
+                        surface,
+                        format,
+                        (const void * const *)src,
+                        stride);
 }
 
 // VdpOutputSurfaceCreate
@@ -203,15 +200,12 @@ vdpau_output_surface_create(
     VdpOutputSurface    *surface
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_output_surface_create == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_output_surface_create(device,
-                                                             rgba_format,
-                                                             width,
-                                                             height,
-                                                             surface);
+    return VDPAU_INVOKE(output_surface_create,
+                        device,
+                        rgba_format,
+                        width,
+                        height,
+                        surface);
 }
 
 // VdpOutputSurfaceDestroy
@@ -221,11 +215,7 @@ vdpau_output_surface_destroy(
     VdpOutputSurface     surface
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_output_surface_destroy == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_output_surface_destroy(surface);
+    return VDPAU_INVOKE(output_surface_destroy, surface);
 }
 
 // VdpOutputSurfaceGetBitsNative
@@ -238,14 +228,11 @@ vdpau_output_surface_get_bits_native(
     uint32_t            *stride
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_output_surface_get_bits_native == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_output_surface_get_bits_native(surface,
-                                                                      source_rect,
-                                                                      (void * const *)dst,
-                                                                      stride);
+    return VDPAU_INVOKE(output_surface_get_bits_native,
+                        surface,
+                        source_rect,
+                        (void * const *)dst,
+                        stride);
 }
 
 // VdpOutputSurfacePutBitsNative
@@ -258,14 +245,11 @@ vdpau_output_surface_put_bits_native(
     const VdpRect       *dest_rect
 )
 {
-    if (!driver_data)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_output_surface_put_bits_native == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_output_surface_put_bits_native(surface,
-                                                           (const void * const *)src,
-                                                           stride,
-                                                           dest_rect);
+    return VDPAU_INVOKE(output_surface_put_bits_native,
+                        surface,
+                        (const void * const *)src,
+                        stride,
+                        dest_rect);
 }
 
 // VdpOutputSurfaceRenderBitmapSurface
@@ -281,17 +265,14 @@ vdpau_output_surface_render_bitmap_surface(
     uint32_t             flags
 )
 {
-    if (!driver_data)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_output_surface_render_bitmap_surface == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_output_surface_render_bitmap_surface(destination_surface,
-                                                                 destination_rect,
-                                                                 source_surface,
-                                                                 source_rect,
-                                                                 colors,
-                                                                 blend_state,
-                                                                 flags);
+    return VDPAU_INVOKE(output_surface_render_bitmap_surface,
+                        destination_surface,
+                        destination_rect,
+                        source_surface,
+                        source_rect,
+                        colors,
+                        blend_state,
+                        flags);
 }
 
 // VdpBitmapSurfaceQueryCapabilities
@@ -305,15 +286,12 @@ vdpau_bitmap_surface_query_capabilities(
     uint32_t            *max_height
 )
 {
-    if (!driver_data)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_bitmap_surface_query_capabilities == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_bitmap_surface_query_capabilities(device,
-                                                              rgba_format,
-                                                              is_supported,
-                                                              max_width,
-                                                              max_height);
+    return VDPAU_INVOKE(bitmap_surface_query_capabilities,
+                        device,
+                        rgba_format,
+                        is_supported,
+                        max_width,
+                        max_height);
 }
 
 // VdpBitmapSurfaceCreate
@@ -328,16 +306,13 @@ vdpau_bitmap_surface_create(
     VdpBitmapSurface    *surface
 )
 {
-    if (!driver_data)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_bitmap_surface_create == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_bitmap_surface_create(device,
-                                                  rgba_format,
-                                                  width,
-                                                  height,
-                                                  frequently_accessed,
-                                                  surface);
+    return VDPAU_INVOKE(bitmap_surface_create,
+                        device,
+                        rgba_format,
+                        width,
+                        height,
+                        frequently_accessed,
+                        surface);
 }
 
 // VdpBitmapSurfaceDestroy
@@ -347,11 +322,7 @@ vdpau_bitmap_surface_destroy(
     VdpBitmapSurface     surface
 )
 {
-    if (!driver_data)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_bitmap_surface_destroy == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_bitmap_surface_destroy(surface);
+    return VDPAU_INVOKE(bitmap_surface_destroy, surface);
 }
 
 // VdpBitmapSurfacePutBitsNative
@@ -364,14 +335,11 @@ vdpau_bitmap_surface_put_bits_native(
     const VdpRect       *dest_rect
 )
 {
-    if (!driver_data)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_bitmap_surface_put_bits_native == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_bitmap_surface_put_bits_native(surface,
-                                                           (const void * const *)src,
-                                                           stride,
-                                                           dest_rect);
+    return VDPAU_INVOKE(bitmap_surface_put_bits_native,
+                        surface,
+                        (const void * const *)src,
+                        stride,
+                        dest_rect);
 }
 
 // VdpVideoMixerCreate
@@ -387,17 +355,14 @@ vdpau_video_mixer_create(
     VdpVideoMixer                *mixer
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_video_mixer_create == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_video_mixer_create(device,
-                                                          feature_count,
-                                                          features,
-                                                          parameter_count,
-                                                          parameters,
-                                                          parameter_values,
-                                                          mixer);
+    return VDPAU_INVOKE(video_mixer_create,
+                        device,
+                        feature_count,
+                        features,
+                        parameter_count,
+                        parameters,
+                        parameter_values,
+                        mixer);
 }
 
 // VdpVideoMixerDestroy
@@ -407,11 +372,7 @@ vdpau_video_mixer_destroy(
     VdpVideoMixer        mixer
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_video_mixer_destroy == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_video_mixer_destroy(mixer);
+    return VDPAU_INVOKE(video_mixer_destroy, mixer);
 }
 
 // VdpVideoMixerRender
@@ -435,25 +396,22 @@ vdpau_video_mixer_render(
     const VdpLayer               *layers
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_video_mixer_render == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_video_mixer_render(mixer,
-                                                          background_surface,
-                                                          background_source_rect,
-                                                          current_picture_structure,
-                                                          video_surface_past_count,
-                                                          video_surface_past,
-                                                          video_surface_current,
-                                                          video_surface_future_count,
-                                                          video_surface_future,
-                                                          video_source_rect,
-                                                          destination_surface,
-                                                          destination_rect,
-                                                          destination_video_rect,
-                                                          layer_count,
-                                                          layers);
+    return VDPAU_INVOKE(video_mixer_render,
+                        mixer,
+                        background_surface,
+                        background_source_rect,
+                        current_picture_structure,
+                        video_surface_past_count,
+                        video_surface_past,
+                        video_surface_current,
+                        video_surface_future_count,
+                        video_surface_future,
+                        video_source_rect,
+                        destination_surface,
+                        destination_rect,
+                        destination_video_rect,
+                        layer_count,
+                        layers);
 }
 
 // VdpPresentationQueueCreate
@@ -465,13 +423,10 @@ vdpau_presentation_queue_create(
     VdpPresentationQueue      *presentation_queue
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_presentation_queue_create == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_presentation_queue_create(device,
-                                                                 presentation_queue_target,
-                                                                 presentation_queue);
+    return VDPAU_INVOKE(presentation_queue_create,
+                        device,
+                        presentation_queue_target,
+                        presentation_queue);
 }
 
 // VdpPresentationQueueDestroy
@@ -481,11 +436,8 @@ vdpau_presentation_queue_destroy(
     VdpPresentationQueue presentation_queue
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_presentation_queue_destroy == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_presentation_queue_destroy(presentation_queue);
+
+    return VDPAU_INVOKE(presentation_queue_destroy, presentation_queue);
 }
 
 // VdpPresentationQueueDisplay
@@ -499,15 +451,12 @@ vdpau_presentation_queue_display(
     VdpTime              earliest_presentation_time
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_presentation_queue_display == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_presentation_queue_display(presentation_queue,
-                                                                  surface,
-                                                                  clip_width,
-                                                                  clip_height,
-                                                                  earliest_presentation_time);
+    return VDPAU_INVOKE(presentation_queue_display,
+                        presentation_queue,
+                        surface,
+                        clip_width,
+                        clip_height,
+                        earliest_presentation_time);
 }
 
 // VdpPresentationQueueBlockUntilSurfaceIdle
@@ -519,13 +468,10 @@ vdpau_presentation_queue_block_until_surface_idle(
     VdpTime             *first_presentation_time
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_presentation_queue_block_until_surface_idle == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_presentation_queue_block_until_surface_idle(presentation_queue,
-                                                                                   surface,
-                                                                                   first_presentation_time);
+    return VDPAU_INVOKE(presentation_queue_block_until_surface_idle,
+                        presentation_queue,
+                        surface,
+                        first_presentation_time);
 }
 
 // VdpPresentationQueueQuerySurfaceStatus
@@ -538,14 +484,11 @@ vdpau_presentation_queue_query_surface_status(
     VdpTime                    *first_presentation_time
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_presentation_queue_query_surface_status == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_presentation_queue_query_surface_status(presentation_queue,
-                                                                               surface,
-                                                                               status,
-                                                                               first_presentation_time);
+    return VDPAU_INVOKE(presentation_queue_query_surface_status,
+                        presentation_queue,
+                        surface,
+                        status,
+                        first_presentation_time);
 }
 
 // VdpPresentationQueueTargetCreateX11
@@ -557,13 +500,10 @@ vdpau_presentation_queue_target_create_x11(
     VdpPresentationQueueTarget *target
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_presentation_queue_target_create_x11 == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_presentation_queue_target_create_x11(device,
-                                                                            drawable,
-                                                                            target);
+    return VDPAU_INVOKE(presentation_queue_target_create_x11,
+                        device,
+                        drawable,
+                        target);
 }
 
 // VdpPresentationQueueTargetDestroy
@@ -573,11 +513,8 @@ vdpau_presentation_queue_target_destroy(
     VdpPresentationQueueTarget presentation_queue_target
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_presentation_queue_target_destroy == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_presentation_queue_target_destroy(presentation_queue_target);
+    return VDPAU_INVOKE(presentation_queue_target_destroy,
+                        presentation_queue_target);
 }
 
 // VdpDecoderCreate
@@ -592,16 +529,13 @@ vdpau_decoder_create(
     VdpDecoder          *decoder
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_decoder_create == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_decoder_create(device,
-                                                      profile,
-                                                      width,
-                                                      height,
-                                                      max_references,
-                                                      decoder);
+    return VDPAU_INVOKE(decoder_create,
+                        device,
+                        profile,
+                        width,
+                        height,
+                        max_references,
+                        decoder);
 }
 
 // VdpDecoderDestroy
@@ -611,11 +545,7 @@ vdpau_decoder_destroy(
     VdpDecoder           decoder
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_decoder_destroy == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_decoder_destroy(decoder);
+    return VDPAU_INVOKE(decoder_destroy, decoder);
 }
 
 // VdpDecoderRender
@@ -629,15 +559,12 @@ vdpau_decoder_render(
     VdpBitstreamBuffer const *bitstream_buffers
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_decoder_render == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_decoder_render(decoder,
-                                                      target,
-                                                      picture_info,
-                                                      bitstream_buffers_count,
-                                                      bitstream_buffers);
+    return VDPAU_INVOKE(decoder_render,
+                        decoder,
+                        target,
+                        picture_info,
+                        bitstream_buffers_count,
+                        bitstream_buffers);
 }
 
 // VdpDecoderQueryCapabilities
@@ -653,17 +580,14 @@ vdpau_decoder_query_capabilities(
     uint32_t            *max_height
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_decoder_query_capabilities == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_decoder_query_capabilities(device,
-                                                                  profile,
-                                                                  is_supported,
-                                                                  max_level,
-                                                                  max_references,
-                                                                  max_width,
-                                                                  max_height);
+    return VDPAU_INVOKE(decoder_query_capabilities,
+                        device,
+                        profile,
+                        is_supported,
+                        max_level,
+                        max_references,
+                        max_width,
+                        max_height);
 }
 
 // VdpVideoSurfaceQueryGetPutBitsYCbCrCapabilities
@@ -676,14 +600,11 @@ vdpau_video_surface_query_ycbcr_caps(
     VdpBool             *is_supported
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_video_surface_query_ycbcr_caps == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_video_surface_query_ycbcr_caps(device,
-                                                                      surface_chroma_type,
-                                                                      bits_ycbcr_format,
-                                                                      is_supported);
+    return VDPAU_INVOKE(video_surface_query_ycbcr_caps,
+                        device,
+                        surface_chroma_type,
+                        bits_ycbcr_format,
+                        is_supported);
 }
 
 // VdpOutputSurfaceQueryGetPutBitsNativeCapabilities
@@ -695,24 +616,17 @@ vdpau_output_surface_query_rgba_caps(
     VdpBool             *is_supported
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_output_surface_query_rgba_caps == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_output_surface_query_rgba_caps(device,
-                                                                      surface_rgba_format,
-                                                                      is_supported);
+    return VDPAU_INVOKE(output_surface_query_rgba_caps,
+                        device,
+                        surface_rgba_format,
+                        is_supported);
 }
 
 // VdpGetApiVersion
 VdpStatus
 vdpau_get_api_version(vdpau_driver_data_t *driver_data, uint32_t *api_version)
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_get_api_version == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_get_api_version(api_version);
+    return VDPAU_INVOKE(get_api_version, api_version);
 }
 
 // VdpGetInformationString
@@ -722,20 +636,12 @@ vdpau_get_information_string(
     const char         **info_string
 )
 {
-    if (driver_data == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    if (driver_data->vdp_vtable.vdp_get_information_string == NULL)
-        return VDP_STATUS_INVALID_POINTER;
-    return driver_data->vdp_vtable.vdp_get_information_string(info_string);
+    return VDPAU_INVOKE(get_information_string, info_string);
 }
 
 // VdpGetErrorString
 const char *
 vdpau_get_error_string(vdpau_driver_data_t *driver_data, VdpStatus vdp_status)
 {
-    if (driver_data == NULL)
-        return NULL;
-    if (driver_data->vdp_vtable.vdp_get_error_string == NULL)
-        return NULL;
-    return driver_data->vdp_vtable.vdp_get_error_string(vdp_status);
+    return VDPAU_INVOKE_(NULL, get_error_string, vdp_status);
 }
