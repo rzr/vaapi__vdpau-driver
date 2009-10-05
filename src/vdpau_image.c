@@ -328,15 +328,7 @@ get_image(
     VdpStatus vdp_status;
     uint8_t *src[3];
     unsigned int src_stride[3];
-    int i, is_full_surface;
-
-    /* XXX: only support full surface readback for now */
-    is_full_surface = (rect->x == 0 &&
-                       rect->y == 0 &&
-                       obj_surface->width == rect->width &&
-                       obj_surface->height == rect->height);
-    if (!is_full_surface)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
+    int i;
 
     object_buffer_p obj_buffer = VDPAU_BUFFER(image->buf);
     if (!obj_buffer)
@@ -362,6 +354,13 @@ get_image(
     }
 
     if (obj_image->vdp_rgba_surface == VDP_INVALID_HANDLE) {
+        /* VDPAU only supports full video surface readback */
+        if (rect->x != 0 ||
+            rect->y != 0 ||
+            obj_surface->width  != rect->width ||
+            obj_surface->height != rect->height)
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+
         VdpYCbCrFormat ycbcr_format = get_VdpYCbCrFormat(&image->format);
         if (ycbcr_format == (VdpYCbCrFormat)-1)
             return VA_STATUS_ERROR_OPERATION_FAILED;
