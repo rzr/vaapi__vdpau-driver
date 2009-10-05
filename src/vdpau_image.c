@@ -315,6 +315,105 @@ vdpau_SetImagePalette(
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
+// Get image from surface
+static VAStatus
+get_image(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    object_image_p       obj_image,
+    const VARectangle   *rect
+)
+{
+    VAImage * const image = obj_image->image;
+    VdpStatus vdp_status;
+    uint8_t *src[3];
+    unsigned int src_stride[3];
+    int i, is_full_surface;
+
+    /* XXX: only support full surface readback for now */
+    is_full_surface = (rect->x == 0 &&
+                       rect->y == 0 &&
+                       obj_surface->width == rect->width &&
+                       obj_surface->height == rect->height);
+    if (!is_full_surface)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    object_buffer_p obj_buffer = VDPAU_BUFFER(image->buf);
+    if (!obj_buffer)
+        return VA_STATUS_ERROR_INVALID_BUFFER;
+
+    switch (image->format.fourcc) {
+    case VA_FOURCC('Y','V','1','2'):
+        /* VDPAU exposes YV12 pixels as Y/U/V planes, which turns out
+           to be I420, whereas VA-API expects standard Y/V/U order */
+        src[0] = (uint8_t *)obj_buffer->buffer_data + image->offsets[0];
+        src_stride[0] = image->pitches[0];
+        src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
+        src_stride[1] = image->pitches[2];
+        src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
+        src_stride[2] = image->pitches[1];
+        break;
+    default:
+        for (i = 0; i < image->num_planes; i++) {
+            src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+            src_stride[i] = image->pitches[i];
+        }
+        break;
+    }
+
+    if (obj_image->vdp_rgba_surface == VDP_INVALID_HANDLE) {
+        VdpYCbCrFormat ycbcr_format = get_VdpYCbCrFormat(&image->format);
+        if (ycbcr_format == (VdpYCbCrFormat)-1)
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+
+        vdp_status = vdpau_video_surface_get_bits_ycbcr(
+            driver_data,
+            obj_surface->vdp_surface,
+            ycbcr_format,
+            src, src_stride
+        );
+    }
+    else {
+        VdpRGBAFormat rgba_format = get_VdpRGBAFormat(&image->format);
+        if (rgba_format == (VdpRGBAFormat)-1)
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+
+        object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
+        if (!obj_context)
+            return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+        VdpRect vdp_rect;
+        vdp_rect.x0 = rect->x;
+        vdp_rect.y0 = rect->y;
+        vdp_rect.x1 = rect->x + rect->width;
+        vdp_rect.y1 = rect->y + rect->height;
+        vdp_status = vdpau_video_mixer_render(
+            driver_data,
+            obj_context->vdp_video_mixer,
+            VDP_INVALID_HANDLE, NULL,
+            VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
+            0, NULL,
+            obj_surface->vdp_surface,
+            0, NULL,
+            &vdp_rect,
+            obj_image->vdp_rgba_surface,
+            &vdp_rect,
+            &vdp_rect,
+            0, NULL
+        );
+        if (vdp_status != VDP_STATUS_OK)
+            return vdpau_get_VAStatus(driver_data, vdp_status);
+
+        vdp_status = vdpau_output_surface_get_bits_native(
+            driver_data,
+            obj_image->vdp_rgba_surface,
+            &vdp_rect,
+            src, src_stride
+        );
+    }
+    return vdpau_get_VAStatus(driver_data, vdp_status);
+}
+
 // vaGetImage
 VAStatus
 vdpau_GetImage(
@@ -324,103 +423,25 @@ vdpau_GetImage(
     int                 y,
     unsigned int        width,
     unsigned int        height,
-    VAImageID           image_id
+    VAImageID           image
 )
 {
     VDPAU_DRIVER_DATA_INIT;
 
-    object_context_p obj_context;
-    object_buffer_p obj_buffer;
-    object_surface_p obj_surface;
-    object_image_p obj_image;
-    VAImage *image;
-    VdpStatus vdp_status;
-    VdpRGBAFormat rgba_format;
-    VdpYCbCrFormat ycbcr_format;
-    VdpRect r;
-    uint8_t *src[3];
-    unsigned int src_stride[3];
-    int i, is_full_surface, is_yuv_format;
-
-    if ((obj_surface = VDPAU_SURFACE(surface)) == NULL)
+    object_surface_p obj_surface = VDPAU_SURFACE(surface);
+    if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    /* XXX: only support full surface readback for now */
-    is_full_surface = (x == 0 &&
-                       y == 0 &&
-                       obj_surface->width == width &&
-                       obj_surface->height == height);
-    if (!is_full_surface)
-        return VA_STATUS_ERROR_INVALID_PARAMETER;
-
-    if ((obj_image = VDPAU_IMAGE(image_id)) == NULL)
-        return VA_STATUS_ERROR_INVALID_IMAGE;
-    if ((image = obj_image->image) == NULL)
+    object_image_p obj_image = VDPAU_IMAGE(image);
+    if (!obj_image || !obj_image->image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
-    if ((obj_buffer = VDPAU_BUFFER(image->buf)) == NULL)
-        return VA_STATUS_ERROR_INVALID_BUFFER;
-
-    is_yuv_format = obj_image->vdp_rgba_surface == VDP_INVALID_HANDLE;
-    if (is_yuv_format) {
-        if ((ycbcr_format = get_VdpYCbCrFormat(&image->format)) == (VdpYCbCrFormat)-1)
-            return VA_STATUS_ERROR_OPERATION_FAILED;
-    }
-    else {
-        if ((rgba_format = get_VdpRGBAFormat(&image->format)) == (VdpRGBAFormat)-1)
-            return VA_STATUS_ERROR_OPERATION_FAILED;
-    }
-
-    for (i = 0; i < image->num_planes; i++) {
-        src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
-        src_stride[i] = image->pitches[i];
-    }
-
-    if (is_yuv_format) {
-        if (image->format.fourcc == VA_FOURCC('Y','V','1','2')) {
-            /* VDPAU exposes YV12 pixels as Y/U/V planes, which turns
-               out to be I420, whereas VA-API expects standard Y/V/U order */
-            src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
-            src_stride[1] = image->pitches[2];
-            src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
-            src_stride[2] = image->pitches[1];
-        }
-        vdp_status = vdpau_video_surface_get_bits_ycbcr(driver_data,
-                                                        obj_surface->vdp_surface,
-                                                        ycbcr_format,
-                                                        src, src_stride);
-    }
-    else {
-        if ((obj_context = VDPAU_CONTEXT(obj_surface->va_context)) == NULL)
-            return VA_STATUS_ERROR_INVALID_CONTEXT;
-
-        r.x0 = x;
-        r.y0 = y;
-        r.x1 = x + width;
-        r.y1 = y + height;
-        vdp_status = vdpau_video_mixer_render(driver_data,
-                                              obj_context->vdp_video_mixer,
-                                              VDP_INVALID_HANDLE, NULL,
-                                              VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
-                                              0, NULL,
-                                              obj_surface->vdp_surface,
-                                              0, NULL,
-                                              &r,
-                                              obj_image->vdp_rgba_surface,
-                                              &r,
-                                              &r,
-                                              0, NULL);
-        if (vdp_status != VDP_STATUS_OK)
-            return vdpau_get_VAStatus(driver_data, vdp_status);
-
-        vdp_status = vdpau_output_surface_get_bits_native(driver_data,
-                                                          obj_image->vdp_rgba_surface,
-                                                          &r,
-                                                          src,
-                                                          src_stride);
-    }
-
-    return vdpau_get_VAStatus(driver_data, vdp_status);
+    VARectangle rect;
+    rect.x      = x;
+    rect.y      = y;
+    rect.width  = width;
+    rect.height = height;
+    return get_image(driver_data, obj_surface, obj_image, &rect);
 }
 
 // vaPutImage
