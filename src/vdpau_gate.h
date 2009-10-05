@@ -34,9 +34,16 @@ struct vdpau_vtable {
     VdpVideoSurfaceCreate       *vdp_video_surface_create;
     VdpVideoSurfaceDestroy      *vdp_video_surface_destroy;
     VdpVideoSurfaceGetBitsYCbCr *vdp_video_surface_get_bits_ycbcr;
+    VdpVideoSurfacePutBitsYCbCr *vdp_video_surface_put_bits_ycbcr;
     VdpOutputSurfaceCreate      *vdp_output_surface_create;
     VdpOutputSurfaceDestroy     *vdp_output_surface_destroy;
     VdpOutputSurfaceGetBitsNative *vdp_output_surface_get_bits_native;
+    VdpOutputSurfacePutBitsNative *vdp_output_surface_put_bits_native;
+    VdpOutputSurfaceRenderBitmapSurface *vdp_output_surface_render_bitmap_surface;
+    VdpBitmapSurfaceQueryCapabilities *vdp_bitmap_surface_query_capabilities;
+    VdpBitmapSurfaceCreate      *vdp_bitmap_surface_create;
+    VdpBitmapSurfaceDestroy     *vdp_bitmap_surface_destroy;
+    VdpBitmapSurfacePutBitsNative *vdp_bitmap_surface_put_bits_native;
     VdpVideoMixerCreate         *vdp_video_mixer_create;
     VdpVideoMixerDestroy        *vdp_video_mixer_destroy;
     VdpVideoMixerRender         *vdp_video_mixer_render;
@@ -111,6 +118,16 @@ vdpau_video_surface_get_bits_ycbcr(
     uint32_t            *stride
 ) attribute_hidden;
 
+// VdpVideoSurfacePutBitsYCbCr
+VdpStatus
+vdpau_video_surface_put_bits_ycbcr(
+    vdpau_driver_data_p  driver_data,
+    VdpVideoSurface      surface,
+    VdpYCbCrFormat       format,
+    uint8_t            **src,
+    uint32_t            *stride
+) attribute_hidden;
+
 // VdpOutputSurfaceCreate
 VdpStatus
 vdpau_output_surface_create(
@@ -137,6 +154,69 @@ vdpau_output_surface_get_bits_native(
     const VdpRect       *source_rect,
     uint8_t            **dst,
     uint32_t            *stride
+) attribute_hidden;
+
+// VdpOutputSurfacePutBitsNative
+VdpStatus
+vdpau_output_surface_put_bits_native(
+    vdpau_driver_data_p  driver_data,
+    VdpOutputSurface     surface,
+    const uint8_t      **src,
+    uint32_t            *stride,
+    const VdpRect       *dest_rect
+) attribute_hidden;
+
+// VdpOutputSurfaceRenderBitmapSurface
+VdpStatus
+vdpau_output_surface_render_bitmap_surface(
+    vdpau_driver_data_p  driver_data,
+    VdpOutputSurface     destination_surface,
+    const VdpRect       *destination_rect,
+    VdpBitmapSurface     source_surface,
+    const VdpRect       *source_rect,
+    const VdpColor      *colors,
+    const VdpOutputSurfaceRenderBlendState *blend_state,
+    uint32_t             flags
+) attribute_hidden;
+
+// VdpBitmapSurfaceQueryCapabilities
+VdpStatus
+vdpau_bitmap_surface_query_capabilities(
+    vdpau_driver_data_p  driver_data,
+    VdpDevice            device,
+    VdpRGBAFormat        rgba_format,
+    VdpBool             *is_supported,
+    uint32_t            *max_width,
+    uint32_t            *max_height
+) attribute_hidden;
+
+// VdpBitmapSurfaceCreate
+VdpStatus
+vdpau_bitmap_surface_create(
+    vdpau_driver_data_p  driver_data,
+    VdpDevice            device,
+    VdpRGBAFormat        rgba_format,
+    uint32_t             width,
+    uint32_t             height,
+    VdpBool              frequently_accessed,
+    VdpBitmapSurface    *surface
+) attribute_hidden;
+
+// VdpBitmapSurfaceDestroy
+VdpStatus
+vdpau_bitmap_surface_destroy(
+    vdpau_driver_data_p  driver_data,
+    VdpBitmapSurface     surface
+) attribute_hidden;
+
+// VdpBitmapSurfacePutBitsNative
+VdpStatus
+vdpau_bitmap_surface_put_bits_native(
+    vdpau_driver_data_p  driver_data,
+    VdpBitmapSurface     surface,
+    uint8_t            **src,
+    uint32_t            *stride,
+    const VdpRect       *dest_rect
 ) attribute_hidden;
 
 // VdpVideoMixerCreate

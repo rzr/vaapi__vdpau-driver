@@ -49,12 +49,26 @@ int vdpau_gate_init(vdpau_driver_data_t *driver_data)
                   video_surface_destroy);
     VDP_INIT_PROC(VIDEO_SURFACE_GET_BITS_Y_CB_CR,
                   video_surface_get_bits_ycbcr);
+    VDP_INIT_PROC(VIDEO_SURFACE_PUT_BITS_Y_CB_CR,
+                  video_surface_put_bits_ycbcr);
     VDP_INIT_PROC(OUTPUT_SURFACE_CREATE,
                   output_surface_create);
     VDP_INIT_PROC(OUTPUT_SURFACE_DESTROY,
                   output_surface_destroy);
     VDP_INIT_PROC(OUTPUT_SURFACE_GET_BITS_NATIVE,
                   output_surface_get_bits_native);
+    VDP_INIT_PROC(OUTPUT_SURFACE_PUT_BITS_NATIVE,
+                  output_surface_put_bits_native);
+    VDP_INIT_PROC(OUTPUT_SURFACE_RENDER_BITMAP_SURFACE,
+                  output_surface_render_bitmap_surface);
+    VDP_INIT_PROC(BITMAP_SURFACE_QUERY_CAPABILITIES,
+                  bitmap_surface_query_capabilities);
+    VDP_INIT_PROC(BITMAP_SURFACE_CREATE,
+                  bitmap_surface_create);
+    VDP_INIT_PROC(BITMAP_SURFACE_DESTROY,
+                  bitmap_surface_destroy);
+    VDP_INIT_PROC(BITMAP_SURFACE_PUT_BITS_NATIVE,
+                  bitmap_surface_put_bits_native);
     VDP_INIT_PROC(VIDEO_MIXER_CREATE,
                   video_mixer_create);
     VDP_INIT_PROC(VIDEO_MIXER_DESTROY,
@@ -158,6 +172,26 @@ vdpau_video_surface_get_bits_ycbcr(
                                                                     stride);
 }
 
+// VdpVideoSurfacePutBitsYCbCr
+VdpStatus
+vdpau_video_surface_put_bits_ycbcr(
+    vdpau_driver_data_t *driver_data,
+    VdpVideoSurface      surface,
+    VdpYCbCrFormat       format,
+    uint8_t            **src,
+    uint32_t            *stride
+)
+{
+    if (!driver_data)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_video_surface_put_bits_ycbcr == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_video_surface_put_bits_ycbcr(surface,
+                                                                    format,
+                                                                    (const void * const *)src,
+                                                                    stride);
+}
+
 // VdpOutputSurfaceCreate
 VdpStatus
 vdpau_output_surface_create(
@@ -212,6 +246,132 @@ vdpau_output_surface_get_bits_native(
                                                                       source_rect,
                                                                       (void * const *)dst,
                                                                       stride);
+}
+
+// VdpOutputSurfacePutBitsNative
+VdpStatus
+vdpau_output_surface_put_bits_native(
+    vdpau_driver_data_t *driver_data,
+    VdpOutputSurface     surface,
+    const uint8_t      **src,
+    uint32_t            *stride,
+    const VdpRect       *dest_rect
+)
+{
+    if (!driver_data)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_output_surface_put_bits_native == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_output_surface_put_bits_native(surface,
+                                                           (const void * const *)src,
+                                                           stride,
+                                                           dest_rect);
+}
+
+// VdpOutputSurfaceRenderBitmapSurface
+VdpStatus
+vdpau_output_surface_render_bitmap_surface(
+    vdpau_driver_data_t *driver_data,
+    VdpOutputSurface     destination_surface,
+    const VdpRect       *destination_rect,
+    VdpBitmapSurface     source_surface,
+    const VdpRect       *source_rect,
+    const VdpColor      *colors,
+    const VdpOutputSurfaceRenderBlendState *blend_state,
+    uint32_t             flags
+)
+{
+    if (!driver_data)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_output_surface_render_bitmap_surface == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_output_surface_render_bitmap_surface(destination_surface,
+                                                                 destination_rect,
+                                                                 source_surface,
+                                                                 source_rect,
+                                                                 colors,
+                                                                 blend_state,
+                                                                 flags);
+}
+
+// VdpBitmapSurfaceQueryCapabilities
+VdpStatus
+vdpau_bitmap_surface_query_capabilities(
+    vdpau_driver_data_t *driver_data,
+    VdpDevice            device,
+    VdpRGBAFormat        rgba_format,
+    VdpBool             *is_supported,
+    uint32_t            *max_width,
+    uint32_t            *max_height
+)
+{
+    if (!driver_data)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_bitmap_surface_query_capabilities == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_bitmap_surface_query_capabilities(device,
+                                                              rgba_format,
+                                                              is_supported,
+                                                              max_width,
+                                                              max_height);
+}
+
+// VdpBitmapSurfaceCreate
+VdpStatus
+vdpau_bitmap_surface_create(
+    vdpau_driver_data_t *driver_data,
+    VdpDevice            device,
+    VdpRGBAFormat        rgba_format,
+    uint32_t             width,
+    uint32_t             height,
+    VdpBool              frequently_accessed,
+    VdpBitmapSurface    *surface
+)
+{
+    if (!driver_data)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_bitmap_surface_create == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_bitmap_surface_create(device,
+                                                  rgba_format,
+                                                  width,
+                                                  height,
+                                                  frequently_accessed,
+                                                  surface);
+}
+
+// VdpBitmapSurfaceDestroy
+VdpStatus
+vdpau_bitmap_surface_destroy(
+    vdpau_driver_data_t *driver_data,
+    VdpBitmapSurface     surface
+)
+{
+    if (!driver_data)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_bitmap_surface_destroy == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_bitmap_surface_destroy(surface);
+}
+
+// VdpBitmapSurfacePutBitsNative
+VdpStatus
+vdpau_bitmap_surface_put_bits_native(
+    vdpau_driver_data_t *driver_data,
+    VdpBitmapSurface     surface,
+    uint8_t            **src,
+    uint32_t            *stride,
+    const VdpRect       *dest_rect
+)
+{
+    if (!driver_data)
+        return VDP_STATUS_INVALID_POINTER;
+    if (driver_data->vdp_vtable.vdp_bitmap_surface_put_bits_native == NULL)
+        return VDP_STATUS_INVALID_POINTER;
+    return driver_data->vdp_vtable.vdp_bitmap_surface_put_bits_native(surface,
+                                                           (const void * const *)src,
+                                                           stride,
+                                                           dest_rect);
 }
 
 // VdpVideoMixerCreate
