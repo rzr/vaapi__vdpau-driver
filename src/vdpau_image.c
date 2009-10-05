@@ -180,6 +180,7 @@ vdpau_CreateImage(
 
     VdpRGBAFormat vdp_rgba_format;
     VAStatus va_status = VA_STATUS_ERROR_OPERATION_FAILED;
+    unsigned int width2, height2, size2, size;
     int image_id;
     object_image_p obj_image = NULL;
 
@@ -200,24 +201,29 @@ vdpau_CreateImage(
     obj_image->image = image;
     obj_image->vdp_rgba_surface = VDP_INVALID_HANDLE;
 
+    size    = width * height;
+    width2  = (width  + 1) / 2;
+    height2 = (height + 1) / 2;
+    size2   = width2 * height2;
+
     switch (format->fourcc) {
     case VA_FOURCC('N','V','1','2'):
-        image->num_planes       = 2;
-        image->pitches[0]       = width;
-        image->offsets[0]       = 0;
-        image->pitches[1]       = width;
-        image->offsets[1]       = image->offsets[0] + image->pitches[0] * height;
-        image->data_size        = image->offsets[1] + image->pitches[1] * ((height + 1) / 2);
+        image->num_planes = 2;
+        image->pitches[0] = width;
+        image->offsets[0] = 0;
+        image->pitches[1] = width;
+        image->offsets[1] = size;
+        image->data_size  = size + 2 * size2;
         break;
     case VA_FOURCC('Y','V','1','2'):
-        image->num_planes       = 3;
-        image->pitches[0]       = width;
-        image->offsets[0]       = 0;
-        image->pitches[1]       = (width + 1) / 2;
-        image->offsets[1]       = image->offsets[0] + image->pitches[0] * height;
-        image->pitches[2]       = (width + 1) / 2;
-        image->offsets[2]       = image->offsets[1] + image->pitches[1] * ((height + 1) / 2);
-        image->data_size        = image->offsets[2] + image->pitches[2] * ((height + 1) / 2);
+        image->num_planes = 3;
+        image->pitches[0] = width;
+        image->offsets[0] = 0;
+        image->pitches[1] = width2;
+        image->offsets[1] = size + size2;
+        image->pitches[2] = width2;
+        image->offsets[2] = size;
+        image->data_size  = size + 2 * size2;
         break;
     case VA_FOURCC('R','G','B','A'):
         if ((vdp_rgba_format = get_VdpRGBAFormat(format)) == (VdpRGBAFormat)-1)
@@ -230,10 +236,10 @@ vdpau_CreateImage(
         // fall-through
     case VA_FOURCC('U','Y','V','Y'):
     case VA_FOURCC('Y','U','Y','V'):
-        image->num_planes       = 1;
-        image->pitches[0]       = width * 4;
-        image->offsets[0]       = 0;
-        image->data_size        = image->offsets[0] + image->pitches[0] * height;
+        image->num_planes = 1;
+        image->pitches[0] = width * 4;
+        image->offsets[0] = 0;
+        image->data_size  = image->offsets[0] + image->pitches[0] * height;
         break;
     default:
         goto error;
