@@ -45,6 +45,25 @@ vdpau_subpic_formats_map[VDPAU_MAX_SUBPICTURE_FORMATS + 1] = {
     { VDP_INVALID_HANDLE, 0 }
 };
 
+// Checks whether the VDPAU implementation supports the specified image format
+static inline VdpBool
+is_supported_format(vdpau_driver_data_t *driver_data, VdpRGBAFormat format)
+{
+    VdpBool is_supported = VDP_FALSE;
+    VdpStatus vdp_status;
+    uint32_t max_width, max_height;
+
+    vdp_status = vdpau_bitmap_surface_query_capabilities(
+        driver_data,
+        driver_data->vdp_device,
+        format,
+        &is_supported,
+        &max_width,
+        &max_height
+    );
+    return vdp_status == VDP_STATUS_OK && is_supported;
+}
+
 // Append association to the subpicture
 static int
 subpicture_add_association(
@@ -288,13 +307,17 @@ vdpau_QuerySubpictureFormats(
     unsigned int       *num_formats
 )
 {
-    int n;
+    VDPAU_DRIVER_DATA_INIT;
 
+    int n;
     for (n = 0; vdpau_subpic_formats_map[n].va_format.fourcc != 0; n++) {
-        if (format_list)
-            format_list[n] = vdpau_subpic_formats_map[n].va_format;
-        if (flags)
-            flags[n] = vdpau_subpic_formats_map[n].va_flags;
+        const vdpau_subpic_format_map_t * const m = &vdpau_subpic_formats_map[n];
+        if (is_supported_format(driver_data, m->vdp_format)) {
+            if (format_list)
+                format_list[n] = m->va_format;
+            if (flags)
+                flags[n] = m->va_flags;
+        }
     }
 
     if (num_formats)
