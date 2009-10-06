@@ -182,6 +182,16 @@ destroy_flip_queue(vdpau_driver_data_t *driver_data, object_output_p obj_output)
     }
 }
 
+// Ensure rectangle is within specified bounds
+static inline void
+ensure_bounds(VdpRect *rect, unsigned int width, unsigned int height)
+{
+    rect->x0 = MAX(rect->x0, 0);
+    rect->y0 = MAX(rect->y0, 0);
+    rect->x1 = MIN(rect->x1, width);
+    rect->y1 = MIN(rect->y1, height);
+}
+
 // Render subpictures to the VDPAU output surface
 static VAStatus
 render_subpicture(
@@ -207,15 +217,19 @@ render_subpicture(
     const float sx  = psx * ssx;
     const float sy  = psy * ssy;
 
-    VdpRect src_rect, dst_rect;
+    VdpRect src_rect;
     src_rect.x0 = source_rect->x;
     src_rect.y0 = source_rect->y;
     src_rect.x1 = source_rect->x + source_rect->width;
     src_rect.y1 = source_rect->y + source_rect->height;
+    ensure_bounds(&src_rect, obj_subpicture->width, obj_subpicture->height);
+
+    VdpRect dst_rect;
     dst_rect.x0 = sx * (float)target_rect->x;
     dst_rect.y0 = sx * (float)target_rect->y;
     dst_rect.x1 = sx * (float)(target_rect->x + target_rect->width);
     dst_rect.y1 = sy * (float)(target_rect->y + target_rect->height);
+    ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
 
     VdpOutputSurfaceRenderBlendState blend_state;
     blend_state.struct_version                 = VDP_OUTPUT_SURFACE_RENDER_BLEND_STATE_VERSION;
@@ -339,15 +353,19 @@ put_surface(
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(driver_data, vdp_status);
 
-    VdpRect src_rect, dst_rect;
-    src_rect.x0 = MAX(source_rect->x, 0);
-    src_rect.y0 = MAX(source_rect->y, 0);
-    src_rect.x1 = MIN(source_rect->x + source_rect->width,  obj_surface->width);
-    src_rect.y1 = MIN(source_rect->y + source_rect->height, obj_surface->height);
-    dst_rect.x0 = MAX(target_rect->x, 0);
-    dst_rect.y0 = MAX(target_rect->y, 0);
-    dst_rect.x1 = MIN(target_rect->x + target_rect->width,  drawable_width);
-    dst_rect.y1 = MIN(target_rect->y + target_rect->height, drawable_height);
+    VdpRect src_rect;
+    src_rect.x0 = source_rect->x;
+    src_rect.y0 = source_rect->y;
+    src_rect.x1 = source_rect->x + source_rect->width;
+    src_rect.y1 = source_rect->y + source_rect->height;
+    ensure_bounds(&src_rect, obj_surface->width, obj_surface->height);   
+
+    VdpRect dst_rect;
+    dst_rect.x0 = target_rect->x;
+    dst_rect.y0 = target_rect->y;
+    dst_rect.x1 = target_rect->x + target_rect->width;
+    dst_rect.y1 = target_rect->y + target_rect->height;
+    ensure_bounds(&dst_rect, drawable_width, drawable_height);
 
     vdp_status = vdpau_video_mixer_render(driver_data,
                                           obj_context->vdp_video_mixer,
