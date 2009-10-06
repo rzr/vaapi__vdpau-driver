@@ -192,6 +192,52 @@ ensure_bounds(VdpRect *rect, unsigned int width, unsigned int height)
     rect->y1 = MIN(rect->y1, height);
 }
 
+// Render surface to the VDPAU output surface
+static VAStatus
+render_surface(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    object_output_p      obj_output,
+    const VARectangle   *source_rect,
+    const VARectangle   *target_rect
+)
+{
+    object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
+    if (!obj_context)
+        return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+    VdpRect src_rect;
+    src_rect.x0 = source_rect->x;
+    src_rect.y0 = source_rect->y;
+    src_rect.x1 = source_rect->x + source_rect->width;
+    src_rect.y1 = source_rect->y + source_rect->height;
+    ensure_bounds(&src_rect, obj_surface->width, obj_surface->height);   
+
+    VdpRect dst_rect;
+    dst_rect.x0 = target_rect->x;
+    dst_rect.y0 = target_rect->y;
+    dst_rect.x1 = target_rect->x + target_rect->width;
+    dst_rect.y1 = target_rect->y + target_rect->height;
+    ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
+
+    VdpStatus vdp_status = vdpau_video_mixer_render(
+        driver_data,
+        obj_context->vdp_video_mixer,
+        VDP_INVALID_HANDLE,
+        NULL,
+        VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
+        0, NULL,
+        obj_surface->vdp_surface,
+        0, NULL,
+        &src_rect,
+        obj_output->vdp_output_surfaces[obj_output->current_output_surface],
+        NULL,
+        &dst_rect,
+        0, NULL
+    );
+    return vdpau_get_VAStatus(driver_data, vdp_status);
+}
+
 // Render subpictures to the VDPAU output surface
 static VAStatus
 render_subpicture(
@@ -203,10 +249,7 @@ render_subpicture(
     const VARectangle   *target_rect    // relative to video surface
 )
 {
-    VdpStatus vdp_status;
-    VAStatus va_status;
-
-    va_status = commit_subpicture(driver_data, obj_subpicture);
+    VAStatus va_status = commit_subpicture(driver_data, obj_subpicture);
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
@@ -240,7 +283,7 @@ render_subpicture(
     blend_state.blend_equation_color           = VDP_OUTPUT_SURFACE_RENDER_BLEND_EQUATION_ADD;
     blend_state.blend_equation_alpha           = VDP_OUTPUT_SURFACE_RENDER_BLEND_EQUATION_ADD;
 
-    vdp_status = vdpau_output_surface_render_bitmap_surface(
+    VdpStatus vdp_status = vdpau_output_surface_render_bitmap_surface(
         driver_data,
         obj_output->vdp_output_surfaces[obj_output->current_output_surface],
         &dst_rect,
@@ -353,36 +396,10 @@ put_surface(
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(driver_data, vdp_status);
 
-    VdpRect src_rect;
-    src_rect.x0 = source_rect->x;
-    src_rect.y0 = source_rect->y;
-    src_rect.x1 = source_rect->x + source_rect->width;
-    src_rect.y1 = source_rect->y + source_rect->height;
-    ensure_bounds(&src_rect, obj_surface->width, obj_surface->height);   
-
-    VdpRect dst_rect;
-    dst_rect.x0 = target_rect->x;
-    dst_rect.y0 = target_rect->y;
-    dst_rect.x1 = target_rect->x + target_rect->width;
-    dst_rect.y1 = target_rect->y + target_rect->height;
-    ensure_bounds(&dst_rect, drawable_width, drawable_height);
-
-    vdp_status = vdpau_video_mixer_render(driver_data,
-                                          obj_context->vdp_video_mixer,
-                                          VDP_INVALID_HANDLE,
-                                          NULL,
-                                          VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
-                                          0, NULL,
-                                          obj_surface->vdp_surface,
-                                          0, NULL,
-                                          &src_rect,
-                                          vdp_output_surface,
-                                          NULL,
-                                          &dst_rect,
-                                          0, NULL);
-
-    if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
+    va_status = render_surface(driver_data, obj_surface, obj_output,
+                               source_rect, target_rect);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
 
     va_status = render_subpictures(driver_data, obj_surface, obj_output);
     if (va_status != VA_STATUS_SUCCESS)
