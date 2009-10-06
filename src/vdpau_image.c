@@ -443,6 +443,84 @@ vdpau_GetImage(
     return get_image(driver_data, obj_surface, obj_image, &rect);
 }
 
+// Put image to surface
+static VAStatus
+put_image(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    object_image_p       obj_image,
+    const VARectangle   *src_rect,
+    const VARectangle   *dst_rect
+)
+{
+    VAImage * const image = obj_image->image;
+    VdpStatus vdp_status;
+    uint8_t *src[3];
+    unsigned int src_stride[3];
+    int i;
+
+#if 0
+    /* Don't do anything if the surface is used for rendering for example */
+    /* XXX: VDPAU has no API to inform when decoding is completed... */
+    if (obj_surface->va_surface_status != VASurfaceReady)
+        return VA_STATUS_ERROR_SURFACE_BUSY;
+#endif
+
+    /* RGBA to video surface requires color space conversion */
+    if (obj_image->vdp_rgba_surface != VDP_INVALID_HANDLE)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    /* VDPAU does not support partial video surface updates */
+    if (src_rect->x != 0 ||
+        src_rect->y != 0 ||
+        src_rect->width != image->width ||
+        src_rect->height != image->height)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+    if (dst_rect->x != 0 ||
+        dst_rect->y != 0 ||
+        dst_rect->width != obj_surface->width ||
+        dst_rect->height != obj_surface->height)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+    if (src_rect->width != dst_rect->width ||
+        src_rect->height != dst_rect->height)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    object_buffer_p obj_buffer = VDPAU_BUFFER(image->buf);
+    if (!obj_buffer)
+        return VA_STATUS_ERROR_INVALID_BUFFER;
+
+    switch (image->format.fourcc) {
+    case VA_FOURCC('Y','V','1','2'):
+        /* VDPAU exposes YV12 pixels as Y/U/V planes, which turns out
+           to be I420, whereas VA-API expects standard Y/V/U order */
+        src[0] = (uint8_t *)obj_buffer->buffer_data + image->offsets[0];
+        src_stride[0] = image->pitches[0];
+        src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
+        src_stride[1] = image->pitches[2];
+        src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
+        src_stride[2] = image->pitches[1];
+        break;
+    default:
+        for (i = 0; i < image->num_planes; i++) {
+            src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+            src_stride[i] = image->pitches[i];
+        }
+        break;
+    }
+
+    VdpYCbCrFormat ycbcr_format = get_VdpYCbCrFormat(&image->format);
+    if (ycbcr_format == (VdpYCbCrFormat)-1)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    vdp_status = vdpau_video_surface_put_bits_ycbcr(
+        driver_data,
+        obj_surface->vdp_surface,
+        ycbcr_format,
+        src, src_stride
+    );
+    return vdpau_get_VAStatus(driver_data, vdp_status);
+}
+
 // vaPutImage
 VAStatus
 vdpau_PutImage(
@@ -457,8 +535,26 @@ vdpau_PutImage(
     int                 dest_y
 )
 {
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
+    VDPAU_DRIVER_DATA_INIT;
+
+    object_surface_p obj_surface = VDPAU_SURFACE(surface);
+    if (!obj_surface)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    object_image_p obj_image = VDPAU_IMAGE(image);
+    if (!obj_image || !obj_image->image)
+        return VA_STATUS_ERROR_INVALID_IMAGE;
+
+    VARectangle src_rect, dst_rect;
+    src_rect.x      = src_x;
+    src_rect.y      = src_y;
+    src_rect.width  = width;
+    src_rect.height = height;
+    dst_rect.x      = dest_x;
+    dst_rect.y      = dest_y;
+    dst_rect.width  = width;
+    dst_rect.height = height;
+    return put_image(driver_data, obj_surface, obj_image, &src_rect, &dst_rect);
 }
 
 // vaPutImage2
@@ -477,6 +573,24 @@ vdpau_PutImage_full(
     unsigned int        dest_height
 )
 {
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
+    VDPAU_DRIVER_DATA_INIT;
+
+    object_surface_p obj_surface = VDPAU_SURFACE(surface);
+    if (!obj_surface)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    object_image_p obj_image = VDPAU_IMAGE(image);
+    if (!obj_image || !obj_image->image)
+        return VA_STATUS_ERROR_INVALID_IMAGE;
+
+    VARectangle src_rect, dst_rect;
+    src_rect.x      = src_x;
+    src_rect.y      = src_y;
+    src_rect.width  = src_width;
+    src_rect.height = src_height;
+    dst_rect.x      = dest_x;
+    dst_rect.y      = dest_y;
+    dst_rect.width  = dest_width;
+    dst_rect.height = dest_height;
+    return put_image(driver_data, obj_surface, obj_image, &src_rect, &dst_rect);
 }
