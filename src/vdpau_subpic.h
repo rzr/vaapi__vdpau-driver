@@ -36,6 +36,11 @@ struct object_subpicture {
     unsigned int        chromakey_max;
     unsigned int        chromakey_mask;
     float               alpha;
+    unsigned int        width;
+    unsigned int        height;
+    VdpRGBAFormat       vdp_format;
+    VdpBitmapSurface    vdp_surface;
+    uint64_t            last_commit;
 };
 
 // Associate one surface to the subpicture
@@ -53,6 +58,13 @@ VAStatus
 subpicture_deassociate_1(
     object_subpicture_p obj_subpicture,
     object_surface_p    obj_surface
+) attribute_hidden;
+
+// Commit subpicture to VDPAU surface
+VAStatus
+commit_subpicture(
+    vdpau_driver_data_p driver_data,
+    object_subpicture_p obj_subpicture
 ) attribute_hidden;
 
 // vaQuerySubpictureFormats

@@ -21,6 +21,7 @@
 #include "sysdeps.h"
 #include "vdpau_video.h"
 #include "vdpau_video_x11.h"
+#include "vdpau_subpic.h"
 #include "utils.h"
 
 #define DEBUG 1
@@ -273,6 +274,61 @@ put_surface(
 
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(driver_data, vdp_status);
+
+    unsigned int i;
+    for (i = 0; i < obj_surface->assocs_count && i < VDPAU_MAX_SUBPICTURES; i++) {
+        SubpictureAssociationP const assoc = obj_surface->assocs[i];
+        ASSERT(assoc);
+        if (!assoc)
+            continue;
+
+        object_subpicture_p obj_subpicture = VDPAU_SUBPICTURE(assoc->subpicture);
+        ASSERT(obj_subpicture);
+        if (!obj_subpicture)
+            continue;
+
+        va_status = commit_subpicture(driver_data, obj_subpicture);
+        if (va_status != VA_STATUS_SUCCESS)
+            continue;
+
+        float psx = (float)obj_surface->width  / (float)obj_subpicture->width;
+        float psy = (float)obj_surface->height / (float)obj_subpicture->height;
+        float ssx = (float)obj_output->width  / (float)obj_surface->width;
+        float ssy = (float)obj_output->height / (float)obj_surface->height;
+        const float sx = psx * ssx;
+        const float sy = psy * ssy;
+
+        src_rect.x0 = assoc->src_rect.x;
+        src_rect.y0 = assoc->src_rect.y;
+        src_rect.x1 = assoc->src_rect.x + assoc->src_rect.width;
+        src_rect.y1 = assoc->src_rect.y + assoc->src_rect.height;
+        dst_rect.x0 = sx * (float)assoc->dst_rect.x;
+        dst_rect.y0 = sx * (float)assoc->dst_rect.y;
+        dst_rect.x1 = sx * (float)(assoc->dst_rect.x + assoc->dst_rect.width);
+        dst_rect.y1 = sy * (float)(assoc->dst_rect.y + assoc->dst_rect.height);
+
+        VdpOutputSurfaceRenderBlendState blend_state;
+        blend_state.struct_version                 = VDP_OUTPUT_SURFACE_RENDER_BLEND_STATE_VERSION;
+        blend_state.blend_factor_source_color      = VDP_OUTPUT_SURFACE_RENDER_BLEND_FACTOR_ONE;
+        blend_state.blend_factor_source_alpha      = VDP_OUTPUT_SURFACE_RENDER_BLEND_FACTOR_ONE;
+        blend_state.blend_factor_destination_color = VDP_OUTPUT_SURFACE_RENDER_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        blend_state.blend_factor_destination_alpha = VDP_OUTPUT_SURFACE_RENDER_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        blend_state.blend_equation_color           = VDP_OUTPUT_SURFACE_RENDER_BLEND_EQUATION_ADD;
+        blend_state.blend_equation_alpha           = VDP_OUTPUT_SURFACE_RENDER_BLEND_EQUATION_ADD;
+
+        vdp_status = vdpau_output_surface_render_bitmap_surface(
+            driver_data,
+            vdp_output_surface,
+            &dst_rect,
+            obj_subpicture->vdp_surface,
+            &src_rect,
+            NULL,
+            &blend_state,
+            VDP_OUTPUT_SURFACE_RENDER_ROTATE_0
+        );
+        if (vdp_status != VDP_STATUS_OK)
+            return vdpau_get_VAStatus(driver_data, vdp_status);
+    }
 
     uint32_t clip_width, clip_height;
     clip_width  = MIN(obj_output->output_surface_width, drawable_width);

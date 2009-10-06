@@ -2,6 +2,7 @@ vdpau-video NEWS -- summary of changes.  2009-10-DD
 Copyright (C) 2009 Splitted-Desktop Systems
 
 Version 0.4.2 - DD.Oct.2009
+* Add support for subpictures
 * Fix vaPutSurface() display bounds
 * Fix vaGetImage() with YV12 pixels
 * Implement vaPutImage() though VDPAU has limited API

@@ -22,6 +22,7 @@
 #include "vdpau_subpic.h"
 #include "vdpau_video.h"
 #include "vdpau_image.h"
+#include "vdpau_buffer.h"
 #include "utils.h"
 
 
@@ -44,6 +45,22 @@ vdpau_subpic_formats_map[VDPAU_MAX_SUBPICTURE_FORMATS + 1] = {
       0 },
     { VDP_INVALID_HANDLE, 0 }
 };
+
+// Translates VA API image format to VdpRGBAFormat
+static VdpRGBAFormat get_VdpRGBAFormat(const VAImageFormat *image_format)
+{
+    int i;
+    for (i = 0; vdpau_subpic_formats_map[i].va_format.fourcc != 0; i++) {
+        const vdpau_subpic_format_map_t * const m = &vdpau_subpic_formats_map[i];
+        if (m->va_format.fourcc == image_format->fourcc &&
+            m->va_format.byte_order == image_format->byte_order &&
+            m->va_format.red_mask == image_format->red_mask &&
+            m->va_format.green_mask == image_format->green_mask &&
+            m->va_format.blue_mask == image_format->blue_mask)
+            return m->vdp_format;
+    }
+    return VDP_INVALID_HANDLE;
+}
 
 // Checks whether the VDPAU implementation supports the specified image format
 static inline VdpBool
@@ -234,28 +251,116 @@ deassociate_subpicture(
     return error;
 }
 
-// Create subpicture with image
-static object_subpicture_p
-create_subpicture(
-    vdpau_driver_data_t *driver_data,
-    object_image_p      obj_image
+// Commit subpicture to VDPAU surface
+VAStatus
+commit_subpicture(
+    vdpau_driver_data_p driver_data,
+    object_subpicture_p obj_subpicture
 )
 {
-    VASubpictureID subpic_id;
-    subpic_id = object_heap_allocate(&driver_data->subpicture_heap);
-    if (subpic_id == VA_INVALID_ID)
-        return NULL;
+    object_image_p obj_image = VDPAU_IMAGE(obj_subpicture->image_id);
+    if (!obj_image || !obj_image->image)
+        return VA_STATUS_ERROR_INVALID_IMAGE;
 
-    object_subpicture_p obj_subpicture = VDPAU_SUBPICTURE(subpic_id);
+    ASSERT(obj_subpicture->width == obj_image->image->width);
+    if (obj_subpicture->width != obj_image->image->width)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    ASSERT(obj_subpicture->height == obj_image->image->height);
+    if (obj_subpicture->height != obj_image->image->height)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    object_buffer_p obj_buffer = VDPAU_BUFFER(obj_image->image->buf);
+    if (!obj_buffer)
+        return VA_STATUS_ERROR_INVALID_BUFFER;
+
+    uint8_t *src[1];
+    uint32_t src_stride[1];
+    src[0] = (uint8_t *)obj_buffer->buffer_data + obj_image->image->pitches[0];
+    src_stride[0] = obj_image->image->pitches[0];
+
+    /* Update video surface only if the image (hence its buffer) was
+       updated since our last synchronisation.
+
+       NOTE: this assumes the user really unmaps the buffer when he is
+       done with it, as it is actually required */
+    if (obj_subpicture->last_commit < obj_buffer->mtime) {
+        VdpStatus vdp_status = vdpau_bitmap_surface_put_bits_native(
+            driver_data,
+            obj_subpicture->vdp_surface,
+            src, src_stride,
+            NULL /* TODO: dirty rect */
+        );
+        if (vdp_status != VDP_STATUS_OK)
+            return vdpau_get_VAStatus(driver_data, vdp_status);
+        obj_subpicture->last_commit = obj_buffer->mtime;
+    }
+    return VA_STATUS_SUCCESS;
+}
+
+// Create subpicture with image
+static VAStatus
+create_subpicture(
+    vdpau_driver_data_t *driver_data,
+    object_image_p       obj_image,
+    VASubpictureID      *subpicture
+)
+{
+    *subpicture = object_heap_allocate(&driver_data->subpicture_heap);
+    if (*subpicture == VA_INVALID_ID)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+    object_subpicture_p obj_subpicture = VDPAU_SUBPICTURE(*subpicture);
     ASSERT(obj_subpicture);
     if (!obj_subpicture)
-        return NULL;
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     obj_subpicture->image_id         = obj_image->base.id;
     obj_subpicture->assocs           = NULL;
     obj_subpicture->assocs_count     = 0;
     obj_subpicture->assocs_count_max = 0;
-    return obj_subpicture;
+    obj_subpicture->width            = obj_image->image->width;
+    obj_subpicture->height           = obj_image->image->height;
+    obj_subpicture->vdp_surface      = VDP_INVALID_HANDLE;
+    obj_subpicture->last_commit      = 0;
+
+    obj_subpicture->vdp_format = get_VdpRGBAFormat(&obj_image->image->format);
+    if (obj_subpicture->vdp_format == VDP_INVALID_HANDLE)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    VdpBool is_supported = VDP_FALSE;
+    uint32_t max_width, max_height;
+    VdpStatus vdp_status = vdpau_bitmap_surface_query_capabilities(
+        driver_data,
+        driver_data->vdp_device,
+        obj_subpicture->vdp_format,
+        &is_supported,
+        &max_width,
+        &max_height
+    );
+    if (vdp_status != VDP_STATUS_OK)
+        return vdpau_get_VAStatus(driver_data, vdp_status);
+    if (!is_supported)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+    if (obj_subpicture->width > max_width ||
+        obj_subpicture->height > max_height)
+        return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
+
+    VdpBitmapSurface vdp_surface = VDP_INVALID_HANDLE;
+    vdp_status = vdpau_bitmap_surface_create(
+        driver_data,
+        driver_data->vdp_device,
+        obj_subpicture->vdp_format,
+        obj_subpicture->width,
+        obj_subpicture->height,
+        VDP_FALSE,
+        &vdp_surface
+    );
+    if (vdp_status != VDP_STATUS_OK)
+        return vdpau_get_VAStatus(driver_data, vdp_status);
+
+    obj_subpicture->vdp_surface = vdp_surface;
+    return VA_STATUS_SUCCESS;
 }
 
 // Destroy subpicture
@@ -292,6 +397,11 @@ destroy_subpicture(
     }
     obj_subpicture->assocs_count = 0;
     obj_subpicture->assocs_count_max = 0;
+
+    if (obj_subpicture->vdp_surface != VDP_INVALID_HANDLE) {
+        vdpau_bitmap_surface_destroy(driver_data, obj_subpicture->vdp_surface);
+        obj_subpicture->vdp_surface = VDP_INVALID_HANDLE;
+    }
 
     obj_subpicture->image_id = VA_INVALID_ID;
     object_heap_free(&driver_data->subpicture_heap,
@@ -343,13 +453,7 @@ vdpau_CreateSubpicture(
     if (!obj_image || !obj_image->image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
-    object_subpicture_p obj_subpicture;
-    obj_subpicture = create_subpicture(driver_data, obj_image);
-    if (!obj_subpicture)
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
-
-    *subpicture = obj_subpicture->base.id;
-    return VA_STATUS_SUCCESS;
+    return create_subpicture(driver_data, obj_image, subpicture);
 }
 
 // vaDestroySubpicture
