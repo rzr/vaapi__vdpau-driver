@@ -24,6 +24,15 @@
 #include "vdpau_driver.h"
 #include "vdpau_decode.h"
 
+typedef struct SubpictureAssociation *SubpictureAssociationP;
+struct SubpictureAssociation {
+    VASubpictureID               subpicture;
+    VASurfaceID                  surface;
+    VARectangle                  src_rect;
+    VARectangle                  dst_rect;
+    unsigned int                 flags;
+};
+
 typedef struct object_config object_config_t;
 struct object_config {
     struct object_base           base;
@@ -80,6 +89,9 @@ struct object_surface {
     union {
         VdpReferenceFrameH264    h264;
     }                            vdp_ref_frame;
+    SubpictureAssociationP      *assocs;
+    unsigned int                 assocs_count;
+    unsigned int                 assocs_count_max;
 };
 
 // Query surface status
@@ -97,6 +109,20 @@ sync_surface(
     vdpau_driver_data_t *driver_data,
     object_context_p     obj_context,
     object_surface_p     obj_surface
+) attribute_hidden;
+ 
+// Add subpicture association to surface
+// NOTE: the subpicture owns the SubpictureAssociation object
+int surface_add_association(
+    object_surface_p            obj_surface,
+    SubpictureAssociationP      assoc
+) attribute_hidden;
+
+// Remove subpicture association from surface
+// NOTE: the subpicture owns the SubpictureAssociation object
+int surface_remove_association(
+    object_surface_p            obj_surface,
+    SubpictureAssociationP      assoc
 ) attribute_hidden;
 
 // vaGetConfigAttributes

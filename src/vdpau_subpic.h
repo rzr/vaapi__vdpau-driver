@@ -21,7 +21,39 @@
 #ifndef VDPAU_SUBPIC_H
 #define VDPAU_SUBPIC_H
 
-#include "vdpau_driver.h"
+#include "vdpau_video.h"
+
+typedef struct object_subpicture  object_subpicture_t;
+typedef struct object_subpicture *object_subpicture_p;
+
+struct object_subpicture {
+    struct object_base  base;
+    VAImageID           image_id;
+    SubpictureAssociationP *assocs;
+    unsigned int        assocs_count;
+    unsigned int        assocs_count_max;
+    unsigned int        chromakey_min;
+    unsigned int        chromakey_max;
+    unsigned int        chromakey_mask;
+    float               alpha;
+};
+
+// Associate one surface to the subpicture
+VAStatus
+subpicture_associate_1(
+    object_subpicture_p obj_subpicture,
+    object_surface_p    obj_surface,
+    const VARectangle  *src_rect,
+    const VARectangle  *dst_rect,
+    unsigned int        flags
+) attribute_hidden;
+
+// Deassociate one surface from the subpicture
+VAStatus
+subpicture_deassociate_1(
+    object_subpicture_p obj_subpicture,
+    object_surface_p    obj_surface
+) attribute_hidden;
 
 // vaQuerySubpictureFormats
 VAStatus

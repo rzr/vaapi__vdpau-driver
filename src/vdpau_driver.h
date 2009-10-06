@@ -52,6 +52,7 @@
 #define VDPAU_OUTPUT(id)                VDPAU_OBJECT(id, output)
 #define VDPAU_IMAGE(id)                 VDPAU_OBJECT(id, image)
 #define VDPAU_GLX_SURFACE(id)           VDPAU_OBJECT(id, glx_surface)
+#define VDPAU_SUBPICTURE(id)            VDPAU_OBJECT(id, subpicture)
 
 #define VDPAU_CONFIG_ID_OFFSET          0x01000000
 #define VDPAU_CONTEXT_ID_OFFSET         0x02000000
@@ -59,13 +60,15 @@
 #define VDPAU_BUFFER_ID_OFFSET          0x04000000
 #define VDPAU_OUTPUT_ID_OFFSET          0x05000000
 #define VDPAU_IMAGE_ID_OFFSET           0x06000000
-#define VDPAU_GLX_SURFACE_ID_OFFSET     0x07000000
+#define VDPAU_SUBPICTURE_ID_OFFSET      0x07000000
+#define VDPAU_GLX_SURFACE_ID_OFFSET     0x08000000
 
 #define VDPAU_MAX_PROFILES              12
 #define VDPAU_MAX_ENTRYPOINTS           5
 #define VDPAU_MAX_CONFIG_ATTRIBUTES     10
 #define VDPAU_MAX_IMAGE_FORMATS         10
-#define VDPAU_MAX_SUBPICTURE_FORMATS    4
+#define VDPAU_MAX_SUBPICTURES           8
+#define VDPAU_MAX_SUBPICTURE_FORMATS    2
 #define VDPAU_MAX_DISPLAY_ATTRIBUTES    4
 #define VDPAU_MAX_OUTPUT_SURFACES       2
 #define VDPAU_STR_DRIVER_VENDOR         "Splitted-Desktop Systems"
@@ -85,6 +88,7 @@ struct vdpau_driver_data {
     struct object_heap          buffer_heap;
     struct object_heap          output_heap;
     struct object_heap          image_heap;
+    struct object_heap          subpicture_heap;
     struct opengl_data         *gl_data;
     VdpDevice                   vdp_device;
     VdpGetProcAddress          *vdp_get_proc_address;

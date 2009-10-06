@@ -22,6 +22,7 @@
 #include "vdpau_video.h"
 #include "vdpau_video_x11.h"
 #include "vdpau_decode.h"
+#include "vdpau_subpic.h"
 #include "utils.h"
 
 #define DEBUG 1
@@ -264,6 +265,69 @@ vdpau_QueryConfigAttributes(
     return va_status;
 }
 
+// Add subpicture association to surface
+// NOTE: the subpicture owns the SubpictureAssociation object
+int surface_add_association(
+    object_surface_p            obj_surface,
+    SubpictureAssociationP      assoc
+)
+{
+    /* Check that we don't already have this association */
+    if (obj_surface->assocs) {
+        unsigned int i;
+        for (i = 0; i < obj_surface->assocs_count; i++) {
+            if (obj_surface->assocs[i] == assoc)
+                return 0;
+            if (obj_surface->assocs[i]->surface == assoc->surface) {
+                /* XXX: this should not happen, but replace it in the interim */
+                ASSERT(obj_surface->assocs[i]->surface != assoc->surface);
+                obj_surface->assocs[i] = assoc;
+                return 0;
+            }
+        }
+    }
+
+    /* Check that we have not reached the maximum subpictures capacity yet */
+    if (obj_surface->assocs_count >= VDPAU_MAX_SUBPICTURES)
+        return -1;
+
+    /* Append this subpicture association */
+    SubpictureAssociationP *assocs;
+    assocs = realloc_buffer(&obj_surface->assocs,
+                            &obj_surface->assocs_count_max,
+                            1 + obj_surface->assocs_count,
+                            sizeof(obj_surface->assocs[0]));
+    if (!assocs)
+        return -1;
+
+    assocs[obj_surface->assocs_count++] = assoc;
+    return 0;
+}
+
+// Remove subpicture association from surface
+// NOTE: the subpicture owns the SubpictureAssociation object
+int surface_remove_association(
+    object_surface_p            obj_surface,
+    SubpictureAssociationP      assoc
+)
+{
+    if (!obj_surface->assocs || obj_surface->assocs_count == 0)
+        return -1;
+
+    unsigned int i;
+    const unsigned int last = obj_surface->assocs_count - 1;
+    for (i = 0; i <= last; i++) {
+        if (obj_surface->assocs[i] == assoc) {
+            /* Swap with the last subpicture */
+            obj_surface->assocs[i] = obj_surface->assocs[last];
+            obj_surface->assocs[last] = NULL;
+            obj_surface->assocs_count--;
+            return 0;
+        }
+    }
+    return -1;
+}
+
 // vaDestroySurfaces
 VAStatus
 vdpau_DestroySurfaces(
@@ -274,14 +338,43 @@ vdpau_DestroySurfaces(
 {
     VDPAU_DRIVER_DATA_INIT;
 
-    int i;
+    int i, j, n;
     for (i = num_surfaces - 1; i >= 0; i--) {
         object_surface_p obj_surface = VDPAU_SURFACE(surface_list[i]);
         ASSERT(obj_surface);
+
         if (obj_surface->vdp_surface != VDP_INVALID_HANDLE) {
             vdpau_video_surface_destroy(driver_data, obj_surface->vdp_surface);
             obj_surface->vdp_surface = VDP_INVALID_HANDLE;
         }
+
+        if (obj_surface->assocs) {
+            object_subpicture_p obj_subpicture;
+            VAStatus status;
+            const unsigned int n_assocs = obj_surface->assocs_count;
+
+            for (j = 0, n = 0; j < n_assocs; j++) {
+                SubpictureAssociationP const assoc = obj_surface->assocs[0];
+                if (!assoc)
+                    continue;
+                obj_subpicture = VDPAU_SUBPICTURE(assoc->subpicture);
+                ASSERT(obj_subpicture);
+                if (!obj_subpicture)
+                    continue;
+                status = subpicture_deassociate_1(obj_subpicture, obj_surface);
+                if (status == VA_STATUS_SUCCESS)
+                    ++n;
+            }
+            if (n != n_assocs)
+                vdpau_error_message("vaDestroySurfaces(): surface 0x%08x still "
+                                    "has %d subpictures associated to it\n",
+                                    obj_surface->base.id, n_assocs - n);
+            free(obj_surface->assocs);
+            obj_surface->assocs = NULL;
+        }
+        obj_surface->assocs_count = 0;
+        obj_surface->assocs_count_max = 0;
+
         object_heap_free(&driver_data->surface_heap, (object_base_p)obj_surface);
     }
     return VA_STATUS_SUCCESS;
@@ -333,6 +426,9 @@ vdpau_CreateSurfaces(
         obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
         obj_surface->width              = width;
         obj_surface->height             = height;
+        obj_surface->assocs             = NULL;
+        obj_surface->assocs_count       = 0;
+        obj_surface->assocs_count_max   = 0;
         surfaces[i]                     = va_surface;
         vdp_surface                     = VDP_INVALID_HANDLE;
     }

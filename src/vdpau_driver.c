@@ -148,6 +148,7 @@ static VAStatus vdpau_Terminate(VADriverContextP ctx)
 
     DESTROY_HEAP(buffer,      destroy_buffer_cb);
     DESTROY_HEAP(image,       NULL);
+    DESTROY_HEAP(subpicture,  NULL);
     DESTROY_HEAP(output,      NULL);
     DESTROY_HEAP(surface,     NULL);
     DESTROY_HEAP(context,     NULL);
@@ -204,6 +205,7 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     CREATE_HEAP(buffer, BUFFER);
     CREATE_HEAP(output, OUTPUT);
     CREATE_HEAP(image, IMAGE);
+    CREATE_HEAP(subpicture, SUBPICTURE);
 #if USE_GLX
     CREATE_HEAP(glx_surface, GLX_SURFACE);
 #endif
