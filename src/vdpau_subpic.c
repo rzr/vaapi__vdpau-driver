@@ -25,6 +25,9 @@
 #include "vdpau_buffer.h"
 #include "utils.h"
 
+#define DEBUG 1
+#include "debug.h"
+
 
 // List of supported subpicture formats
 typedef struct {
@@ -43,7 +46,7 @@ vdpau_subpic_formats_map[VDPAU_MAX_SUBPICTURE_FORMATS + 1] = {
       { VA_FOURCC('R','G','B','A'), VA_NATIVE_BYTE_ORDER, 32,
         32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000 },
       0 },
-    { VDP_INVALID_HANDLE, 0 }
+    { VDP_INVALID_HANDLE, }
 };
 
 // Translates VA API image format to VdpRGBAFormat
