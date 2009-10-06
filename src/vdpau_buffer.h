@@ -32,6 +32,7 @@ struct object_buffer {
     unsigned int        buffer_size;
     unsigned int        max_num_elements;
     unsigned int        num_elements;
+    uint64_t            mtime;
 };
 
 // Create VA buffer object

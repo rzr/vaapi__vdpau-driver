@@ -57,6 +57,7 @@ create_va_buffer(
     obj_buffer->num_elements     = num_elements;
     obj_buffer->buffer_size      = size * num_elements;
     obj_buffer->buffer_data      = malloc(obj_buffer->buffer_size);
+    obj_buffer->mtime            = 0;
 
     if (!obj_buffer->buffer_data) {
         destroy_va_buffer(driver_data, obj_buffer);
@@ -210,6 +211,7 @@ vdpau_MapBuffer(
     if (obj_buffer->buffer_data == NULL)
         return VA_STATUS_ERROR_UNKNOWN;
 
+    ++obj_buffer->mtime;
     return VA_STATUS_SUCCESS;
 }
 
@@ -220,6 +222,13 @@ vdpau_UnmapBuffer(
     VABufferID          buf_id
 )
 {
-    /* don't do anything here, translate structures in vaRenderPicture() */
+    VDPAU_DRIVER_DATA_INIT;
+
+    object_buffer_p obj_buffer = VDPAU_BUFFER(buf_id);
+    ASSERT(obj_buffer);
+    if (!obj_buffer)
+        return VA_STATUS_ERROR_INVALID_BUFFER;
+
+    ++obj_buffer->mtime;
     return VA_STATUS_SUCCESS;
 }
