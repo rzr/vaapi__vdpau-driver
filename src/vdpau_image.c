@@ -53,12 +53,12 @@ static const vdpau_image_format_map_t vdpau_image_formats_map[] = {
     DEF_YUV(YCBCR, YUYV,        ('Y','U','Y','V'), LSB, 16),
     DEF_YUV(YCBCR, V8U8Y8A8,    ('A','Y','U','V'), LSB, 32),
 #ifdef WORDS_BIGENDIAN
-    DEF_RGB(RGBA, B8G8R8A8,     ('R','G','B','A'), MSB, 32,
+    DEF_RGB(RGBA, B8G8R8A8,     ('A','R','G','B'), MSB, 32,
             32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000),
-    DEF_RGB(RGBA, R8G8B8A8,     ('R','G','B','A'), MSB, 32,
+    DEF_RGB(RGBA, R8G8B8A8,     ('A','B','G','R'), MSB, 32,
             32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000),
 #else
-    DEF_RGB(RGBA, B8G8R8A8,     ('R','G','B','A'), LSB, 32,
+    DEF_RGB(RGBA, B8G8R8A8,     ('B','G','R','A'), LSB, 32,
             32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000),
     DEF_RGB(RGBA, R8G8B8A8,     ('R','G','B','A'), LSB, 32,
             32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000),
@@ -225,6 +225,9 @@ vdpau_CreateImage(
         image->offsets[2] = size;
         image->data_size  = size + 2 * size2;
         break;
+    case VA_FOURCC('A','R','G','B'):
+    case VA_FOURCC('A','B','G','R'):
+    case VA_FOURCC('B','G','R','A'):
     case VA_FOURCC('R','G','B','A'):
         if ((vdp_rgba_format = get_VdpRGBAFormat(format)) == (VdpRGBAFormat)-1)
             goto error;

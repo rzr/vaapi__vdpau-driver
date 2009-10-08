@@ -38,14 +38,25 @@ typedef struct {
 
 static const vdpau_subpic_format_map_t
 vdpau_subpic_formats_map[VDPAU_MAX_SUBPICTURE_FORMATS + 1] = {
+#ifdef WORDS_BIGENDIAN
     { VDP_RGBA_FORMAT_B8G8R8A8,
-      { VA_FOURCC('R','G','B','A'), VA_NATIVE_BYTE_ORDER, 32,
+      { VA_FOURCC('A','R','G','B'), VA_MSB_FIRST, 32,
         32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000 },
       0 },
     { VDP_RGBA_FORMAT_R8G8B8A8,
-      { VA_FOURCC('R','G','B','A'), VA_NATIVE_BYTE_ORDER, 32,
+      { VA_FOURCC('A','B','G','R'), VA_MSB_FIRST, 32,
         32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000 },
       0 },
+#else
+    { VDP_RGBA_FORMAT_B8G8R8A8,
+      { VA_FOURCC('B','G','R','A'), VA_LSB_FIRST, 32,
+        32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000 },
+      0 },
+    { VDP_RGBA_FORMAT_R8G8B8A8,
+      { VA_FOURCC('R','G','B','A'), VA_LSB_FIRST, 32,
+        32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000 },
+      0 },
+#endif
     { VDP_INVALID_HANDLE, }
 };
 
