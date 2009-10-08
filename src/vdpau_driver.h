@@ -37,13 +37,6 @@
 #ifndef VA_STATUS_ERROR_UNIMPLEMENTED
 #define VA_STATUS_ERROR_UNIMPLEMENTED   0x00000014
 #endif
-#ifndef VA_NATIVE_BYTE_ORDER
-#ifdef WORDS_BIGENDIAN
-#define VA_NATIVE_BYTE_ORDER            VA_MSB_FIRST
-#else
-#define VA_NATIVE_BYTE_ORDER            VA_LSB_FIRST
-#endif
-#endif
 
 #define VDPAU_DRIVER_DATA_INIT                           \
         struct vdpau_driver_data *driver_data =          \
