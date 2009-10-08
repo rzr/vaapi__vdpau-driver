@@ -173,7 +173,7 @@ vdpau_CreateImage(
     VAImageFormat      *format,
     int                 width,
     int                 height,
-    VAImage            *image
+    VAImage            *out_image
 )
 {
     VDPAU_DRIVER_DATA_INIT;
@@ -187,19 +187,21 @@ vdpau_CreateImage(
     if (format == NULL)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
-    if (image == NULL)
-        return VA_STATUS_ERROR_INVALID_IMAGE;
-    image->image_id             = 0;
-    image->buf                  = 0;
+    if (out_image == NULL)
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    out_image->image_id = VA_INVALID_ID;
+    out_image->buf      = VA_INVALID_ID;
 
     if ((image_id = object_heap_allocate(&driver_data->image_heap)) < 0)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    image->image_id = image_id;
 
     if ((obj_image = VDPAU_IMAGE(image_id)) == NULL)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    obj_image->image = image;
     obj_image->vdp_rgba_surface = VDP_INVALID_HANDLE;
+
+    VAImage * const image = &obj_image->image;
+    image->image_id       = image_id;
+    image->buf            = VA_INVALID_ID;
 
     size    = width * height;
     width2  = (width  + 1) / 2;
@@ -251,7 +253,6 @@ vdpau_CreateImage(
     if (va_status != VA_STATUS_SUCCESS)
         goto error;
 
-    obj_image->image            = image;
     image->image_id             = image_id;
     image->format               = *format;
     image->width                = width;
@@ -260,6 +261,8 @@ vdpau_CreateImage(
     /* XXX: no paletted formats supported yet */
     image->num_palette_entries  = 0;
     image->entry_bytes          = 0;
+
+    *out_image                  = *image;
     return VA_STATUS_SUCCESS;
 
  error:
@@ -276,19 +279,17 @@ vdpau_DestroyImage(
 {
     VDPAU_DRIVER_DATA_INIT;
 
-    VAImage *image;
     object_image_p obj_image;
 
     if ((obj_image = VDPAU_IMAGE(image_id)) == NULL)
-        return VA_STATUS_ERROR_INVALID_IMAGE;
-    if ((image = obj_image->image) == NULL)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
     if (obj_image->vdp_rgba_surface != VDP_INVALID_HANDLE)
         vdpau_output_surface_destroy(driver_data, obj_image->vdp_rgba_surface);
 
+    VABufferID buf = obj_image->image.buf;
     object_heap_free(&driver_data->image_heap, (object_base_p)obj_image);
-    return vdpau_DestroyBuffer(ctx, image->buf);
+    return vdpau_DestroyBuffer(ctx, buf);
 }
 
 // vaDeriveImage
@@ -324,7 +325,7 @@ get_image(
     const VARectangle   *rect
 )
 {
-    VAImage * const image = obj_image->image;
+    VAImage * const image = &obj_image->image;
     VdpStatus vdp_status;
     uint8_t *src[3];
     unsigned int src_stride[3];
@@ -432,7 +433,7 @@ vdpau_GetImage(
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_image_p obj_image = VDPAU_IMAGE(image);
-    if (!obj_image || !obj_image->image)
+    if (!obj_image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
     VARectangle rect;
@@ -453,7 +454,7 @@ put_image(
     const VARectangle   *dst_rect
 )
 {
-    VAImage * const image = obj_image->image;
+    VAImage * const image = &obj_image->image;
     VdpStatus vdp_status;
     uint8_t *src[3];
     unsigned int src_stride[3];
@@ -542,7 +543,7 @@ vdpau_PutImage(
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_image_p obj_image = VDPAU_IMAGE(image);
-    if (!obj_image || !obj_image->image)
+    if (!obj_image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
     VARectangle src_rect, dst_rect;
@@ -580,7 +581,7 @@ vdpau_PutImage_full(
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_image_p obj_image = VDPAU_IMAGE(image);
-    if (!obj_image || !obj_image->image)
+    if (!obj_image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
     VARectangle src_rect, dst_rect;

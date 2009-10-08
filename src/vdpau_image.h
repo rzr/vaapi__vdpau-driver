@@ -26,7 +26,7 @@
 typedef struct object_image object_image_t;
 struct object_image {
     struct object_base  base;
-    VAImage            *image;
+    VAImage             image;
     VdpOutputSurface    vdp_rgba_surface;
 };
 

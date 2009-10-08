@@ -262,25 +262,25 @@ commit_subpicture(
 )
 {
     object_image_p obj_image = VDPAU_IMAGE(obj_subpicture->image_id);
-    if (!obj_image || !obj_image->image)
+    if (!obj_image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
-    ASSERT(obj_subpicture->width == obj_image->image->width);
-    if (obj_subpicture->width != obj_image->image->width)
+    ASSERT(obj_subpicture->width == obj_image->image.width);
+    if (obj_subpicture->width != obj_image->image.width)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
-    ASSERT(obj_subpicture->height == obj_image->image->height);
-    if (obj_subpicture->height != obj_image->image->height)
+    ASSERT(obj_subpicture->height == obj_image->image.height);
+    if (obj_subpicture->height != obj_image->image.height)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
-    object_buffer_p obj_buffer = VDPAU_BUFFER(obj_image->image->buf);
+    object_buffer_p obj_buffer = VDPAU_BUFFER(obj_image->image.buf);
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
     uint8_t *src[1];
     uint32_t src_stride[1];
-    src[0] = (uint8_t *)obj_buffer->buffer_data + obj_image->image->pitches[0];
-    src_stride[0] = obj_image->image->pitches[0];
+    src[0] = (uint8_t *)obj_buffer->buffer_data + obj_image->image.pitches[0];
+    src_stride[0] = obj_image->image.pitches[0];
 
     /* Update video surface only if the image (hence its buffer) was
        updated since our last synchronisation.
@@ -322,12 +322,12 @@ create_subpicture(
     obj_subpicture->assocs           = NULL;
     obj_subpicture->assocs_count     = 0;
     obj_subpicture->assocs_count_max = 0;
-    obj_subpicture->width            = obj_image->image->width;
-    obj_subpicture->height           = obj_image->image->height;
+    obj_subpicture->width            = obj_image->image.width;
+    obj_subpicture->height           = obj_image->image.height;
     obj_subpicture->vdp_surface      = VDP_INVALID_HANDLE;
     obj_subpicture->last_commit      = 0;
 
-    obj_subpicture->vdp_format = get_VdpRGBAFormat(&obj_image->image->format);
+    obj_subpicture->vdp_format = get_VdpRGBAFormat(&obj_image->image.format);
     if (obj_subpicture->vdp_format == VDP_INVALID_HANDLE)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
@@ -453,7 +453,7 @@ vdpau_CreateSubpicture(
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
     object_image_p obj_image = VDPAU_IMAGE(image);
-    if (!obj_image || !obj_image->image)
+    if (!obj_image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
     return create_subpicture(driver_data, obj_image, subpicture);
