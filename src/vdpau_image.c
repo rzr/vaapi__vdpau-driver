@@ -181,21 +181,19 @@ vdpau_CreateImage(
     VdpRGBAFormat vdp_rgba_format;
     VAStatus va_status = VA_STATUS_ERROR_OPERATION_FAILED;
     unsigned int width2, height2, size2, size;
-    int image_id;
-    object_image_p obj_image = NULL;
 
-    if (format == NULL)
+    if (!format || !out_image)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
-    if (out_image == NULL)
-        return VA_STATUS_ERROR_INVALID_PARAMETER;
     out_image->image_id = VA_INVALID_ID;
     out_image->buf      = VA_INVALID_ID;
 
-    if ((image_id = object_heap_allocate(&driver_data->image_heap)) < 0)
+    VAImageID image_id = object_heap_allocate(&driver_data->image_heap);
+    if (image_id == VA_INVALID_ID)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
-    if ((obj_image = VDPAU_IMAGE(image_id)) == NULL)
+    object_image_p obj_image = VDPAU_IMAGE(image_id);
+    if (!obj_image)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     obj_image->vdp_rgba_surface = VDP_INVALID_HANDLE;
 
@@ -279,9 +277,8 @@ vdpau_DestroyImage(
 {
     VDPAU_DRIVER_DATA_INIT;
 
-    object_image_p obj_image;
-
-    if ((obj_image = VDPAU_IMAGE(image_id)) == NULL)
+    object_image_p obj_image = VDPAU_IMAGE(image_id);
+    if (!obj_image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
     if (obj_image->vdp_rgba_surface != VDP_INVALID_HANDLE)
