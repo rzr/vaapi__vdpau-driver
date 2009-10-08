@@ -1,5 +1,9 @@
-vdpau-video NEWS -- summary of changes.  2009-10-06
+vdpau-video NEWS -- summary of changes.  2009-10-DD
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.5.1 - DD.Oct.2009
+* Fix RGB image formats to have a unique FOURCC
+* Fix vaCreateImage() when out VAImage points to stack
 
 Version 0.5.0 - 06.Oct.2009
 * Add support for subpictures
