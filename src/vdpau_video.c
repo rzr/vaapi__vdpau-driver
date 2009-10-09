@@ -420,7 +420,7 @@ vdpau_CreateSurfaces(
             va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
             break;
         }
-        obj_surface->va_context         = 0;
+        obj_surface->va_context         = VA_INVALID_ID;
         obj_surface->va_surface_status  = VASurfaceReady;
         obj_surface->vdp_surface        = vdp_surface;
         obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
@@ -527,7 +527,7 @@ vdpau_CreateContext(
     VDPAU_DRIVER_DATA_INIT;
 
     if (context)
-        *context = 0;
+        *context = VA_INVALID_ID;
 
     object_config_p obj_config;
     if ((obj_config = VDPAU_CONFIG(config_id)) == NULL)
@@ -537,20 +537,25 @@ vdpau_CreateContext(
 
     VdpDecoderProfile vdp_profile;
     uint32_t max_width, max_height;
+    int i;
     vdp_profile = get_VdpDecoderProfile(obj_config->profile);
     if (!get_max_surface_size(driver_data, vdp_profile, &max_width, &max_height))
         return VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
     if (picture_width > max_width || picture_height > max_height)
         return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
 
-    int i, contextID = object_heap_allocate(&driver_data->context_heap);
-    object_context_p obj_context;
-    if ((obj_context = VDPAU_CONTEXT(contextID)) == NULL)
+    VAContextID context_id = object_heap_allocate(&driver_data->context_heap);
+    if (context_id == VA_INVALID_ID)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+    object_context_p obj_context = VDPAU_CONTEXT(context_id);
+    ASSERT(obj_context);
+    if (!obj_context)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     if (context)
-        *context = contextID;
+        *context = context_id;
 
-    obj_context->context_id             = contextID;
+    obj_context->context_id             = context_id;
     obj_context->config_id              = config_id;
     obj_context->current_render_target  = VA_INVALID_SURFACE;
     obj_context->picture_width          = picture_width;
@@ -579,26 +584,26 @@ vdpau_CreateContext(
         obj_context->ref_frames[i]      = VA_INVALID_SURFACE;
 
     if (obj_context->output_surface == VA_INVALID_SURFACE) {
-        vdpau_DestroyContext(ctx, contextID);
+        vdpau_DestroyContext(ctx, context_id);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
     if (obj_context->render_targets == NULL || obj_context->vdp_video_surfaces == NULL) {
-        vdpau_DestroyContext(ctx, contextID);
+        vdpau_DestroyContext(ctx, context_id);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
     for (i = 0; i < num_render_targets; i++) {
         object_surface_t *obj_surface;
         if ((obj_surface = VDPAU_SURFACE(render_targets[i])) == NULL) {
-            vdpau_DestroyContext(ctx, contextID);
+            vdpau_DestroyContext(ctx, context_id);
             return VA_STATUS_ERROR_INVALID_SURFACE;
         }
         obj_context->render_targets[i] = render_targets[i];
         obj_context->vdp_video_surfaces[i] = obj_surface->vdp_surface;
         /* XXX: assume we can only associate a surface to a single context */
-        ASSERT(obj_surface->va_context == 0);
-        obj_surface->va_context = contextID;
+        ASSERT(obj_surface->va_context == VA_INVALID_ID);
+        obj_surface->va_context = context_id;
     }
 
     VdpVideoMixerParameter params[] = {
@@ -622,7 +627,7 @@ vdpau_CreateContext(
                                           param_values,
                                           &obj_context->vdp_video_mixer);
     if (vdp_status != VDP_STATUS_OK) {
-        vdpau_DestroyContext(ctx, contextID);
+        vdpau_DestroyContext(ctx, context_id);
         return vdpau_get_VAStatus(driver_data, vdp_status);
     }
 
