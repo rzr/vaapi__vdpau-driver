@@ -29,7 +29,7 @@
 
 
 // Returns X drawable dimensions
-static void
+static int
 get_drawable_size(
     Display      *display,
     Drawable      drawable,
@@ -40,12 +40,20 @@ get_drawable_size(
     Window rootwin;
     int x, y;
     unsigned int width, height, border_width, depth;
+
+    x11_trap_errors();
     XGetGeometry(display, drawable, &rootwin,
                  &x, &y, &width, &height, &border_width, &depth);
+    if (x11_untrap_errors() != 0)
+        return -1;
+
     if (pwidth)
         *pwidth = width;
+
     if (pheight)
         *pheight = height;
+
+    return 0;
 }
 
 // Create output surface
@@ -463,7 +471,8 @@ vdpau_PutSurface(
         return VA_STATUS_ERROR_FLAG_NOT_SUPPORTED;
 
     unsigned int w, h;
-    get_drawable_size(ctx->x11_dpy, draw, &w, &h);
+    if (get_drawable_size(ctx->x11_dpy, draw, &w, &h) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
 
     VARectangle src_rect, dst_rect;
     src_rect.x      = srcx;
