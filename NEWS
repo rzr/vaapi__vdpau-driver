@@ -1,9 +1,10 @@
-vdpau-video NEWS -- summary of changes.  2009-10-DD
+vdpau-video NEWS -- summary of changes.  2009-10-12
 Copyright (C) 2009 Splitted-Desktop Systems
 
-Version 0.5.1 - DD.Oct.2009
+Version 0.5.1 - 12.Oct.2009
+* Use VA_INVALID_ID for invalid contextes
 * Fix RGB image formats to have a unique FOURCC
-* Fix vaCreateImage() when out VAImage points to stack
+* Fix vaCreateImage() when output VAImage points to stack
 * Fix vaPutSurface() to fail gracefully if the Drawable is not ready
 
 Version 0.5.0 - 06.Oct.2009
