@@ -23,11 +23,19 @@
 
 #include "vdpau_driver.h"
 
+typedef enum {
+    VDP_IMAGE_FORMAT_TYPE_YCBCR = 1,
+    VDP_IMAGE_FORMAT_TYPE_RGBA,
+    VDP_IMAGE_FORMAT_TYPE_INDEXED
+} VdpImageFormatType;
+
 typedef struct object_image object_image_t;
 struct object_image {
     struct object_base  base;
     VAImage             image;
-    VdpOutputSurface    vdp_rgba_surface;
+    VdpImageFormatType  vdp_format_type;
+    uint32_t            vdp_format;
+    VdpOutputSurface    vdp_rgba_output_surface;
 };
 
 // vaQueryImageFormats

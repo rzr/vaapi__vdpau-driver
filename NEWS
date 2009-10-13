@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-10-12
+vdpau-video NEWS -- summary of changes.  2009-10-DD
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.5.2 - DD.Oct.2009
+* Allocate VdpOutputSurface on-demand in vaGetImage() for RGBA formats
 
 Version 0.5.1 - 12.Oct.2009
 * Use VA_INVALID_ID for invalid contextes

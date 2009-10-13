@@ -28,12 +28,6 @@
 
 
 // List of supported image formats
-typedef enum {
-    VDP_IMAGE_FORMAT_TYPE_YCBCR = 1,
-    VDP_IMAGE_FORMAT_TYPE_RGBA,
-    VDP_IMAGE_FORMAT_TYPE_INDEXED
-} VdpImageFormatType;
-
 typedef struct {
     VdpImageFormatType type;
     uint32_t format;
@@ -68,37 +62,22 @@ static const vdpau_image_format_map_t vdpau_image_formats_map[] = {
 #undef DEF
 };
 
-// Translates VA API image format to VdpYCbCrFormat
-static VdpYCbCrFormat get_VdpYCbCrFormat(const VAImageFormat *image_format)
+// Returns a suitable VDPAU image format for the specified VA image format
+static const vdpau_image_format_map_t *get_format(const VAImageFormat *format)
 {
-    int i;
+    unsigned int i;
     for (i = 0; i < ARRAY_ELEMS(vdpau_image_formats_map); i++) {
         const vdpau_image_format_map_t * const m = &vdpau_image_formats_map[i];
-        if (m->type != VDP_IMAGE_FORMAT_TYPE_YCBCR)
-            continue;
-        if (m->va_format.fourcc == image_format->fourcc)
-            return m->format;
+        if (m->va_format.fourcc == format->fourcc &&
+            (m->type == VDP_IMAGE_FORMAT_TYPE_RGBA ?
+             (m->va_format.byte_order == format->byte_order &&
+              m->va_format.red_mask   == format->red_mask   &&
+              m->va_format.green_mask == format->green_mask &&
+              m->va_format.blue_mask  == format->blue_mask  &&
+              m->va_format.alpha_mask == format->alpha_mask) : 1))
+            return m;
     }
-    ASSERT(image_format->fourcc);
-    return (VdpYCbCrFormat)-1;
-}
-
-// Translates VA API image format to VdpRGBAFormat
-static VdpRGBAFormat get_VdpRGBAFormat(const VAImageFormat *image_format)
-{
-    int i;
-    for (i = 0; i < ARRAY_ELEMS(vdpau_image_formats_map); i++) {
-        const vdpau_image_format_map_t * const m = &vdpau_image_formats_map[i];
-        if (m->type != VDP_IMAGE_FORMAT_TYPE_RGBA)
-            continue;
-        if (m->va_format.fourcc == image_format->fourcc &&
-            m->va_format.byte_order == image_format->byte_order &&
-            m->va_format.red_mask == image_format->red_mask &&
-            m->va_format.green_mask == image_format->green_mask &&
-            m->va_format.blue_mask == image_format->blue_mask)
-            return m->format;
-    }
-    return (VdpRGBAFormat)-1;
+    return NULL;
 }
 
 // Checks whether the VDPAU implementation supports the specified image format
@@ -178,7 +157,6 @@ vdpau_CreateImage(
 {
     VDPAU_DRIVER_DATA_INIT;
 
-    VdpRGBAFormat vdp_rgba_format;
     VAStatus va_status = VA_STATUS_ERROR_OPERATION_FAILED;
     unsigned int width2, height2, size2, size;
 
@@ -195,7 +173,10 @@ vdpau_CreateImage(
     object_image_p obj_image = VDPAU_IMAGE(image_id);
     if (!obj_image)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    obj_image->vdp_rgba_surface = VDP_INVALID_HANDLE;
+
+    const vdpau_image_format_map_t *m = get_format(format);
+    if (!m || !is_supported_format(driver_data, m->type, m->format))
+        return VA_STATUS_ERROR_UNKNOWN; /* VA_STATUS_ERROR_UNSUPPORTED_FORMAT */
 
     VAImage * const image = &obj_image->image;
     image->image_id       = image_id;
@@ -229,14 +210,6 @@ vdpau_CreateImage(
     case VA_FOURCC('A','B','G','R'):
     case VA_FOURCC('B','G','R','A'):
     case VA_FOURCC('R','G','B','A'):
-        if ((vdp_rgba_format = get_VdpRGBAFormat(format)) == (VdpRGBAFormat)-1)
-            goto error;
-        if (vdpau_output_surface_create(driver_data,
-                                        driver_data->vdp_device,
-                                        vdp_rgba_format, width, height,
-                                        &obj_image->vdp_rgba_surface) != VDP_STATUS_OK)
-            goto error;
-        // fall-through
     case VA_FOURCC('U','Y','V','Y'):
     case VA_FOURCC('Y','U','Y','V'):
         image->num_planes = 1;
@@ -253,6 +226,10 @@ vdpau_CreateImage(
                                    &image->buf);
     if (va_status != VA_STATUS_SUCCESS)
         goto error;
+
+    obj_image->vdp_rgba_output_surface = VDP_INVALID_HANDLE;
+    obj_image->vdp_format_type  = m->type;
+    obj_image->vdp_format       = m->format;
 
     image->image_id             = image_id;
     image->format               = *format;
@@ -284,8 +261,9 @@ vdpau_DestroyImage(
     if (!obj_image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
-    if (obj_image->vdp_rgba_surface != VDP_INVALID_HANDLE)
-        vdpau_output_surface_destroy(driver_data, obj_image->vdp_rgba_surface);
+    if (obj_image->vdp_rgba_output_surface != VDP_INVALID_HANDLE)
+        vdpau_output_surface_destroy(driver_data,
+                                     obj_image->vdp_rgba_output_surface);
 
     VABufferID buf = obj_image->image.buf;
     object_heap_free(&driver_data->image_heap, (object_base_p)obj_image);
@@ -354,7 +332,8 @@ get_image(
         break;
     }
 
-    if (obj_image->vdp_rgba_surface == VDP_INVALID_HANDLE) {
+    switch (obj_image->vdp_format_type) {
+    case VDP_IMAGE_FORMAT_TYPE_YCBCR: {
         /* VDPAU only supports full video surface readback */
         if (rect->x != 0 ||
             rect->y != 0 ||
@@ -362,25 +341,31 @@ get_image(
             obj_surface->height != rect->height)
             return VA_STATUS_ERROR_OPERATION_FAILED;
 
-        VdpYCbCrFormat ycbcr_format = get_VdpYCbCrFormat(&image->format);
-        if (ycbcr_format == (VdpYCbCrFormat)-1)
-            return VA_STATUS_ERROR_OPERATION_FAILED;
-
         vdp_status = vdpau_video_surface_get_bits_ycbcr(
             driver_data,
             obj_surface->vdp_surface,
-            ycbcr_format,
+            obj_image->vdp_format,
             src, src_stride
         );
+        break;
     }
-    else {
-        VdpRGBAFormat rgba_format = get_VdpRGBAFormat(&image->format);
-        if (rgba_format == (VdpRGBAFormat)-1)
-            return VA_STATUS_ERROR_OPERATION_FAILED;
-
+    case VDP_IMAGE_FORMAT_TYPE_RGBA: {
         object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
         if (!obj_context)
             return VA_STATUS_ERROR_INVALID_CONTEXT;
+
+        if (obj_image->vdp_rgba_output_surface == VA_INVALID_ID) {
+            vdp_status = vdpau_output_surface_create(
+                driver_data,
+                driver_data->vdp_device,
+                obj_image->vdp_format,
+                obj_image->image.width,
+                obj_image->image.height,
+                &obj_image->vdp_rgba_output_surface
+            );
+            if (vdp_status != VDP_STATUS_OK)
+                return vdpau_get_VAStatus(driver_data, vdp_status);
+        }
 
         VdpRect vdp_rect;
         vdp_rect.x0 = rect->x;
@@ -396,7 +381,7 @@ get_image(
             obj_surface->vdp_surface,
             0, NULL,
             &vdp_rect,
-            obj_image->vdp_rgba_surface,
+            obj_image->vdp_rgba_output_surface,
             &vdp_rect,
             &vdp_rect,
             0, NULL
@@ -406,10 +391,14 @@ get_image(
 
         vdp_status = vdpau_output_surface_get_bits_native(
             driver_data,
-            obj_image->vdp_rgba_surface,
+            obj_image->vdp_rgba_output_surface,
             &vdp_rect,
             src, src_stride
         );
+        break;
+    }
+    default:
+        return VA_STATUS_ERROR_OPERATION_FAILED;
     }
     return vdpau_get_VAStatus(driver_data, vdp_status);
 }
@@ -468,7 +457,7 @@ put_image(
 #endif
 
     /* RGBA to video surface requires color space conversion */
-    if (obj_image->vdp_rgba_surface != VDP_INVALID_HANDLE)
+    if (obj_image->vdp_rgba_output_surface != VDP_INVALID_HANDLE)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
     /* VDPAU does not support partial video surface updates */
@@ -509,14 +498,14 @@ put_image(
         break;
     }
 
-    VdpYCbCrFormat ycbcr_format = get_VdpYCbCrFormat(&image->format);
-    if (ycbcr_format == (VdpYCbCrFormat)-1)
+    /* XXX: only support YCbCr surfaces for now */
+    if (obj_image->vdp_format_type != VDP_IMAGE_FORMAT_TYPE_YCBCR)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
     vdp_status = vdpau_video_surface_put_bits_ycbcr(
         driver_data,
         obj_surface->vdp_surface,
-        ycbcr_format,
+        obj_image->vdp_format,
         src, src_stride
     );
     return vdpau_get_VAStatus(driver_data, vdp_status);
