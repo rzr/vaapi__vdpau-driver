@@ -175,7 +175,7 @@ vdpau_CreateImage(
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     const vdpau_image_format_map_t *m = get_format(format);
-    if (!m || !is_supported_format(driver_data, m->type, m->format))
+    if (!m)
         return VA_STATUS_ERROR_UNKNOWN; /* VA_STATUS_ERROR_UNSUPPORTED_FORMAT */
 
     VAImage * const image = &obj_image->image;
