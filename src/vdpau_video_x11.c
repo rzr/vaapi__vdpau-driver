@@ -56,88 +56,223 @@ get_drawable_size(
     return 0;
 }
 
-// Create output surface
-VASurfaceID
-create_output_surface(
+// Ensure output surface size matches drawable size
+static int
+ensure_output_surface_size(
     vdpau_driver_data_t *driver_data,
-    uint32_t             width,
-    uint32_t             height
+    object_output_p      obj_output,
+    unsigned int         width,
+    unsigned int         height
 )
 {
-    int i;
-    int surface = object_heap_allocate(&driver_data->output_heap);
-    if (surface < 0)
-        return VA_INVALID_SURFACE;
+    if (!obj_output)
+        return -1;
 
-    object_output_p obj_output = VDPAU_OUTPUT(surface);
-    ASSERT(obj_output);
-    if (obj_output == NULL)
-        return VA_INVALID_SURFACE;
+    if (width <= obj_output->max_width && height <= obj_output->max_height)
+        return 0;
 
-    obj_output->drawable                = None;
-    obj_output->width                   = 0;
-    obj_output->height                  = 0;
-    obj_output->vdp_flip_queue          = VDP_INVALID_HANDLE;
-    obj_output->vdp_flip_target         = VDP_INVALID_HANDLE;
-    obj_output->output_surface_width    = width;
-    obj_output->output_surface_height   = height;
-    obj_output->current_output_surface  = 0;
-    for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++)
-        obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
+    const unsigned int max_waste = 1U << 8;
+    unsigned int new_max_width   = (width  + max_waste - 1) & -max_waste;
+    unsigned int new_max_height  = (height + max_waste - 1) & -max_waste;
 
-    VADriverContextP const ctx = driver_data->va_context;
-    uint32_t display_width, display_height;
-    display_width  = DisplayWidth(ctx->x11_dpy, ctx->x11_screen);
-    display_height = DisplayHeight(ctx->x11_dpy, ctx->x11_screen);
-    if (obj_output->output_surface_width < display_width)
-        obj_output->output_surface_width = display_width;
-    if (obj_output->output_surface_height < display_height)
-        obj_output->output_surface_height = display_height;
-
+    unsigned int i;
     for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++) {
+        if (obj_output->vdp_output_surfaces[i] != VDP_INVALID_HANDLE) {
+            vdpau_output_surface_destroy(
+                driver_data,
+                obj_output->vdp_output_surfaces[i]
+            );
+            obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
+        }
+
         VdpStatus vdp_status;
-        VdpOutputSurface vdp_output_surface;
         vdp_status = vdpau_output_surface_create(
             driver_data,
             driver_data->vdp_device,
             VDP_RGBA_FORMAT_B8G8R8A8,
-            obj_output->output_surface_width,
-            obj_output->output_surface_height,
-            &vdp_output_surface
+            new_max_width,
+            new_max_height,
+            &obj_output->vdp_output_surfaces[i]
         );
-        if (vdp_status != VDP_STATUS_OK) {
-            destroy_output_surface(driver_data, surface);
-            return VA_INVALID_SURFACE;
-        }
-        obj_output->vdp_output_surfaces[i] = vdp_output_surface;
+        if (vdp_status != VDP_STATUS_OK)
+            return -1;
     }
 
-    return surface;
+    obj_output->width      = width;
+    obj_output->height     = height;
+    obj_output->max_width  = new_max_width;
+    obj_output->max_height = new_max_height;
+    return 0;
+}
+
+// Create output surface
+static object_output_p
+create_output_surface(
+    vdpau_driver_data_t *driver_data,
+    Drawable             drawable,
+    unsigned int         width,
+    unsigned int         height
+)
+{
+    VdpStatus vdp_status;
+    VASurfaceID surface = object_heap_allocate(&driver_data->output_heap);
+    if (surface == VA_INVALID_ID)
+        return NULL;
+
+    object_output_p obj_output = VDPAU_OUTPUT(surface);
+    ASSERT(obj_output);
+    if (!obj_output)
+        return NULL;
+
+    obj_output->refcount                = 1;
+    obj_output->drawable                = drawable;
+    obj_output->width                   = width;
+    obj_output->height                  = height;
+    obj_output->max_width               = 0;
+    obj_output->max_height              = 0;
+    obj_output->vdp_flip_queue          = VDP_INVALID_HANDLE;
+    obj_output->vdp_flip_target         = VDP_INVALID_HANDLE;
+    obj_output->current_output_surface  = 0;
+
+    unsigned int i;
+    for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++)
+        obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
+
+    if (drawable != None) {
+        vdp_status = vdpau_presentation_queue_target_create_x11(
+            driver_data,
+            driver_data->vdp_device,
+            obj_output->drawable,
+            &obj_output->vdp_flip_target
+        );
+        if (vdp_status != VDP_STATUS_OK) {
+            destroy_output_surface(driver_data, obj_output);
+            return NULL;
+        }
+
+        vdp_status = vdpau_presentation_queue_create(
+            driver_data,
+            driver_data->vdp_device,
+            obj_output->vdp_flip_target,
+            &obj_output->vdp_flip_queue
+        );
+        if (vdp_status != VDP_STATUS_OK) {
+            destroy_output_surface(driver_data, obj_output);
+            return NULL;
+        }
+    }
+
+    if (ensure_output_surface_size(driver_data, obj_output, width, height) < 0) {
+        destroy_output_surface(driver_data, obj_output);
+        return NULL;
+    }
+    return obj_output;
 }
 
 // Destroy output surface
 void
-destroy_output_surface(vdpau_driver_data_t *driver_data, VASurfaceID surface)
+destroy_output_surface(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output
+)
 {
-    if (surface == VA_INVALID_SURFACE)
+    if (!obj_output)
         return;
 
-    object_output_p obj_output = VDPAU_OUTPUT(surface);
-    ASSERT(obj_output);
-    if (obj_output == NULL)
-        return;
+    if (obj_output->vdp_flip_queue != VDP_INVALID_HANDLE) {
+        vdpau_presentation_queue_destroy(
+            driver_data,
+            obj_output->vdp_flip_queue
+        );
+        obj_output->vdp_flip_queue = VDP_INVALID_HANDLE;
+    }
 
-    destroy_flip_queue(driver_data, obj_output);
+    if (obj_output->vdp_flip_target != VDP_INVALID_HANDLE) {
+        vdpau_presentation_queue_target_destroy(
+            driver_data,
+            obj_output->vdp_flip_target
+        );
+        obj_output->vdp_flip_target = VDP_INVALID_HANDLE;
+    }
 
-    int i;
+    unsigned int i;
     for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++) {
-        VdpOutputSurface vdp_output_surface = obj_output->vdp_output_surfaces[i];
+        VdpOutputSurface vdp_output_surface;
+        vdp_output_surface = obj_output->vdp_output_surfaces[i];
         if (vdp_output_surface != VDP_INVALID_HANDLE) {
             vdpau_output_surface_destroy(driver_data, vdp_output_surface);
             obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
         }
     }
     object_heap_free(&driver_data->output_heap, (object_base_p)obj_output);
+}
+
+// Reference output surface
+object_output_p
+ref_output_surface(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output
+)
+{
+    if (obj_output)
+        ++obj_output->refcount;
+    return obj_output;
+}
+
+// Unreference output surface, destroying the surface if refcount reaches zero
+void
+unref_output_surface(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output
+)
+{
+    if (obj_output && --obj_output->refcount == 0)
+        destroy_output_surface(driver_data, obj_output);
+}
+
+// Ensure an output surface is created for the specified surface and drawable
+static object_output_p
+ensure_output_surface(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    Drawable             drawable,
+    unsigned int         width,
+    unsigned int         height
+)
+{
+    if (!obj_surface)
+        return NULL;
+
+    /* Check for a output surface matching Drawable */
+    if (!obj_surface->output_surface) {
+        object_heap_iterator iter;
+        object_base_p obj = object_heap_first(&driver_data->output_heap, &iter);
+        while (obj) {
+            object_output_p obj_output = (object_output_p)obj;
+            if (obj_output->drawable == drawable) {
+                obj_surface->output_surface = ref_output_surface(
+                    driver_data,
+                    obj_output
+                );
+                break;
+            }
+            obj = object_heap_next(&driver_data->output_heap, &iter);
+        }
+    }
+
+    if (obj_surface->output_surface &&
+        obj_surface->output_surface->drawable != drawable) {
+        unref_output_surface(driver_data, obj_surface->output_surface);
+        obj_surface->output_surface = NULL;
+    }
+
+    /* Fallback: create a new output surface */
+    if (!obj_surface->output_surface)
+        obj_surface->output_surface = create_output_surface(driver_data,
+                                                            drawable,
+                                                            width, height);
+
+    return obj_surface->output_surface;
 }
 
 // Create presentation queue
@@ -171,27 +306,6 @@ create_flip_queue(vdpau_driver_data_t *driver_data, object_output_p obj_output)
     obj_output->vdp_flip_queue  = vdp_flip_queue;
     obj_output->vdp_flip_target = vdp_flip_target;
     return VA_STATUS_SUCCESS;
-}
-
-// Destroy presentation queue
-void
-destroy_flip_queue(vdpau_driver_data_t *driver_data, object_output_p obj_output)
-{
-    if (obj_output->vdp_flip_queue != VDP_INVALID_HANDLE) {
-        vdpau_presentation_queue_destroy(
-            driver_data,
-            obj_output->vdp_flip_queue
-        );
-        obj_output->vdp_flip_queue = VDP_INVALID_HANDLE;
-    }
-
-    if (obj_output->vdp_flip_target != VDP_INVALID_HANDLE) {
-        vdpau_presentation_queue_target_destroy(
-            driver_data,
-            obj_output->vdp_flip_target
-        );
-        obj_output->vdp_flip_target = VDP_INVALID_HANDLE;
-    }
 }
 
 // Ensure rectangle is within specified bounds
@@ -360,41 +474,32 @@ put_surface(
 
     object_surface_p obj_surface = VDPAU_SURFACE(surface);
     ASSERT(obj_surface);
-    if (obj_surface == NULL)
+    if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
     ASSERT(obj_context);
-    if (obj_context == NULL)
+    if (!obj_context)
         return VA_STATUS_ERROR_INVALID_CONTEXT;
 
-    object_output_p obj_output = VDPAU_OUTPUT(obj_context->output_surface);
+    object_output_p obj_output;
+    obj_output = ensure_output_surface(
+        driver_data,
+        obj_surface,
+        drawable,
+        drawable_width,
+        drawable_height
+    );
     ASSERT(obj_output);
-    if (obj_output == NULL)
+    if (!obj_output)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    obj_surface->va_surface_status  = VASurfaceReady;
-    obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
-
-    if (obj_output->drawable != drawable) {
-        destroy_flip_queue(driver_data, obj_output);
-
-        obj_output->drawable = drawable;
-        va_status = create_flip_queue(driver_data, obj_output);
-        if (va_status != VA_STATUS_SUCCESS)
-            return va_status;
-    }
-
-    if (obj_output->width  != drawable_width ||
-        obj_output->height != drawable_height) {
-        obj_output->width   = drawable_width;
-        obj_output->height  = drawable_height;
-
-        /* XXX: re-create output surfaces incrementally here? */
-    }
     ASSERT(obj_output->drawable == drawable);
     ASSERT(obj_output->vdp_flip_queue != VDP_INVALID_HANDLE);
     ASSERT(obj_output->vdp_flip_target != VDP_INVALID_HANDLE);
+
+    obj_surface->va_surface_status  = VASurfaceReady;
+    obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
 
     /* Wait for the output surface to be ready.
        i.e. it completed the previous rendering */
@@ -408,28 +513,38 @@ put_surface(
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(driver_data, vdp_status);
 
+    if (ensure_output_surface_size(driver_data, obj_output,
+                                   drawable_width, drawable_height) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     /* Render the video surface to the output surface */
-    va_status = render_surface(driver_data, obj_surface, obj_output,
-                               source_rect, target_rect);
+    va_status = render_surface(
+        driver_data,
+        obj_surface,
+        obj_output,
+        source_rect,
+        target_rect
+    );
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
     /* Render subpictures to the output surface, applying scaling */
-    va_status = render_subpictures(driver_data, obj_surface,
-                                   obj_output, target_rect);
+    va_status = render_subpictures(
+        driver_data,
+        obj_surface,
+        obj_output,
+        target_rect
+    );
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
     /* Queue surface for display */
-    uint32_t clip_width, clip_height;
-    clip_width  = MIN(obj_output->output_surface_width, drawable_width);
-    clip_height = MIN(obj_output->output_surface_height, drawable_height);
     vdp_status  = vdpau_presentation_queue_display(
         driver_data,
         obj_output->vdp_flip_queue,
         obj_output->vdp_output_surfaces[obj_output->current_output_surface],
-        clip_width,
-        clip_height,
+        drawable_width,
+        drawable_height,
         0
     );
     if (vdp_status != VDP_STATUS_OK)

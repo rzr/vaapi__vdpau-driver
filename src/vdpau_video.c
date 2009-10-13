@@ -348,6 +348,11 @@ vdpau_DestroySurfaces(
             obj_surface->vdp_surface = VDP_INVALID_HANDLE;
         }
 
+        if (obj_surface->output_surface) {
+            unref_output_surface(driver_data, obj_surface->output_surface);
+            obj_surface->output_surface = NULL;
+        }
+
         if (obj_surface->assocs) {
             object_subpicture_p obj_subpicture;
             VAStatus status;
@@ -492,11 +497,6 @@ VAStatus vdpau_DestroyContext(VADriverContextP ctx, VAContextID context)
         obj_context->render_targets = NULL;
     }
 
-    if (obj_context->output_surface != VA_INVALID_SURFACE) {
-        destroy_output_surface(driver_data, obj_context->output_surface);
-        obj_context->output_surface = VA_INVALID_SURFACE;
-    }
-
     obj_context->context_id             = -1;
     obj_context->config_id              = -1;
     obj_context->current_render_target  = VA_INVALID_SURFACE;
@@ -563,8 +563,6 @@ vdpau_CreateContext(
     obj_context->num_render_targets     = num_render_targets;
     obj_context->flags                  = flag;
     obj_context->max_ref_frames         = -1;
-    obj_context->output_surface         =
-        create_output_surface(driver_data, picture_width, picture_height);
     obj_context->render_targets         = (VASurfaceID *)
         calloc(num_render_targets, sizeof(VASurfaceID));
     obj_context->dead_buffers           = NULL;
@@ -582,11 +580,6 @@ vdpau_CreateContext(
     obj_context->ref_frames_count       = 0;
     for (i = 0; i < ARRAY_ELEMS(obj_context->ref_frames); i++)
         obj_context->ref_frames[i]      = VA_INVALID_SURFACE;
-
-    if (obj_context->output_surface == VA_INVALID_SURFACE) {
-        vdpau_DestroyContext(ctx, context_id);
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    }
 
     if (obj_context->render_targets == NULL || obj_context->vdp_video_surfaces == NULL) {
         vdpau_DestroyContext(ctx, context_id);
@@ -647,19 +640,21 @@ query_surface_status(
 
     if (obj_surface->va_surface_status == VASurfaceDisplaying &&
         obj_surface->vdp_output_surface != VDP_INVALID_HANDLE) {
-        object_output_p obj_output = VDPAU_OUTPUT(obj_context->output_surface);
+        object_output_p obj_output = obj_surface->output_surface;
         ASSERT(obj_output);
-        if (obj_output == NULL)
+        if (!obj_output)
             return VA_STATUS_ERROR_INVALID_SURFACE;
 
         VdpPresentationQueueStatus vdp_queue_status;
         VdpTime vdp_dummy_time;
-        VdpStatus vdp_status =
-            vdpau_presentation_queue_query_surface_status(driver_data,
-                                                          obj_output->vdp_flip_queue,
-                                                          obj_surface->vdp_output_surface,
-                                                          &vdp_queue_status,
-                                                          &vdp_dummy_time);
+        VdpStatus vdp_status;
+        vdp_status = vdpau_presentation_queue_query_surface_status(
+            driver_data,
+            obj_output->vdp_flip_queue,
+            obj_surface->vdp_output_surface,
+            &vdp_queue_status,
+            &vdp_dummy_time
+        );
         va_status = vdpau_get_VAStatus(driver_data, vdp_status);
 
         if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE) {

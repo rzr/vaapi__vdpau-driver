@@ -26,39 +26,39 @@
 typedef struct object_output object_output_t;
 struct object_output {
     struct object_base          base;
+    unsigned int                refcount;
     Drawable                    drawable;
-    uint32_t                    width;
-    uint32_t                    height;
+    unsigned int                width;
+    unsigned int                height;
+    unsigned int                max_width;
+    unsigned int                max_height;
     VdpPresentationQueue        vdp_flip_queue;
     VdpPresentationQueueTarget  vdp_flip_target;
-    uint32_t                    output_surface_width;
-    uint32_t                    output_surface_height;
     VdpOutputSurface            vdp_output_surfaces[VDPAU_MAX_OUTPUT_SURFACES];
     int                         current_output_surface;
 };
 
-// Create output surface
-VASurfaceID
-create_output_surface(
-    vdpau_driver_data_t *driver_data,
-    uint32_t             width,
-    uint32_t             height
-) attribute_hidden;
-
 // Destroy output surface
 void
-destroy_output_surface(vdpau_driver_data_t *driver_data, VASurfaceID surface)
-    attribute_hidden;
+destroy_output_surface(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output
+) attribute_hidden;
 
-// Create presentation queue
-VAStatus
-create_flip_queue(vdpau_driver_data_t *driver_data, object_output_p obj_output)
-    attribute_hidden;
+// Reference output surface
+object_output_p
+ref_output_surface(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output
+) attribute_hidden;
 
-// Destroy presentation queue
+// Unreference output surface
+// NOTE: this destroys the surface if refcount reaches zero
 void
-destroy_flip_queue(vdpau_driver_data_t *driver_data, object_output_p obj_output)
-    attribute_hidden;
+unref_output_surface(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output
+) attribute_hidden;
 
 // Render surface to a Drawable
 VAStatus
