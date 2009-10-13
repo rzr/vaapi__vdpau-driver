@@ -253,12 +253,12 @@ render_surface(
 // Render subpictures to the VDPAU output surface
 static VAStatus
 render_subpicture(
-    vdpau_driver_data_t *driver_data,
-    object_subpicture_p  obj_subpicture,
-    object_surface_p     obj_surface,
-    object_output_p      obj_output,
-    const VARectangle   *source_rect,   // relative to subpicture
-    const VARectangle   *target_rect    // relative to video surface
+    vdpau_driver_data_t         *driver_data,
+    object_subpicture_p          obj_subpicture,
+    object_surface_p             obj_surface,
+    object_output_p              obj_output,
+    const VARectangle           *output_rect,
+    const SubpictureAssociationP assoc
 )
 {
     VAStatus va_status = commit_subpicture(driver_data, obj_subpicture);
@@ -267,23 +267,23 @@ render_subpicture(
 
     const float psx = (float)obj_surface->width  / (float)obj_subpicture->width;
     const float psy = (float)obj_surface->height / (float)obj_subpicture->height;
-    const float ssx = (float)obj_output->width  / (float)obj_surface->width;
-    const float ssy = (float)obj_output->height / (float)obj_surface->height;
+    const float ssx = (float)output_rect->width  / (float)obj_surface->width;
+    const float ssy = (float)output_rect->height / (float)obj_surface->height;
     const float sx  = psx * ssx;
     const float sy  = psy * ssy;
 
     VdpRect src_rect;
-    src_rect.x0 = source_rect->x;
-    src_rect.y0 = source_rect->y;
-    src_rect.x1 = source_rect->x + source_rect->width;
-    src_rect.y1 = source_rect->y + source_rect->height;
+    src_rect.x0 = assoc->src_rect.x;
+    src_rect.y0 = assoc->src_rect.y;
+    src_rect.x1 = src_rect.x0 + assoc->src_rect.width;
+    src_rect.y1 = src_rect.y0 + assoc->src_rect.height;
     ensure_bounds(&src_rect, obj_subpicture->width, obj_subpicture->height);
 
     VdpRect dst_rect;
-    dst_rect.x0 = sx * (float)target_rect->x;
-    dst_rect.y0 = sx * (float)target_rect->y;
-    dst_rect.x1 = sx * (float)(target_rect->x + target_rect->width);
-    dst_rect.y1 = sy * (float)(target_rect->y + target_rect->height);
+    dst_rect.x0 = output_rect->x + sx * (float)assoc->dst_rect.x;
+    dst_rect.y0 = output_rect->y + sx * (float)assoc->dst_rect.y;
+    dst_rect.x1 = dst_rect.x0 + sx * (float)assoc->dst_rect.width;
+    dst_rect.y1 = dst_rect.y0 + sy * (float)assoc->dst_rect.height;
     ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
 
     VdpOutputSurfaceRenderBlendState blend_state;
@@ -312,7 +312,8 @@ static VAStatus
 render_subpictures(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
-    object_output_p      obj_output
+    object_output_p      obj_output,
+    const VARectangle   *output_rect
 )
 {
     unsigned int i;
@@ -333,8 +334,8 @@ render_subpictures(
             obj_subpicture,
             obj_surface,
             obj_output,
-            &assoc->src_rect,
-            &assoc->dst_rect
+            output_rect,
+            assoc
         );
         if (va_status != VA_STATUS_SUCCESS)
             return va_status;
@@ -414,7 +415,8 @@ put_surface(
         return va_status;
 
     /* Render subpictures to the output surface, applying scaling */
-    va_status = render_subpictures(driver_data, obj_surface, obj_output);
+    va_status = render_subpictures(driver_data, obj_surface,
+                                   obj_output, target_rect);
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
