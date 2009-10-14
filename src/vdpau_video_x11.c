@@ -276,39 +276,6 @@ ensure_output_surface(
     return obj_surface->output_surface;
 }
 
-// Create presentation queue
-VAStatus
-create_flip_queue(vdpau_driver_data_t *driver_data, object_output_p obj_output)
-{
-    VdpPresentationQueue vdp_flip_queue = VDP_INVALID_HANDLE;
-    VdpPresentationQueueTarget vdp_flip_target = VDP_INVALID_HANDLE;
-    VdpStatus vdp_status;
-
-    vdp_status = vdpau_presentation_queue_target_create_x11(
-        driver_data,
-        driver_data->vdp_device,
-        obj_output->drawable,
-        &vdp_flip_target
-    );
-    if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
-
-    vdp_status = vdpau_presentation_queue_create(
-        driver_data,
-        driver_data->vdp_device,
-        vdp_flip_target,
-        &vdp_flip_queue
-    );
-    if (vdp_status != VDP_STATUS_OK) {
-        vdpau_presentation_queue_target_destroy(driver_data, vdp_flip_target);
-        return vdpau_get_VAStatus(driver_data, vdp_status);
-    }
-
-    obj_output->vdp_flip_queue  = vdp_flip_queue;
-    obj_output->vdp_flip_target = vdp_flip_target;
-    return VA_STATUS_SUCCESS;
-}
-
 // Ensure rectangle is within specified bounds
 static inline void
 ensure_bounds(VdpRect *rect, unsigned int width, unsigned int height)
