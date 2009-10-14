@@ -24,6 +24,7 @@
 #include "vdpau_decode.h"
 #include "vdpau_image.h"
 #include "vdpau_subpic.h"
+#include "vdpau_mixer.h"
 #include "vdpau_video.h"
 #include "vdpau_video_x11.h"
 #if USE_GLX
@@ -100,6 +101,15 @@ static void destroy_buffer_cb(object_base_p obj, void *user_data)
     destroy_va_buffer(driver_data, obj_buffer);
 }
 
+// Destroy MIXER objects
+static void destroy_mixer_cb(object_base_p obj, void *user_data)
+{
+    object_mixer_p const obj_mixer = (object_mixer_p)obj;
+    vdpau_driver_data_t * const driver_data = user_data;
+
+    video_mixer_destroy(driver_data, obj_mixer);
+}
+
 // Destroy object heap
 typedef void (*destroy_heap_func_t)(object_base_p obj, void *user_data);
 
@@ -153,6 +163,7 @@ static VAStatus vdpau_Terminate(VADriverContextP ctx)
     DESTROY_HEAP(surface,     NULL);
     DESTROY_HEAP(context,     NULL);
     DESTROY_HEAP(config,      NULL);
+    DESTROY_HEAP(mixer,       destroy_mixer_cb);
 #if USE_GLX
     DESTROY_HEAP(glx_surface, NULL);
 #endif
@@ -206,6 +217,7 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     CREATE_HEAP(output, OUTPUT);
     CREATE_HEAP(image, IMAGE);
     CREATE_HEAP(subpicture, SUBPICTURE);
+    CREATE_HEAP(mixer, MIXER);
 #if USE_GLX
     CREATE_HEAP(glx_surface, GLX_SURFACE);
 #endif

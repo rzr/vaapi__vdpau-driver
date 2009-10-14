@@ -27,6 +27,7 @@ source_h = \
 	vdpau_dump.h	\
 	vdpau_gate.h	\
 	vdpau_image.h	\
+	vdpau_mixer.h	\
 	vdpau_subpic.h	\
 	vdpau_video.h	\
 	$(source_glx_h)	\
@@ -42,6 +43,7 @@ source_c = \
 	vdpau_dump.c	\
 	vdpau_gate.c	\
 	vdpau_image.c	\
+	vdpau_mixer.c	\
 	vdpau_subpic.c	\
 	vdpau_video.c	\
 	$(source_glx_c)	\

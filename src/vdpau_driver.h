@@ -53,6 +53,7 @@
 #define VDPAU_IMAGE(id)                 VDPAU_OBJECT(id, image)
 #define VDPAU_GLX_SURFACE(id)           VDPAU_OBJECT(id, glx_surface)
 #define VDPAU_SUBPICTURE(id)            VDPAU_OBJECT(id, subpicture)
+#define VDPAU_MIXER(id)                 VDPAU_OBJECT(id, mixer)
 
 #define VDPAU_CONFIG_ID_OFFSET          0x01000000
 #define VDPAU_CONTEXT_ID_OFFSET         0x02000000
@@ -62,7 +63,9 @@
 #define VDPAU_IMAGE_ID_OFFSET           0x06000000
 #define VDPAU_SUBPICTURE_ID_OFFSET      0x07000000
 #define VDPAU_GLX_SURFACE_ID_OFFSET     0x08000000
+#define VDPAU_MIXER_ID_OFFSET           0x09000000
 
+#define VDPAU_MAX_VIDEO_MIXER_PARAMS    10
 #define VDPAU_MAX_PROFILES              12
 #define VDPAU_MAX_ENTRYPOINTS           5
 #define VDPAU_MAX_CONFIG_ATTRIBUTES     10
@@ -89,11 +92,11 @@ struct vdpau_driver_data {
     struct object_heap          output_heap;
     struct object_heap          image_heap;
     struct object_heap          subpicture_heap;
+    struct object_heap          mixer_heap;
     struct opengl_data         *gl_data;
     VdpDevice                   vdp_device;
     VdpGetProcAddress          *vdp_get_proc_address;
     vdpau_vtable_t              vdp_vtable;
-    VdpChromaType               vdp_chroma_format; /* XXX: move elsewhere? */
     VdpImplementation           vdp_impl_type;
     uint32_t                    vdp_impl_version;
     VADisplayAttribute          va_display_attrs[VDPAU_MAX_DISPLAY_ATTRIBUTES];
@@ -106,6 +109,7 @@ typedef struct object_surface  *object_surface_p;
 typedef struct object_buffer   *object_buffer_p;
 typedef struct object_output   *object_output_p;
 typedef struct object_image    *object_image_p;
+typedef struct object_mixer    *object_mixer_p;
 
 // Return TRUE if underlying VDPAU implementation is NVIDIA
 VdpBool

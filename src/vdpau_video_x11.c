@@ -22,6 +22,7 @@
 #include "vdpau_video.h"
 #include "vdpau_video_x11.h"
 #include "vdpau_subpic.h"
+#include "vdpau_mixer.h"
 #include "utils.h"
 
 #define DEBUG 1
@@ -328,10 +329,6 @@ render_surface(
     const VARectangle   *target_rect
 )
 {
-    object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
-    if (!obj_context)
-        return VA_STATUS_ERROR_INVALID_CONTEXT;
-
     VdpRect src_rect;
     src_rect.x0 = source_rect->x;
     src_rect.y0 = source_rect->y;
@@ -346,20 +343,13 @@ render_surface(
     dst_rect.y1 = target_rect->y + target_rect->height;
     ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
 
-    VdpStatus vdp_status = vdpau_video_mixer_render(
+    VdpStatus vdp_status;
+    vdp_status = video_mixer_render(
         driver_data,
-        obj_context->vdp_video_mixer,
-        VDP_INVALID_HANDLE,
-        NULL,
-        VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
-        0, NULL,
-        obj_surface->vdp_surface,
-        0, NULL,
-        &src_rect,
+        obj_surface,
         obj_output->vdp_output_surfaces[obj_output->current_output_surface],
-        NULL,
-        &dst_rect,
-        0, NULL
+        &src_rect,
+        &dst_rect
     );
     return vdpau_get_VAStatus(driver_data, vdp_status);
 }
@@ -476,11 +466,6 @@ put_surface(
     ASSERT(obj_surface);
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
-
-    object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
-    ASSERT(obj_context);
-    if (!obj_context)
-        return VA_STATUS_ERROR_INVALID_CONTEXT;
 
     object_output_p obj_output;
     obj_output = ensure_output_surface(

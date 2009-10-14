@@ -64,7 +64,6 @@ struct object_context {
     VdpCodec                     vdp_codec;
     VdpDecoderProfile            vdp_profile;
     VdpDecoder                   vdp_decoder;
-    VdpVideoMixer                vdp_video_mixer;
     VdpVideoSurface             *vdp_video_surfaces;
     VdpBitstreamBuffer          *vdp_bitstream_buffers;
     unsigned int                 vdp_bitstream_buffers_count;
@@ -84,8 +83,10 @@ struct object_surface {
     VdpVideoSurface              vdp_surface;
     VdpOutputSurface             vdp_output_surface;
     object_output_p              output_surface;
+    object_mixer_p               video_mixer;
     unsigned int                 width;
     unsigned int                 height;
+    VdpChromaType                vdp_chroma_type;
     union {
         VdpReferenceFrameH264    h264;
     }                            vdp_ref_frame;

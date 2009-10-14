@@ -22,6 +22,7 @@
 #include "vdpau_image.h"
 #include "vdpau_video.h"
 #include "vdpau_buffer.h"
+#include "vdpau_mixer.h"
 
 #define DEBUG 1
 #include "debug.h"
@@ -350,10 +351,6 @@ get_image(
         break;
     }
     case VDP_IMAGE_FORMAT_TYPE_RGBA: {
-        object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
-        if (!obj_context)
-            return VA_STATUS_ERROR_INVALID_CONTEXT;
-
         if (obj_image->vdp_rgba_output_surface == VA_INVALID_ID) {
             vdp_status = vdpau_output_surface_create(
                 driver_data,
@@ -372,19 +369,12 @@ get_image(
         vdp_rect.y0 = rect->y;
         vdp_rect.x1 = rect->x + rect->width;
         vdp_rect.y1 = rect->y + rect->height;
-        vdp_status = vdpau_video_mixer_render(
+        vdp_status = video_mixer_render(
             driver_data,
-            obj_context->vdp_video_mixer,
-            VDP_INVALID_HANDLE, NULL,
-            VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
-            0, NULL,
-            obj_surface->vdp_surface,
-            0, NULL,
-            &vdp_rect,
+            obj_surface,
             obj_image->vdp_rgba_output_surface,
             &vdp_rect,
-            &vdp_rect,
-            0, NULL
+            &vdp_rect
         );
         if (vdp_status != VDP_STATUS_OK)
             return vdpau_get_VAStatus(driver_data, vdp_status);

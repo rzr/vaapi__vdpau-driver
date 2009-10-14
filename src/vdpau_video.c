@@ -353,6 +353,11 @@ vdpau_DestroySurfaces(
             obj_surface->output_surface = NULL;
         }
 
+        if (obj_surface->video_mixer) {
+            video_mixer_unref(driver_data, obj_surface->video_mixer);
+            obj_surface->video_mixer = NULL;
+        }
+
         if (obj_surface->assocs) {
             object_subpicture_p obj_subpicture;
             VAStatus status;
@@ -400,18 +405,18 @@ vdpau_CreateSurfaces(
 
     VAStatus va_status = VA_STATUS_SUCCESS;
     VdpVideoSurface vdp_surface = VDP_INVALID_HANDLE;
+    VdpChromaType vdp_chroma_type = get_VdpChromaType(format);
     VdpStatus vdp_status;
     int i;
 
     /* We only support one format */
     if (format != VA_RT_FORMAT_YUV420)
         return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
-    driver_data->vdp_chroma_format = get_VdpChromaType(format);
 
     for (i = 0; i < num_surfaces; i++) {
         vdp_status = vdpau_video_surface_create(driver_data,
                                                 driver_data->vdp_device,
-                                                driver_data->vdp_chroma_format,
+                                                vdp_chroma_type,
                                                 width, height,
                                                 &vdp_surface);
         if (vdp_status != VDP_STATUS_OK) {
@@ -434,6 +439,7 @@ vdpau_CreateSurfaces(
         obj_surface->assocs             = NULL;
         obj_surface->assocs_count       = 0;
         obj_surface->assocs_count_max   = 0;
+        obj_surface->vdp_chroma_type    = vdp_chroma_type;
         surfaces[i]                     = va_surface;
         vdp_surface                     = VDP_INVALID_HANDLE;
     }
@@ -475,11 +481,6 @@ VAStatus vdpau_DestroyContext(VADriverContextP ctx, VAContextID context)
         }
         free(obj_context->vdp_video_surfaces);
         obj_context->vdp_video_surfaces = NULL;
-    }
-
-    if (obj_context->vdp_video_mixer != VDP_INVALID_HANDLE) {
-        vdpau_video_mixer_destroy(driver_data, obj_context->vdp_video_mixer);
-        obj_context->vdp_video_mixer = VDP_INVALID_HANDLE;
     }
 
     if (obj_context->vdp_decoder != VDP_INVALID_HANDLE) {
@@ -571,7 +572,6 @@ vdpau_CreateContext(
     obj_context->vdp_codec              = get_VdpCodec(vdp_profile);
     obj_context->vdp_profile            = vdp_profile;
     obj_context->vdp_decoder            = VDP_INVALID_HANDLE;
-    obj_context->vdp_video_mixer        = VDP_INVALID_HANDLE;
     obj_context->vdp_video_surfaces     = (VdpVideoSurface *)
         calloc(num_render_targets, sizeof(VdpVideoSurface));
     obj_context->vdp_bitstream_buffers = NULL;
@@ -598,32 +598,6 @@ vdpau_CreateContext(
         ASSERT(obj_surface->va_context == VA_INVALID_ID);
         obj_surface->va_context = context_id;
     }
-
-    VdpVideoMixerParameter params[] = {
-        VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH,
-        VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_HEIGHT,
-        VDP_VIDEO_MIXER_PARAMETER_CHROMA_TYPE
-    };
-
-    const void *param_values[3];
-    param_values[0] = &picture_width;
-    param_values[1] = &picture_height;
-    param_values[2] = &driver_data->vdp_chroma_format;
-
-    VdpStatus vdp_status;
-    vdp_status = vdpau_video_mixer_create(driver_data,
-                                          driver_data->vdp_device,
-                                          0,
-                                          NULL,
-                                          ARRAY_ELEMS(params),
-                                          params,
-                                          param_values,
-                                          &obj_context->vdp_video_mixer);
-    if (vdp_status != VDP_STATUS_OK) {
-        vdpau_DestroyContext(ctx, context_id);
-        return vdpau_get_VAStatus(driver_data, vdp_status);
-    }
-
     return VA_STATUS_SUCCESS;
 }
 
