@@ -59,7 +59,7 @@ get_drawable_size(
 
 // Ensure output surface size matches drawable size
 static int
-ensure_output_surface_size(
+output_surface_ensure_size(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output,
     unsigned int         width,
@@ -108,7 +108,7 @@ ensure_output_surface_size(
 
 // Create output surface
 static object_output_p
-create_output_surface(
+output_surface_create(
     vdpau_driver_data_t *driver_data,
     Drawable             drawable,
     unsigned int         width,
@@ -147,7 +147,7 @@ create_output_surface(
             &obj_output->vdp_flip_target
         );
         if (vdp_status != VDP_STATUS_OK) {
-            destroy_output_surface(driver_data, obj_output);
+            output_surface_destroy(driver_data, obj_output);
             return NULL;
         }
 
@@ -158,13 +158,13 @@ create_output_surface(
             &obj_output->vdp_flip_queue
         );
         if (vdp_status != VDP_STATUS_OK) {
-            destroy_output_surface(driver_data, obj_output);
+            output_surface_destroy(driver_data, obj_output);
             return NULL;
         }
     }
 
-    if (ensure_output_surface_size(driver_data, obj_output, width, height) < 0) {
-        destroy_output_surface(driver_data, obj_output);
+    if (output_surface_ensure_size(driver_data, obj_output, width, height) < 0) {
+        output_surface_destroy(driver_data, obj_output);
         return NULL;
     }
     return obj_output;
@@ -172,7 +172,7 @@ create_output_surface(
 
 // Destroy output surface
 void
-destroy_output_surface(
+output_surface_destroy(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output
 )
@@ -210,7 +210,7 @@ destroy_output_surface(
 
 // Reference output surface
 object_output_p
-ref_output_surface(
+output_surface_ref(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output
 )
@@ -222,18 +222,18 @@ ref_output_surface(
 
 // Unreference output surface, destroying the surface if refcount reaches zero
 void
-unref_output_surface(
+output_surface_unref(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output
 )
 {
     if (obj_output && --obj_output->refcount == 0)
-        destroy_output_surface(driver_data, obj_output);
+        output_surface_destroy(driver_data, obj_output);
 }
 
 // Ensure an output surface is created for the specified surface and drawable
 static object_output_p
-ensure_output_surface(
+output_surface_ensure(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
     Drawable             drawable,
@@ -251,7 +251,7 @@ ensure_output_surface(
         while (obj) {
             object_output_p obj_output = (object_output_p)obj;
             if (obj_output->drawable == drawable) {
-                obj_surface->output_surface = ref_output_surface(
+                obj_surface->output_surface = output_surface_ref(
                     driver_data,
                     obj_output
                 );
@@ -263,13 +263,13 @@ ensure_output_surface(
 
     if (obj_surface->output_surface &&
         obj_surface->output_surface->drawable != drawable) {
-        unref_output_surface(driver_data, obj_surface->output_surface);
+        output_surface_unref(driver_data, obj_surface->output_surface);
         obj_surface->output_surface = NULL;
     }
 
     /* Fallback: create a new output surface */
     if (!obj_surface->output_surface)
-        obj_surface->output_surface = create_output_surface(driver_data,
+        obj_surface->output_surface = output_surface_create(driver_data,
                                                             drawable,
                                                             width, height);
 
@@ -435,7 +435,7 @@ put_surface(
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     object_output_p obj_output;
-    obj_output = ensure_output_surface(
+    obj_output = output_surface_ensure(
         driver_data,
         obj_surface,
         drawable,
@@ -465,7 +465,7 @@ put_surface(
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(driver_data, vdp_status);
 
-    if (ensure_output_surface_size(driver_data, obj_output,
+    if (output_surface_ensure_size(driver_data, obj_output,
                                    drawable_width, drawable_height) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 

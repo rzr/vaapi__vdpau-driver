@@ -40,14 +40,14 @@ struct object_output {
 
 // Destroy output surface
 void
-destroy_output_surface(
+output_surface_destroy(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output
 ) attribute_hidden;
 
 // Reference output surface
 object_output_p
-ref_output_surface(
+output_surface_ref(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output
 ) attribute_hidden;
@@ -55,7 +55,7 @@ ref_output_surface(
 // Unreference output surface
 // NOTE: this destroys the surface if refcount reaches zero
 void
-unref_output_surface(
+output_surface_unref(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output
 ) attribute_hidden;

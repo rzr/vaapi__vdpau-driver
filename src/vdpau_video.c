@@ -350,7 +350,7 @@ vdpau_DestroySurfaces(
         }
 
         if (obj_surface->output_surface) {
-            unref_output_surface(driver_data, obj_surface->output_surface);
+            output_surface_unref(driver_data, obj_surface->output_surface);
             obj_surface->output_surface = NULL;
         }
 
