@@ -606,7 +606,6 @@ vdpau_CreateContext(
 VAStatus
 query_surface_status(
     vdpau_driver_data_t *driver_data,
-    object_context_p     obj_context,
     object_surface_p     obj_surface,
     VASurfaceStatus     *status
 )
@@ -659,19 +658,13 @@ vdpau_QuerySurfaceStatus(
     if (obj_surface == NULL)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
-    ASSERT(obj_context);
-    if (obj_context == NULL)
-        return VA_STATUS_ERROR_INVALID_CONTEXT;
-
-    return query_surface_status(driver_data, obj_context, obj_surface, status);
+    return query_surface_status(driver_data, obj_surface, status);
 }
 
 // Wait for the surface to complete pending operations
 VAStatus
 sync_surface(
     vdpau_driver_data_t *driver_data,
-    object_context_p     obj_context,
     object_surface_p     obj_surface
 )
 {
@@ -680,7 +673,6 @@ sync_surface(
     for (;;) {
         VASurfaceStatus va_surface_status;
         VAStatus va_status = query_surface_status(driver_data,
-                                                  obj_context,
                                                   obj_surface,
                                                   &va_surface_status);
 
@@ -705,18 +697,18 @@ vdpau_SyncSurface2(
 
     object_surface_p obj_surface = VDPAU_SURFACE(render_target);
     ASSERT(obj_surface);
-    if (obj_surface == NULL)
+    if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
-    ASSERT(obj_context);
-    if (obj_context == NULL)
-        return VA_STATUS_ERROR_INVALID_CONTEXT;
-
     /* Assume that this shouldn't be called before vaEndPicture() */
-    ASSERT(obj_context->current_render_target != obj_surface->base.id);
+    object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
+    if (obj_context) {
+        ASSERT(obj_context->current_render_target != obj_surface->base.id);
+        if (obj_context->current_render_target == obj_surface->base.id)
+            return VA_STATUS_ERROR_INVALID_CONTEXT;
+    }
 
-    return sync_surface(driver_data, obj_context, obj_surface);
+    return sync_surface(driver_data, obj_surface);
 }
 
 VAStatus
@@ -728,20 +720,20 @@ vdpau_SyncSurface3(
 {
     VDPAU_DRIVER_DATA_INIT;
 
-    object_context_p obj_context = VDPAU_CONTEXT(context);
-    ASSERT(obj_context);
-    if (obj_context == NULL)
-        return VA_STATUS_ERROR_INVALID_CONTEXT;
-
     object_surface_p obj_surface = VDPAU_SURFACE(render_target);
     ASSERT(obj_surface);
-    if (obj_surface == NULL)
+    if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     /* Assume that this shouldn't be called before vaEndPicture() */
-    ASSERT(obj_context->current_render_target != obj_surface->base.id);
+    object_context_p obj_context = VDPAU_CONTEXT(context);
+    if (obj_context) {
+        ASSERT(obj_context->current_render_target != obj_surface->base.id);
+        if (obj_context->current_render_target == obj_surface->base.id)
+            return VA_STATUS_ERROR_INVALID_CONTEXT;
+    }
 
-    return sync_surface(driver_data, obj_context, obj_surface);
+    return sync_surface(driver_data, obj_surface);
 }
 
 // Ensure VA Display Attributes are initialized

@@ -99,7 +99,6 @@ struct object_surface {
 VAStatus
 query_surface_status(
     vdpau_driver_data_t *driver_data,
-    object_context_p     obj_context,
     object_surface_p     obj_surface,
     VASurfaceStatus     *status
 ) attribute_hidden;
@@ -108,7 +107,6 @@ query_surface_status(
 VAStatus
 sync_surface(
     vdpau_driver_data_t *driver_data,
-    object_context_p     obj_context,
     object_surface_p     obj_surface
 ) attribute_hidden;
  

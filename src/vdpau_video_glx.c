@@ -881,11 +881,7 @@ vdpau_SyncSurfaceGLX(
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    object_context_p obj_context = VDPAU_CONTEXT(obj_surface->va_context);
-    if (!obj_context)
-        return VA_STATUS_ERROR_INVALID_CONTEXT;
-
-    return sync_surface(driver_data, obj_context, obj_surface);
+    return sync_surface(driver_data, obj_surface);
 }
 
 // vaBeginRenderSurfaceGLX
