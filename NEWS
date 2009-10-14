@@ -1,10 +1,11 @@
-vdpau-video NEWS -- summary of changes.  2009-10-DD
+vdpau-video NEWS -- summary of changes.  2009-10-14
 Copyright (C) 2009 Splitted-Desktop Systems
 
-Version 0.5.2 - DD.Oct.2009
+Version 0.5.2 - 14.Oct.2009
 * Fix rendering of subpictures
 * Fix vaCreateImage() to allow RGBA subpictures
 * Allocate VdpOutputSurface on-demand in vaGetImage() for RGBA formats
+* Make it possible to vaPutSurface() a surface not bound to any VA context
 
 Version 0.5.1 - 12.Oct.2009
 * Use VA_INVALID_ID for invalid contextes
