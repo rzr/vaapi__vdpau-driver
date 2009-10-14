@@ -23,6 +23,7 @@
 #include "vdpau_video_x11.h"
 #include "vdpau_decode.h"
 #include "vdpau_subpic.h"
+#include "vdpau_mixer.h"
 #include "utils.h"
 
 #define DEBUG 1
