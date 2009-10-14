@@ -31,49 +31,52 @@
 
 // List of supported subpicture formats
 typedef struct {
-    VdpRGBAFormat vdp_format;
-    VAImageFormat va_format;
-    unsigned int  va_flags;
+    VdpImageFormatType  vdp_format_type;
+    uint32_t            vdp_format;
+    VAImageFormat       va_format;
+    unsigned int        va_flags;
 } vdpau_subpic_format_map_t;
 
 static const vdpau_subpic_format_map_t
 vdpau_subpic_formats_map[VDPAU_MAX_SUBPICTURE_FORMATS + 1] = {
 #ifdef WORDS_BIGENDIAN
-    { VDP_RGBA_FORMAT_B8G8R8A8,
+    { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_B8G8R8A8,
       { VA_FOURCC('A','R','G','B'), VA_MSB_FIRST, 32,
         32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000 },
       0 },
-    { VDP_RGBA_FORMAT_R8G8B8A8,
+    { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_R8G8B8A8,
       { VA_FOURCC('A','B','G','R'), VA_MSB_FIRST, 32,
         32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000 },
       0 },
 #else
-    { VDP_RGBA_FORMAT_B8G8R8A8,
+    { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_B8G8R8A8,
       { VA_FOURCC('B','G','R','A'), VA_LSB_FIRST, 32,
         32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000 },
       0 },
-    { VDP_RGBA_FORMAT_R8G8B8A8,
+    { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_R8G8B8A8,
       { VA_FOURCC('R','G','B','A'), VA_LSB_FIRST, 32,
         32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000 },
       0 },
 #endif
-    { VDP_INVALID_HANDLE, }
+    { 0, VDP_INVALID_HANDLE, }
 };
 
-// Translates VA API image format to VdpRGBAFormat
-static VdpRGBAFormat get_VdpRGBAFormat(const VAImageFormat *image_format)
+// Returns a suitable VDPAU subpicture format for the specified VA image format
+static const vdpau_subpic_format_map_t *get_format(const VAImageFormat *format)
 {
-    int i;
+    unsigned int i;
     for (i = 0; vdpau_subpic_formats_map[i].va_format.fourcc != 0; i++) {
         const vdpau_subpic_format_map_t * const m = &vdpau_subpic_formats_map[i];
-        if (m->va_format.fourcc == image_format->fourcc &&
-            m->va_format.byte_order == image_format->byte_order &&
-            m->va_format.red_mask == image_format->red_mask &&
-            m->va_format.green_mask == image_format->green_mask &&
-            m->va_format.blue_mask == image_format->blue_mask)
-            return m->vdp_format;
+        if (m->va_format.fourcc == format->fourcc &&
+            (m->vdp_format_type == VDP_IMAGE_FORMAT_TYPE_RGBA ?
+             (m->va_format.byte_order == format->byte_order &&
+              m->va_format.red_mask   == format->red_mask   &&
+              m->va_format.green_mask == format->green_mask &&
+              m->va_format.blue_mask  == format->blue_mask  &&
+              m->va_format.alpha_mask == format->alpha_mask) : 1))
+            return m;
     }
-    return VDP_INVALID_HANDLE;
+    return NULL;
 }
 
 // Checks whether the VDPAU implementation supports the specified image format
@@ -338,9 +341,9 @@ create_subpicture(
     obj_subpicture->vdp_surface      = VDP_INVALID_HANDLE;
     obj_subpicture->last_commit      = 0;
 
-    obj_subpicture->vdp_format = get_VdpRGBAFormat(&obj_image->image.format);
-    if (obj_subpicture->vdp_format == VDP_INVALID_HANDLE)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
+    const vdpau_subpic_format_map_t *m = get_format(&obj_image->image.format);
+    obj_subpicture->vdp_format_type    = m->vdp_format_type;
+    obj_subpicture->vdp_format         = m->vdp_format;
 
     VdpBool is_supported = VDP_FALSE;
     uint32_t max_width, max_height;

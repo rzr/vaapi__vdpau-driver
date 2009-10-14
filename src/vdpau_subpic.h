@@ -22,6 +22,7 @@
 #define VDPAU_SUBPIC_H
 
 #include "vdpau_video.h"
+#include "vdpau_image.h"
 
 typedef struct object_subpicture  object_subpicture_t;
 typedef struct object_subpicture *object_subpicture_p;
@@ -38,6 +39,7 @@ struct object_subpicture {
     float               alpha;
     unsigned int        width;
     unsigned int        height;
+    VdpImageFormatType  vdp_format_type;
     VdpRGBAFormat       vdp_format;
     VdpBitmapSurface    vdp_surface;
     uint64_t            last_commit;
