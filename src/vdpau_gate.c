@@ -61,6 +61,10 @@ int vdpau_gate_init(vdpau_driver_data_t *driver_data)
                   output_surface_put_bits_native);
     VDP_INIT_PROC(OUTPUT_SURFACE_RENDER_BITMAP_SURFACE,
                   output_surface_render_bitmap_surface);
+    VDP_INIT_PROC(OUTPUT_SURFACE_QUERY_PUT_BITS_INDEXED_CAPABILITIES,
+                  output_surface_query_put_bits_indexed_capabilities);
+    VDP_INIT_PROC(OUTPUT_SURFACE_PUT_BITS_INDEXED,
+                  output_surface_put_bits_indexed);
     VDP_INIT_PROC(BITMAP_SURFACE_QUERY_CAPABILITIES,
                   bitmap_surface_query_capabilities);
     VDP_INIT_PROC(BITMAP_SURFACE_CREATE,
@@ -273,6 +277,48 @@ vdpau_output_surface_render_bitmap_surface(
                         colors,
                         blend_state,
                         flags);
+}
+
+// VdpOutputSurfaceQueryPutBitsIndexedCapabilities
+VdpStatus
+vdpau_output_surface_query_put_bits_indexed_capabilities(
+    vdpau_driver_data_p  driver_data,
+    VdpDevice            device,
+    VdpRGBAFormat        rgba_format,
+    VdpIndexedFormat     bits_indexed_format,
+    VdpColorTableFormat  color_table_format,
+    VdpBool             *is_supported
+)
+{
+    return VDPAU_INVOKE(output_surface_query_put_bits_indexed_capabilities,
+                        device,
+                        rgba_format,
+                        bits_indexed_format,
+                        color_table_format,
+                        is_supported);
+}
+
+// VdpOutputSurfacePutBitsIndexed
+VdpStatus
+vdpau_output_surface_put_bits_indexed(
+    vdpau_driver_data_p  driver_data,
+    VdpOutputSurface     surface,
+    VdpIndexedFormat     source_indexed_format,
+    void const * const * source_data,
+    uint32_t const *     source_pitch,
+    VdpRect const *      destination_rect,
+    VdpColorTableFormat  color_table_format,
+    void const *         color_table
+)
+{
+    return VDPAU_INVOKE(output_surface_put_bits_indexed,
+                        surface,
+                        source_indexed_format,
+                        source_data,
+                        source_pitch,
+                        destination_rect,
+                        color_table_format,
+                        color_table);
 }
 
 // VdpBitmapSurfaceQueryCapabilities

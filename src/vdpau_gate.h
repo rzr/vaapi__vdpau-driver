@@ -40,6 +40,8 @@ struct vdpau_vtable {
     VdpOutputSurfaceGetBitsNative *vdp_output_surface_get_bits_native;
     VdpOutputSurfacePutBitsNative *vdp_output_surface_put_bits_native;
     VdpOutputSurfaceRenderBitmapSurface *vdp_output_surface_render_bitmap_surface;
+    VdpOutputSurfaceQueryPutBitsIndexedCapabilities *vdp_output_surface_query_put_bits_indexed_capabilities;
+    VdpOutputSurfacePutBitsIndexed *vdp_output_surface_put_bits_indexed;
     VdpBitmapSurfaceQueryCapabilities *vdp_bitmap_surface_query_capabilities;
     VdpBitmapSurfaceCreate      *vdp_bitmap_surface_create;
     VdpBitmapSurfaceDestroy     *vdp_bitmap_surface_destroy;
@@ -177,6 +179,30 @@ vdpau_output_surface_render_bitmap_surface(
     const VdpColor      *colors,
     const VdpOutputSurfaceRenderBlendState *blend_state,
     uint32_t             flags
+) attribute_hidden;
+
+// VdpOutputSurfaceQueryPutBitsIndexedCapabilities
+VdpStatus
+vdpau_output_surface_query_put_bits_indexed_capabilities(
+    vdpau_driver_data_p  driver_data,
+    VdpDevice            device,
+    VdpRGBAFormat        rgba_format,
+    VdpIndexedFormat     bits_indexed_format,
+    VdpColorTableFormat  color_table_format,
+    VdpBool             *is_supported
+) attribute_hidden;
+
+// VdpOutputSurfacePutBitsIndexed
+VdpStatus
+vdpau_output_surface_put_bits_indexed(
+    vdpau_driver_data_p  driver_data,
+    VdpOutputSurface     surface,
+    VdpIndexedFormat     source_indexed_format,
+    void const * const * source_data,
+    uint32_t const *     source_pitch,
+    VdpRect const *      destination_rect,
+    VdpColorTableFormat  color_table_format,
+    void const *         color_table
 ) attribute_hidden;
 
 // VdpBitmapSurfaceQueryCapabilities
