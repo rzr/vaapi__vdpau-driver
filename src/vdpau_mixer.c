@@ -137,7 +137,7 @@ video_mixer_unref(
 )
 {
     if (obj_mixer && --obj_mixer->refcount == 0)
-        destroy_output_surface(driver_data, obj_mixer);
+        video_mixer_destroy(driver_data, obj_mixer);
 }
 
 VdpStatus
