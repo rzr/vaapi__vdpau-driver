@@ -441,6 +441,8 @@ vdpau_CreateSurfaces(
         obj_surface->assocs_count       = 0;
         obj_surface->assocs_count_max   = 0;
         obj_surface->vdp_chroma_type    = vdp_chroma_type;
+        obj_surface->output_surface     = NULL;
+        obj_surface->video_mixer        = NULL;
         surfaces[i]                     = va_surface;
         vdp_surface                     = VDP_INVALID_HANDLE;
     }
