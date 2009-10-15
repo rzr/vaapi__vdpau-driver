@@ -329,11 +329,11 @@ vdpau_output_surface_put_bits_indexed(
     vdpau_driver_data_p  driver_data,
     VdpOutputSurface     surface,
     VdpIndexedFormat     source_indexed_format,
-    void const * const * source_data,
-    uint32_t const *     source_pitch,
-    VdpRect const *      destination_rect,
+    const uint8_t      **source_data,
+    const uint32_t      *source_pitch,
+    const VdpRect       *destination_rect,
     VdpColorTableFormat  color_table_format,
-    void const *         color_table
+    const void          *color_table
 )
 {
     return VDPAU_INVOKE(output_surface_put_bits_indexed,
@@ -401,8 +401,8 @@ VdpStatus
 vdpau_bitmap_surface_put_bits_native(
     vdpau_driver_data_t *driver_data,
     VdpBitmapSurface     surface,
-    uint8_t            **src,
-    uint32_t            *stride,
+    const uint8_t      **src,
+    const uint32_t      *stride,
     const VdpRect       *dest_rect
 )
 {

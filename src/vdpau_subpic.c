@@ -322,7 +322,7 @@ commit_subpicture(
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    uint8_t *src[1];
+    const uint8_t *src[1];
     uint32_t src_stride[1];
     src[0] = (uint8_t *)obj_buffer->buffer_data + obj_image->image.pitches[0];
     src_stride[0] = obj_image->image.pitches[0];
