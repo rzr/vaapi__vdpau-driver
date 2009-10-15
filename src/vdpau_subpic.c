@@ -322,46 +322,65 @@ commit_subpicture(
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    const uint8_t *src[1];
-    uint32_t src_stride[1];
-    src[0] = (uint8_t *)obj_buffer->buffer_data + obj_image->image.offsets[0];
-    src_stride[0] = obj_image->image.pitches[0];
-
     /* Update video surface only if the image (hence its buffer) was
        updated since our last synchronisation.
 
        NOTE: this assumes the user really unmaps the buffer when he is
        done with it, as it is actually required */
-    if (obj_subpicture->last_commit < obj_buffer->mtime) {
-        VdpStatus vdp_status;
-        switch (obj_subpicture->vdp_format_type) {
-        case VDP_IMAGE_FORMAT_TYPE_RGBA:
-            vdp_status = vdpau_bitmap_surface_put_bits_native(
-                driver_data,
-                obj_subpicture->vdp_bitmap_surface,
-                src, src_stride,
-                NULL /* TODO: dirty rect */
-            );
-            break;
-        case VDP_IMAGE_FORMAT_TYPE_INDEXED:
-            vdp_status = vdpau_output_surface_put_bits_indexed(
-                driver_data,
-                obj_subpicture->vdp_output_surface,
-                obj_subpicture->vdp_format,
-                src, src_stride,
-                NULL, /* TODO: dirty rect */
-                VDP_COLOR_TABLE_FORMAT_B8G8R8X8,
-                obj_image->vdp_palette
-            );
-            break;
-        default:
-            vdp_status = VDP_STATUS_ERROR;
-            break;
-        }
-        if (vdp_status != VDP_STATUS_OK)
-            return vdpau_get_VAStatus(driver_data, vdp_status);
-        obj_subpicture->last_commit = obj_buffer->mtime;
+    if (obj_subpicture->last_commit >= obj_buffer->mtime)
+        return VA_STATUS_SUCCESS;
+
+    VdpRect dirty_rect;
+    dirty_rect.x0 = obj_subpicture->width;
+    dirty_rect.y0 = obj_subpicture->height;
+    dirty_rect.x1 = 0;
+    dirty_rect.y1 = 0;
+
+    unsigned int i;
+    for (i = 0; i < obj_subpicture->assocs_count; i++) {
+        const VARectangle * const rect = &obj_subpicture->assocs[i]->src_rect;
+        dirty_rect.x0 = MIN(dirty_rect.x0, rect->x);
+        dirty_rect.y0 = MIN(dirty_rect.y0, rect->y);
+        dirty_rect.x1 = MAX(dirty_rect.x1, rect->x + rect->width);
+        dirty_rect.y1 = MAX(dirty_rect.y1, rect->y + rect->height);
     }
+
+    const uint8_t *src;
+    uint32_t src_stride;
+    src_stride = obj_image->image.pitches[0];
+    src = ((uint8_t *)obj_buffer->buffer_data + obj_image->image.offsets[0] +
+           dirty_rect.y0 * obj_image->image.pitches[0] +
+           dirty_rect.x0 * ((obj_image->image.format.bits_per_pixel + 7) / 8));
+
+    VdpStatus vdp_status;
+    switch (obj_subpicture->vdp_format_type) {
+    case VDP_IMAGE_FORMAT_TYPE_RGBA:
+        vdp_status = vdpau_bitmap_surface_put_bits_native(
+            driver_data,
+            obj_subpicture->vdp_bitmap_surface,
+            &src, &src_stride,
+            &dirty_rect
+        );
+        break;
+    case VDP_IMAGE_FORMAT_TYPE_INDEXED:
+        vdp_status = vdpau_output_surface_put_bits_indexed(
+            driver_data,
+            obj_subpicture->vdp_output_surface,
+            obj_subpicture->vdp_format,
+            &src, &src_stride,
+            &dirty_rect,
+            VDP_COLOR_TABLE_FORMAT_B8G8R8X8,
+            obj_image->vdp_palette
+        );
+        break;
+    default:
+        vdp_status = VDP_STATUS_ERROR;
+        break;
+    }
+    if (vdp_status != VDP_STATUS_OK)
+        return vdpau_get_VAStatus(driver_data, vdp_status);
+
+    obj_subpicture->last_commit = obj_buffer->mtime;
     return VA_STATUS_SUCCESS;
 }
 
