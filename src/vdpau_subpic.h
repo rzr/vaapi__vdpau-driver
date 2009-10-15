@@ -40,8 +40,9 @@ struct object_subpicture {
     unsigned int        width;
     unsigned int        height;
     VdpImageFormatType  vdp_format_type;
-    VdpRGBAFormat       vdp_format;
-    VdpBitmapSurface    vdp_surface;
+    uint32_t            vdp_format;
+    VdpBitmapSurface    vdp_bitmap_surface;
+    VdpOutputSurface    vdp_output_surface;
     uint64_t            last_commit;
 };
 

@@ -36,6 +36,7 @@ struct object_image {
     VdpImageFormatType  vdp_format_type;
     uint32_t            vdp_format;
     VdpOutputSurface    vdp_rgba_output_surface;
+    uint32_t           *vdp_palette;
 };
 
 // vaQueryImageFormats

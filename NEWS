@@ -2,6 +2,7 @@ vdpau-video NEWS -- summary of changes.  2009-10-14
 Copyright (C) 2009 Splitted-Desktop Systems
 
 Version 0.5.2 - 14.Oct.2009
+* Add indexed color subpicture formats
 * Fix rendering of subpictures
 * Fix vaCreateImage() to allow RGBA subpictures
 * Allocate VdpOutputSurface on-demand in vaGetImage() for RGBA formats

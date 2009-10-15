@@ -39,6 +39,18 @@ typedef struct {
 
 static const vdpau_subpic_format_map_t
 vdpau_subpic_formats_map[VDPAU_MAX_SUBPICTURE_FORMATS + 1] = {
+    { VDP_IMAGE_FORMAT_TYPE_INDEXED, VDP_INDEXED_FORMAT_A4I4,
+      { VA_FOURCC('A','I','4','4'), VA_MSB_FIRST, 8, },
+      0 },
+    { VDP_IMAGE_FORMAT_TYPE_INDEXED, VDP_INDEXED_FORMAT_I4A4,
+      { VA_FOURCC('I','A','4','4'), VA_MSB_FIRST, 8, },
+      0 },
+    { VDP_IMAGE_FORMAT_TYPE_INDEXED, VDP_INDEXED_FORMAT_A8I8,
+      { VA_FOURCC('A','I','8','8'), VA_MSB_FIRST, 16, },
+      0 },
+    { VDP_IMAGE_FORMAT_TYPE_INDEXED, VDP_INDEXED_FORMAT_I8A8,
+      { VA_FOURCC('I','A','8','8'), VA_MSB_FIRST, 16, },
+      0 },
 #ifdef WORDS_BIGENDIAN
     { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_B8G8R8A8,
       { VA_FOURCC('A','R','G','B'), VA_MSB_FIRST, 32,
@@ -81,20 +93,39 @@ static const vdpau_subpic_format_map_t *get_format(const VAImageFormat *format)
 
 // Checks whether the VDPAU implementation supports the specified image format
 static inline VdpBool
-is_supported_format(vdpau_driver_data_t *driver_data, VdpRGBAFormat format)
+is_supported_format(
+    vdpau_driver_data_t             *driver_data,
+    const vdpau_subpic_format_map_t *format)
 {
     VdpBool is_supported = VDP_FALSE;
     VdpStatus vdp_status;
     uint32_t max_width, max_height;
 
-    vdp_status = vdpau_bitmap_surface_query_capabilities(
-        driver_data,
-        driver_data->vdp_device,
-        format,
-        &is_supported,
-        &max_width,
-        &max_height
-    );
+    switch (format->vdp_format_type) {
+    case VDP_IMAGE_FORMAT_TYPE_RGBA:
+        vdp_status = vdpau_bitmap_surface_query_capabilities(
+            driver_data,
+            driver_data->vdp_device,
+            format->vdp_format,
+            &is_supported,
+            &max_width,
+            &max_height
+        );
+        break;
+    case VDP_IMAGE_FORMAT_TYPE_INDEXED:
+        vdp_status = vdpau_output_surface_query_put_bits_indexed_capabilities(
+            driver_data,
+            driver_data->vdp_device,
+            VDP_RGBA_FORMAT_B8G8R8A8,
+            format->vdp_format,
+            VDP_COLOR_TABLE_FORMAT_B8G8R8X8,
+            &is_supported
+        );
+        break;
+    default:
+        vdp_status = VDP_STATUS_ERROR;
+        break;
+    }
     return vdp_status == VDP_STATUS_OK && is_supported;
 }
 
@@ -302,12 +333,31 @@ commit_subpicture(
        NOTE: this assumes the user really unmaps the buffer when he is
        done with it, as it is actually required */
     if (obj_subpicture->last_commit < obj_buffer->mtime) {
-        VdpStatus vdp_status = vdpau_bitmap_surface_put_bits_native(
-            driver_data,
-            obj_subpicture->vdp_surface,
-            src, src_stride,
-            NULL /* TODO: dirty rect */
-        );
+        VdpStatus vdp_status;
+        switch (obj_subpicture->vdp_format_type) {
+        case VDP_IMAGE_FORMAT_TYPE_RGBA:
+            vdp_status = vdpau_bitmap_surface_put_bits_native(
+                driver_data,
+                obj_subpicture->vdp_bitmap_surface,
+                src, src_stride,
+                NULL /* TODO: dirty rect */
+            );
+            break;
+        case VDP_IMAGE_FORMAT_TYPE_INDEXED:
+            vdp_status = vdpau_output_surface_put_bits_indexed(
+                driver_data,
+                obj_subpicture->vdp_output_surface,
+                obj_subpicture->vdp_format,
+                src, src_stride,
+                NULL, /* TODO: dirty rect */
+                VDP_COLOR_TABLE_FORMAT_B8G8R8X8,
+                obj_image->vdp_palette
+            );
+            break;
+        default:
+            vdp_status = VDP_STATUS_ERROR;
+            break;
+        }
         if (vdp_status != VDP_STATUS_OK)
             return vdpau_get_VAStatus(driver_data, vdp_status);
         obj_subpicture->last_commit = obj_buffer->mtime;
@@ -332,52 +382,50 @@ create_subpicture(
     if (!obj_subpicture)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
-    obj_subpicture->image_id         = obj_image->base.id;
-    obj_subpicture->assocs           = NULL;
-    obj_subpicture->assocs_count     = 0;
-    obj_subpicture->assocs_count_max = 0;
-    obj_subpicture->width            = obj_image->image.width;
-    obj_subpicture->height           = obj_image->image.height;
-    obj_subpicture->vdp_surface      = VDP_INVALID_HANDLE;
-    obj_subpicture->last_commit      = 0;
-
     const vdpau_subpic_format_map_t *m = get_format(&obj_image->image.format);
+    if (!is_supported_format(driver_data, m))
+        return VA_STATUS_ERROR_UNKNOWN; /* VA_STATUS_ERROR_UNSUPPORTED_FORMAT */
+
+    obj_subpicture->image_id           = obj_image->base.id;
+    obj_subpicture->assocs             = NULL;
+    obj_subpicture->assocs_count       = 0;
+    obj_subpicture->assocs_count_max   = 0;
+    obj_subpicture->width              = obj_image->image.width;
+    obj_subpicture->height             = obj_image->image.height;
+    obj_subpicture->vdp_bitmap_surface = VDP_INVALID_HANDLE;
+    obj_subpicture->vdp_output_surface = VDP_INVALID_HANDLE;
+    obj_subpicture->last_commit        = 0;
     obj_subpicture->vdp_format_type    = m->vdp_format_type;
     obj_subpicture->vdp_format         = m->vdp_format;
 
-    VdpBool is_supported = VDP_FALSE;
-    uint32_t max_width, max_height;
-    VdpStatus vdp_status = vdpau_bitmap_surface_query_capabilities(
-        driver_data,
-        driver_data->vdp_device,
-        obj_subpicture->vdp_format,
-        &is_supported,
-        &max_width,
-        &max_height
-    );
-    if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
-    if (!is_supported)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-    if (obj_subpicture->width > max_width ||
-        obj_subpicture->height > max_height)
-        return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
-
-    VdpBitmapSurface vdp_surface = VDP_INVALID_HANDLE;
-    vdp_status = vdpau_bitmap_surface_create(
-        driver_data,
-        driver_data->vdp_device,
-        obj_subpicture->vdp_format,
-        obj_subpicture->width,
-        obj_subpicture->height,
-        VDP_FALSE,
-        &vdp_surface
-    );
-    if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
-
-    obj_subpicture->vdp_surface = vdp_surface;
-    return VA_STATUS_SUCCESS;
+    VdpStatus vdp_status;
+    switch (obj_subpicture->vdp_format_type) {
+    case VDP_IMAGE_FORMAT_TYPE_RGBA:
+        vdp_status = vdpau_bitmap_surface_create(
+            driver_data,
+            driver_data->vdp_device,
+            obj_subpicture->vdp_format,
+            obj_subpicture->width,
+            obj_subpicture->height,
+            VDP_FALSE,
+            &obj_subpicture->vdp_bitmap_surface
+        );
+        break;
+    case VDP_IMAGE_FORMAT_TYPE_INDEXED:
+        vdp_status = vdpau_output_surface_create(
+            driver_data,
+            driver_data->vdp_device,
+            VDP_RGBA_FORMAT_B8G8R8A8,
+            obj_subpicture->width,
+            obj_subpicture->height,
+            &obj_subpicture->vdp_output_surface
+        );
+        break;
+    default:
+        vdp_status = VDP_STATUS_ERROR;
+        break;
+    }
+    return vdpau_get_VAStatus(driver_data, vdp_status);
 }
 
 // Destroy subpicture
@@ -415,9 +463,20 @@ destroy_subpicture(
     obj_subpicture->assocs_count = 0;
     obj_subpicture->assocs_count_max = 0;
 
-    if (obj_subpicture->vdp_surface != VDP_INVALID_HANDLE) {
-        vdpau_bitmap_surface_destroy(driver_data, obj_subpicture->vdp_surface);
-        obj_subpicture->vdp_surface = VDP_INVALID_HANDLE;
+    if (obj_subpicture->vdp_bitmap_surface != VDP_INVALID_HANDLE) {
+        vdpau_bitmap_surface_destroy(
+            driver_data,
+            obj_subpicture->vdp_bitmap_surface
+        );
+        obj_subpicture->vdp_bitmap_surface = VDP_INVALID_HANDLE;
+    }
+
+    if (obj_subpicture->vdp_output_surface != VDP_INVALID_HANDLE) {
+        vdpau_output_surface_destroy(
+            driver_data,
+            obj_subpicture->vdp_output_surface
+        );
+        obj_subpicture->vdp_output_surface = VDP_INVALID_HANDLE;
     }
 
     obj_subpicture->image_id = VA_INVALID_ID;
@@ -439,7 +498,7 @@ vdpau_QuerySubpictureFormats(
     int n;
     for (n = 0; vdpau_subpic_formats_map[n].va_format.fourcc != 0; n++) {
         const vdpau_subpic_format_map_t * const m = &vdpau_subpic_formats_map[n];
-        if (is_supported_format(driver_data, m->vdp_format)) {
+        if (is_supported_format(driver_data, m)) {
             if (format_list)
                 format_list[n] = m->va_format;
             if (flags)

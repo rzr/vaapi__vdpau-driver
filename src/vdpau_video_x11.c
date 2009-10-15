@@ -336,6 +336,10 @@ render_subpicture(
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
+    object_image_p obj_image = VDPAU_IMAGE(obj_subpicture->image_id);
+    if (!obj_image)
+        return VA_STATUS_ERROR_INVALID_IMAGE;
+
     const float psx = (float)obj_surface->width  / (float)obj_subpicture->width;
     const float psy = (float)obj_surface->height / (float)obj_subpicture->height;
     const float ssx = (float)output_rect->width  / (float)obj_surface->width;
@@ -366,16 +370,36 @@ render_subpicture(
     blend_state.blend_equation_color           = VDP_OUTPUT_SURFACE_RENDER_BLEND_EQUATION_ADD;
     blend_state.blend_equation_alpha           = VDP_OUTPUT_SURFACE_RENDER_BLEND_EQUATION_ADD;
 
-    VdpStatus vdp_status = vdpau_output_surface_render_bitmap_surface(
-        driver_data,
-        obj_output->vdp_output_surfaces[obj_output->current_output_surface],
-        &dst_rect,
-        obj_subpicture->vdp_surface,
-        &src_rect,
-        NULL,
-        &blend_state,
-        VDP_OUTPUT_SURFACE_RENDER_ROTATE_0
-    );
+    VdpStatus vdp_status;
+    switch (obj_image->vdp_format_type) {
+    case VDP_IMAGE_FORMAT_TYPE_RGBA:
+        vdp_status = vdpau_output_surface_render_bitmap_surface(
+            driver_data,
+            obj_output->vdp_output_surfaces[obj_output->current_output_surface],
+            &dst_rect,
+            obj_subpicture->vdp_bitmap_surface,
+            &src_rect,
+            NULL,
+            &blend_state,
+            VDP_OUTPUT_SURFACE_RENDER_ROTATE_0
+        );
+        break;
+    case VDP_IMAGE_FORMAT_TYPE_INDEXED:
+        vdp_status = vdpau_output_surface_render_output_surface(
+            driver_data,
+            obj_output->vdp_output_surfaces[obj_output->current_output_surface],
+            &dst_rect,
+            obj_subpicture->vdp_output_surface,
+            &src_rect,
+            NULL,
+            &blend_state,
+            VDP_OUTPUT_SURFACE_RENDER_ROTATE_0
+        );
+        break;
+    default:
+        vdp_status = VDP_STATUS_ERROR;
+        break;
+    }
     return vdpau_get_VAStatus(driver_data, vdp_status);
 }
 

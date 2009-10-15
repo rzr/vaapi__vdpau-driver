@@ -30,18 +30,24 @@
 
 // List of supported image formats
 typedef struct {
-    VdpImageFormatType type;
-    uint32_t format;
-    VAImageFormat va_format;
+    VdpImageFormatType  vdp_format_type;
+    uint32_t            vdp_format;
+    VAImageFormat       va_format;
+    unsigned int        num_palette_entries;
+    unsigned int        entry_bytes;
+    char                component_order[4];
 } vdpau_image_format_map_t;
 
 static const vdpau_image_format_map_t vdpau_image_formats_map[] = {
 #define DEF(TYPE, FORMAT) \
     VDP_IMAGE_FORMAT_TYPE_##TYPE, VDP_##TYPE##_FORMAT_##FORMAT
 #define DEF_YUV(TYPE, FORMAT, FOURCC, ENDIAN, BPP) \
-    { DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, } }
+    { DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, }, }
 #define DEF_RGB(TYPE, FORMAT, FOURCC, ENDIAN, BPP, DEPTH, R,G,B,A) \
-    { DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A } }
+    { DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, DEPTH, R,G,B,A }, }
+#define DEF_IDX(TYPE, FORMAT, FOURCC, ENDIAN, BPP, NPE, EB, C0,C1,C2,C3) \
+    { DEF(TYPE, FORMAT), { VA_FOURCC FOURCC, VA_##ENDIAN##_FIRST, BPP, }, \
+      NPE, EB, { C0, C1, C2, C3 } }
     DEF_YUV(YCBCR, NV12,        ('N','V','1','2'), LSB, 12),
     DEF_YUV(YCBCR, YV12,        ('Y','V','1','2'), LSB, 12),
     DEF_YUV(YCBCR, UYVY,        ('U','Y','V','Y'), LSB, 16),
@@ -58,6 +64,15 @@ static const vdpau_image_format_map_t vdpau_image_formats_map[] = {
     DEF_RGB(RGBA, R8G8B8A8,     ('R','G','B','A'), LSB, 32,
             32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000),
 #endif
+    DEF_IDX(INDEXED, A4I4,      ('A','I','4','4'), MSB, 8,
+            16, 3, 'R','G','B',0),
+    DEF_IDX(INDEXED, I4A4,      ('I','A','4','4'), MSB, 8,
+            16, 3, 'R','G','B',0),
+    DEF_IDX(INDEXED, A8I8,      ('A','I','8','8'), MSB, 16,
+            256, 3, 'R','G','B',0),
+    DEF_IDX(INDEXED, I8A8,      ('I','A','8','8'), MSB, 16,
+            256, 3, 'R','G','B',0),
+#undef DEF_IDX
 #undef DEF_RGB
 #undef DEF_YUV
 #undef DEF
@@ -70,7 +85,7 @@ static const vdpau_image_format_map_t *get_format(const VAImageFormat *format)
     for (i = 0; i < ARRAY_ELEMS(vdpau_image_formats_map); i++) {
         const vdpau_image_format_map_t * const m = &vdpau_image_formats_map[i];
         if (m->va_format.fourcc == format->fourcc &&
-            (m->type == VDP_IMAGE_FORMAT_TYPE_RGBA ?
+            (m->vdp_format_type == VDP_IMAGE_FORMAT_TYPE_RGBA ?
              (m->va_format.byte_order == format->byte_order &&
               m->va_format.red_mask   == format->red_mask   &&
               m->va_format.green_mask == format->green_mask &&
@@ -134,7 +149,7 @@ vdpau_QueryImageFormats(
     int i, n = 0;
     for (i = 0; i < ARRAY_ELEMS(vdpau_image_formats_map); i++) {
         const vdpau_image_format_map_t * const f = &vdpau_image_formats_map[i];
-        if (is_supported_format(driver_data, f->type, f->format))
+        if (is_supported_format(driver_data, f->vdp_format_type, f->vdp_format))
             format_list[n++] = f->va_format;
     }
 
@@ -159,7 +174,7 @@ vdpau_CreateImage(
     VDPAU_DRIVER_DATA_INIT;
 
     VAStatus va_status = VA_STATUS_ERROR_OPERATION_FAILED;
-    unsigned int width2, height2, size2, size;
+    unsigned int i, width2, height2, size2, size;
 
     if (!format || !out_image)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -218,6 +233,20 @@ vdpau_CreateImage(
         image->offsets[0] = 0;
         image->data_size  = image->offsets[0] + image->pitches[0] * height;
         break;
+    case VA_FOURCC('I','A','4','4'):
+    case VA_FOURCC('A','I','4','4'):
+        image->num_planes = 1;
+        image->pitches[0] = width;
+        image->offsets[0] = 0;
+        image->data_size  = image->offsets[0] + image->pitches[0] * height;
+        break;
+    case VA_FOURCC('I','A','8','8'):
+    case VA_FOURCC('A','I','8','8'):
+        image->num_planes = 1;
+        image->pitches[0] = width * 2;
+        image->offsets[0] = 0;
+        image->data_size  = image->offsets[0] + image->pitches[0] * height;
+        break;
     default:
         goto error;
     }
@@ -229,17 +258,19 @@ vdpau_CreateImage(
         goto error;
 
     obj_image->vdp_rgba_output_surface = VDP_INVALID_HANDLE;
-    obj_image->vdp_format_type  = m->type;
-    obj_image->vdp_format       = m->format;
+    obj_image->vdp_format_type  = m->vdp_format_type;
+    obj_image->vdp_format       = m->vdp_format;
 
     image->image_id             = image_id;
     image->format               = *format;
     image->width                = width;
     image->height               = height;
-
-    /* XXX: no paletted formats supported yet */
-    image->num_palette_entries  = 0;
-    image->entry_bytes          = 0;
+    image->num_palette_entries  = m->num_palette_entries;
+    image->entry_bytes          = m->entry_bytes;
+    for (i = 0; i < image->entry_bytes; i++)
+        image->component_order[i] = m->component_order[i];
+    for (; i < 4; i++)
+        image->component_order[i] = 0;
 
     *out_image                  = *image;
     return VA_STATUS_SUCCESS;
@@ -266,6 +297,11 @@ vdpau_DestroyImage(
         vdpau_output_surface_destroy(driver_data,
                                      obj_image->vdp_rgba_output_surface);
 
+    if (obj_image->vdp_palette) {
+        free(obj_image->vdp_palette);
+        obj_image->vdp_palette = NULL;
+    }
+
     VABufferID buf = obj_image->image.buf;
     object_heap_free(&driver_data->image_heap, (object_base_p)obj_image);
     return vdpau_DestroyBuffer(ctx, buf);
@@ -283,6 +319,33 @@ vdpau_DeriveImage(
     return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 
+// Set image palette
+static VAStatus
+set_image_palette(
+    vdpau_driver_data_t *driver_data,
+    object_image_p       obj_image,
+    const unsigned char *palette
+)
+{
+    if (obj_image->vdp_format_type != VDP_IMAGE_FORMAT_TYPE_INDEXED)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    if (!obj_image->vdp_palette) {
+        obj_image->vdp_palette = malloc(4 * obj_image->image.num_palette_entries);
+        if (!obj_image->vdp_palette)
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    }
+
+    unsigned int i;
+    for (i = 0; i < obj_image->image.num_palette_entries; i++) {
+        /* B8G8R8X8 format */
+        obj_image->vdp_palette[i] = ((palette[3*i + 0] << 16) |
+                                     (palette[3*i + 1] <<  8) |
+                                      palette[3*i + 0]);
+    }
+    return VA_STATUS_SUCCESS;
+}
+
 // vaSetImagePalette
 VAStatus
 vdpau_SetImagePalette(
@@ -291,8 +354,13 @@ vdpau_SetImagePalette(
     unsigned char      *palette
 )
 {
-    /* TODO */
-    return VA_STATUS_ERROR_OPERATION_FAILED;
+    VDPAU_DRIVER_DATA_INIT;
+
+    object_image_p obj_image = VDPAU_IMAGE(image);
+    if (!obj_image)
+        return VA_STATUS_ERROR_INVALID_IMAGE;
+
+    return set_image_palette(driver_data, obj_image, palette);
 }
 
 // Get image from surface
