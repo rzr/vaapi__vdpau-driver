@@ -324,7 +324,7 @@ commit_subpicture(
 
     const uint8_t *src[1];
     uint32_t src_stride[1];
-    src[0] = (uint8_t *)obj_buffer->buffer_data + obj_image->image.pitches[0];
+    src[0] = (uint8_t *)obj_buffer->buffer_data + obj_image->image.offsets[0];
     src_stride[0] = obj_image->image.pitches[0];
 
     /* Update video surface only if the image (hence its buffer) was
