@@ -61,6 +61,8 @@ int vdpau_gate_init(vdpau_driver_data_t *driver_data)
                   output_surface_put_bits_native);
     VDP_INIT_PROC(OUTPUT_SURFACE_RENDER_BITMAP_SURFACE,
                   output_surface_render_bitmap_surface);
+    VDP_INIT_PROC(OUTPUT_SURFACE_RENDER_OUTPUT_SURFACE,
+                  output_surface_render_output_surface);
     VDP_INIT_PROC(OUTPUT_SURFACE_QUERY_PUT_BITS_INDEXED_CAPABILITIES,
                   output_surface_query_put_bits_indexed_capabilities);
     VDP_INIT_PROC(OUTPUT_SURFACE_PUT_BITS_INDEXED,
@@ -270,6 +272,29 @@ vdpau_output_surface_render_bitmap_surface(
 )
 {
     return VDPAU_INVOKE(output_surface_render_bitmap_surface,
+                        destination_surface,
+                        destination_rect,
+                        source_surface,
+                        source_rect,
+                        colors,
+                        blend_state,
+                        flags);
+}
+
+// VdpOutputSurfaceRenderOutputSurface
+VdpStatus
+vdpau_output_surface_render_output_surface(
+    vdpau_driver_data_p driver_data,
+    VdpOutputSurface    destination_surface,
+    const VdpRect      *destination_rect,
+    VdpOutputSurface    source_surface,
+    const VdpRect      *source_rect,
+    const VdpColor     *colors,
+    const VdpOutputSurfaceRenderBlendState *blend_state,
+    uint32_t            flags
+)
+{
+    return VDPAU_INVOKE(output_surface_render_output_surface,
                         destination_surface,
                         destination_rect,
                         source_surface,
