@@ -157,6 +157,33 @@ void dump_VdpPictureInfoMPEG1Or2(VdpPictureInfoMPEG1Or2 *pic_info)
     INDENT(-1);
 }
 
+// Dumps VdpPictureInfoMPEG4Part2
+void dump_VdpPictureInfoMPEG4Part2(VdpPictureInfoMPEG4Part2 *pic_info)
+{
+    INDENT(1);
+    TRACE("VdpPictureInfoMPEG4Part2 = {\n");
+    INDENT(1);
+    DUMPx(pic_info, forward_reference);
+    DUMPx(pic_info, backward_reference);
+    DUMPi(pic_info, vop_time_increment_resolution);
+    DUMPi(pic_info, vop_coding_type);
+    DUMPi(pic_info, vop_fcode_forward);
+    DUMPi(pic_info, vop_fcode_backward);
+    DUMPi(pic_info, resync_marker_disable);
+    DUMPi(pic_info, interlaced);
+    DUMPi(pic_info, quant_type);
+    DUMPi(pic_info, quarter_sample);
+    DUMPi(pic_info, short_video_header);
+    DUMPi(pic_info, rounding_control);
+    DUMPi(pic_info, alternate_vertical_scan_flag);
+    DUMPi(pic_info, top_field_first);
+    DUMPm(pic_info, intra_quantizer_matrix, 8, 8);
+    DUMPm(pic_info, non_intra_quantizer_matrix, 8, 8);
+    INDENT(-1);
+    TRACE("};\n");
+    INDENT(-1);
+}
+
 // Dumps VdpReferenceFrameH264
 static void
 dump_VdpReferenceFrameH264(VdpReferenceFrameH264 *rf, const char *label)

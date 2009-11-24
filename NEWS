@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2009-10-15
+vdpau-video NEWS -- summary of changes.  2009-12-DD
 Copyright (C) 2009 Splitted-Desktop Systems
+
+Version 0.6.0 - DD.Dec.2009
+* Add MPEG-4 decoding support
 
 Version 0.5.2 - 15.Oct.2009
 * Add indexed color subpicture formats

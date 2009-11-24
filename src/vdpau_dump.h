@@ -40,6 +40,10 @@ const char *string_of_VdpCodec(VdpCodec codec)
 void dump_VdpPictureInfoMPEG1Or2(VdpPictureInfoMPEG1Or2 *pic_info)
     attribute_hidden;
 
+// Dumps VdpPictureInfoMPEG4Part2
+void dump_VdpPictureInfoMPEG4Part2(VdpPictureInfoMPEG4Part2 *pic_info)
+    attribute_hidden;
+
 // Dumps VdpPictureInfoH264
 void dump_VdpPictureInfoH264(VdpPictureInfoH264 *pic_info)
     attribute_hidden;

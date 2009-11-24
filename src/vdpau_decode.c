@@ -25,6 +25,7 @@
 #include "vdpau_video.h"
 #include "vdpau_dump.h"
 #include "utils.h"
+#include "put_bits.h"
 
 #define DEBUG 1
 #include "debug.h"
@@ -55,6 +56,17 @@ VdpCodec get_VdpCodec(VdpDecoderProfile profile)
     case VDP_DECODER_PROFILE_MPEG2_SIMPLE:
     case VDP_DECODER_PROFILE_MPEG2_MAIN:
         return VDP_CODEC_MPEG2;
+    case VDP_DECODER_PROFILE_MPEG4_PART2_SP:
+    case VDP_DECODER_PROFILE_MPEG4_PART2_ASP:
+    case VDP_DECODER_PROFILE_DIVX4_QMOBILE:
+    case VDP_DECODER_PROFILE_DIVX4_MOBILE:
+    case VDP_DECODER_PROFILE_DIVX4_HOME_THEATER:
+    case VDP_DECODER_PROFILE_DIVX4_HD_1080P:
+    case VDP_DECODER_PROFILE_DIVX5_QMOBILE:
+    case VDP_DECODER_PROFILE_DIVX5_MOBILE:
+    case VDP_DECODER_PROFILE_DIVX5_HOME_THEATER:
+    case VDP_DECODER_PROFILE_DIVX5_HD_1080P:
+        return VDP_CODEC_MPEG4;
     case VDP_DECODER_PROFILE_H264_BASELINE:
     case VDP_DECODER_PROFILE_H264_MAIN:
     case VDP_DECODER_PROFILE_H264_HIGH:
@@ -74,6 +86,8 @@ VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
     switch (profile) {
     case VAProfileMPEG2Simple:  return VDP_DECODER_PROFILE_MPEG2_SIMPLE;
     case VAProfileMPEG2Main:    return VDP_DECODER_PROFILE_MPEG2_MAIN;
+    case VAProfileMPEG4Simple:  return VDP_DECODER_PROFILE_MPEG4_PART2_SP;
+    case VAProfileMPEG4AdvancedSimple: return VDP_DECODER_PROFILE_MPEG4_PART2_ASP;
     case VAProfileH264Baseline: return VDP_DECODER_PROFILE_H264_BASELINE;
     case VAProfileH264Main:     return VDP_DECODER_PROFILE_H264_MAIN;
     case VAProfileH264High:     return VDP_DECODER_PROFILE_H264_HIGH;
@@ -174,6 +188,25 @@ ensure_decoder_with_max_refs(
                                     &obj_context->vdp_decoder);
     }
     return VDP_STATUS_OK;
+}
+
+// Lazy allocate (generated) slice data buffer. Buffer lives until vaDestroyContext()
+static uint8_t *
+alloc_gen_slice_data(object_context_p obj_context, unsigned int size)
+{
+    uint8_t *gen_slice_data = obj_context->gen_slice_data;
+
+    if (obj_context->gen_slice_data_size + size > obj_context->gen_slice_data_size_max) {
+        obj_context->gen_slice_data_size_max += size;
+        gen_slice_data = realloc(obj_context->gen_slice_data,
+                                 obj_context->gen_slice_data_size_max);
+        if (!gen_slice_data)
+            return NULL;
+        obj_context->gen_slice_data = gen_slice_data;
+    }
+    gen_slice_data += obj_context->gen_slice_data_size;
+    obj_context->gen_slice_data_size += size;
+    return gen_slice_data;
 }
 
 // Lazy allocate VdpBitstreamBuffer. Buffer lives until vaDestroyContext()
@@ -277,6 +310,40 @@ static const uint8_t ff_mpeg1_default_non_intra_matrix[64] = {
     16, 16, 16, 16, 16, 16, 16, 16
 };
 
+static const uint8_t ff_mpeg4_default_intra_matrix[64] = {
+     8, 17, 18, 19, 21, 23, 25, 27,
+    17, 18, 19, 21, 23, 25, 27, 28,
+    20, 21, 22, 23, 24, 26, 28, 30,
+    21, 22, 23, 24, 26, 28, 30, 32,
+    22, 23, 24, 26, 28, 30, 32, 35,
+    23, 24, 26, 28, 30, 32, 35, 38,
+    25, 26, 28, 30, 32, 35, 38, 41,
+    27, 28, 30, 32, 35, 38, 41, 45,
+};
+
+static const uint8_t ff_mpeg4_default_non_intra_matrix[64] = {
+    16, 17, 18, 19, 20, 21, 22, 23,
+    17, 18, 19, 20, 21, 22, 23, 24,
+    18, 19, 20, 21, 22, 23, 24, 25,
+    19, 20, 21, 22, 23, 24, 26, 27,
+    20, 21, 22, 23, 25, 26, 27, 28,
+    21, 22, 23, 24, 26, 27, 28, 30,
+    22, 23, 24, 26, 27, 28, 30, 31,
+    23, 24, 25, 27, 28, 30, 31, 33,
+};
+
+// Compute integer log2
+static inline int ilog2(uint32_t v)
+{
+    /* From <http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog> */
+    uint32_t r, shift;
+    r     = (v > 0xffff) << 4; v >>= r;
+    shift = (v > 0xff  ) << 3; v >>= shift; r |= shift;
+    shift = (v > 0xf   ) << 2; v >>= shift; r |= shift;
+    shift = (v > 0x3   ) << 1; v >>= shift; r |= shift;
+    return r | (v >> 1);
+}
+
 // Translate VASurfaceID
 static int
 translate_VASurfaceID(
@@ -374,6 +441,92 @@ translate_VASliceDataBuffer(
                                           slice_param->slice_data_size) < 0)
                 return 0;
         }
+        return 1;
+    }
+
+    if (obj_context->vdp_codec == VDP_CODEC_MPEG4 &&
+        obj_context->vdp_bitstream_buffers_count == 0) {
+        PutBitContext pb;
+        uint8_t slice_header_buffer[32];
+        uint8_t *slice_header;
+        int slice_header_size;
+        const uint8_t *slice_data = obj_buffer->buffer_data;
+        uint32_t slice_data_size = obj_buffer->buffer_size;
+        VAPictureParameterBufferMPEG4 * const pic_param = obj_context->last_pic_param;
+        VASliceParameterBufferMPEG4 * const slice_param = obj_context->last_slice_params;
+
+        int time_incr = 1 + ilog2(pic_param->vop_time_increment_resolution - 1);
+        if (time_incr < 1)
+            time_incr = 1;
+
+        static const uint16_t VOP_STARTCODE = 0x01b6;
+        enum {
+            VOP_I_TYPE = 0,
+            VOP_P_TYPE,
+            VOP_B_TYPE,
+            VOP_S_TYPE
+        };
+
+        /* XXX: this is a hack to compute the length of
+           modulo_time_base "1" sequence. We probably should be
+           reconstructing through an extra VOP field in VA-API? */
+        int nbits = (32 +                               /* VOP start code       */
+                     2 +                                /* vop_coding_type      */
+                     1 +                                /* modulo_time_base "0" */
+                     1 +                                /* marker_bit           */
+                     time_incr +                        /* vop_time_increment   */
+                     1 +                                /* marker_bit           */
+                     1 +                                /* vop_coded            */
+                     (pic_param->vop_fields.bits.vop_coding_type == VOP_P_TYPE ? 1 : 0) +
+                     3 +                                /* intra_dc_vlc_thr     */
+                     (pic_param->vol_fields.bits.interlaced ? 2 : 0) +
+                     pic_param->quant_precision +       /* vop_quant            */
+                     (pic_param->vop_fields.bits.vop_coding_type != VOP_I_TYPE ? 3 : 0) +
+                     (pic_param->vop_fields.bits.vop_coding_type == VOP_B_TYPE ? 3 : 0));
+        nbits = slice_param->macroblock_offset - (nbits % 8);
+
+        /* Reconstruct the VOP header */
+        init_put_bits(&pb, slice_header_buffer, sizeof(slice_header_buffer));
+        put_bits(&pb, 16, 0);                   /* vop header */
+        put_bits(&pb, 16, VOP_STARTCODE);       /* vop header */
+        put_bits(&pb, 2, pic_param->vop_fields.bits.vop_coding_type);
+        while (nbits-- > 0)
+            put_bits(&pb, 1, 1);                /* modulo_time_base "1" */
+        put_bits(&pb, 1, 0);                    /* modulo_time_base "0" */
+        put_bits(&pb, 1, 1);                    /* marker */
+        put_bits(&pb, time_incr, 0);            /* time increment */
+        put_bits(&pb, 1, 1);                    /* marker */
+        put_bits(&pb, 1, 1);                    /* vop coded */
+        if (pic_param->vop_fields.bits.vop_coding_type == VOP_P_TYPE)
+            put_bits(&pb, 1, pic_param->vop_fields.bits.vop_rounding_type);
+        put_bits(&pb, 3, pic_param->vop_fields.bits.intra_dc_vlc_thr);
+        if (pic_param->vol_fields.bits.interlaced) {
+            put_bits(&pb, 1, pic_param->vop_fields.bits.top_field_first);
+            put_bits(&pb, 1, pic_param->vop_fields.bits.alternate_vertical_scan_flag);
+        }
+        put_bits(&pb, pic_param->quant_precision, slice_param->quant_scale);
+        if (pic_param->vop_fields.bits.vop_coding_type != VOP_I_TYPE)
+            put_bits(&pb, 3, pic_param->vop_fcode_forward);
+        if (pic_param->vop_fields.bits.vop_coding_type == VOP_B_TYPE)
+            put_bits(&pb, 3, pic_param->vop_fcode_backward);
+
+        /* Merge in bits from the first byte of the slice */
+        ASSERT((put_bits_count(&pb) % 8) == slice_param->macroblock_offset);
+        if ((put_bits_count(&pb) % 8) != slice_param->macroblock_offset)
+            return 0;
+        const int r = 8 - (put_bits_count(&pb) % 8);
+        put_bits(&pb, r, slice_data[0] & ((1U << r) - 1));
+        flush_put_bits(&pb);
+
+        slice_header_size = put_bits_count(&pb) / 8;
+        slice_header = alloc_gen_slice_data(obj_context, slice_header_size);
+        if (!slice_header)
+            return 0;
+        memcpy(slice_header, slice_header_buffer, slice_header_size);
+        if (append_VdpBitstreamBuffer(obj_context, slice_header, slice_header_size) < 0)
+            return 0;
+        if (append_VdpBitstreamBuffer(obj_context, slice_data + 1, slice_data_size - 1) < 0)
+            return 0;
         return 1;
     }
 
@@ -477,6 +630,107 @@ translate_VASliceParameterBufferMPEG2(
     VdpPictureInfoMPEG1Or2 * const pic_info = &obj_context->vdp_picture_info.mpeg2;
 
     pic_info->slice_count               += obj_buffer->num_elements;
+    obj_context->last_slice_params       = obj_buffer->buffer_data;
+    obj_context->last_slice_params_count = obj_buffer->num_elements;
+    return 1;
+}
+
+// Translate VAPictureParameterBufferMPEG4
+static int
+translate_VAPictureParameterBufferMPEG4(
+    vdpau_driver_data_p driver_data,
+    object_context_p    obj_context,
+    object_buffer_p     obj_buffer
+)
+{
+    VdpPictureInfoMPEG4Part2 * const pic_info = &obj_context->vdp_picture_info.mpeg4;
+    VAPictureParameterBufferMPEG4 * const pic_param = obj_buffer->buffer_data;
+
+    /* XXX: we don't support short-video-header formats */
+    if (pic_param->vol_fields.bits.short_video_header)
+        return 0;
+
+    if (!translate_VASurfaceID(driver_data,
+                               pic_param->forward_reference_picture,
+                               &pic_info->forward_reference))
+        return 0;
+
+    if (!translate_VASurfaceID(driver_data,
+                               pic_param->backward_reference_picture,
+                               &pic_info->backward_reference))
+        return 0;
+
+    memset(pic_info->trd, 0, sizeof(pic_info->trd));
+    memset(pic_info->trb, 0, sizeof(pic_info->trb));
+
+    pic_info->vop_time_increment_resolution     = pic_param->vop_time_increment_resolution;
+    pic_info->vop_coding_type                   = pic_param->vop_fields.bits.vop_coding_type;
+    pic_info->vop_fcode_forward                 = pic_param->vop_fcode_forward;
+    pic_info->vop_fcode_backward                = pic_param->vop_fcode_backward;
+    pic_info->resync_marker_disable             = pic_param->vol_fields.bits.resync_marker_disable;
+    pic_info->interlaced                        = pic_param->vol_fields.bits.interlaced;
+    pic_info->quant_type                        = pic_param->vol_fields.bits.quant_type;
+    pic_info->quarter_sample                    = pic_param->vol_fields.bits.quarter_sample;
+    pic_info->short_video_header                = pic_param->vol_fields.bits.short_video_header;
+    pic_info->rounding_control                  = pic_param->vop_fields.bits.vop_rounding_type;
+    pic_info->alternate_vertical_scan_flag      = pic_param->vop_fields.bits.alternate_vertical_scan_flag;
+    pic_info->top_field_first                   = pic_param->vop_fields.bits.top_field_first;
+
+    obj_context->last_pic_param                 = obj_buffer->buffer_data;
+    return 1;
+}
+
+// Translate VAIQMatrixBufferMPEG4
+static int
+translate_VAIQMatrixBufferMPEG4(
+    vdpau_driver_data_p driver_data,
+    object_context_p    obj_context,
+    object_buffer_p     obj_buffer
+)
+{
+    VdpPictureInfoMPEG4Part2 * const pic_info = &obj_context->vdp_picture_info.mpeg4;
+    VAIQMatrixBufferMPEG4 * const iq_matrix = obj_buffer->buffer_data;
+    const uint8_t *intra_matrix;
+    const uint8_t *intra_matrix_lookup;
+    const uint8_t *inter_matrix;
+    const uint8_t *inter_matrix_lookup;
+    int i;
+
+    if (iq_matrix->load_intra_quant_mat) {
+        intra_matrix = iq_matrix->intra_quant_mat;
+        intra_matrix_lookup = ff_zigzag_direct;
+    }
+    else {
+        intra_matrix = ff_mpeg4_default_intra_matrix;
+        intra_matrix_lookup = ff_identity;
+    }
+
+    if (iq_matrix->load_non_intra_quant_mat) {
+        inter_matrix = iq_matrix->non_intra_quant_mat;
+        inter_matrix_lookup = ff_zigzag_direct;
+    }
+    else {
+        inter_matrix = ff_mpeg4_default_non_intra_matrix;
+        inter_matrix_lookup = ff_identity;
+    }
+
+    for (i = 0; i < 64; i++) {
+        pic_info->intra_quantizer_matrix[intra_matrix_lookup[i]] =
+            intra_matrix[i];
+        pic_info->non_intra_quantizer_matrix[inter_matrix_lookup[i]] =
+            inter_matrix[i];
+    }
+    return 1;
+}
+
+// Translate VASliceParameterBufferMPEG4
+static int
+translate_VASliceParameterBufferMPEG4(
+    vdpau_driver_data_p driver_data,
+    object_context_p    obj_context,
+    object_buffer_p     obj_buffer
+    )
+{
     obj_context->last_slice_params       = obj_buffer->buffer_data;
     obj_context->last_slice_params_count = obj_buffer->num_elements;
     return 1;
@@ -686,6 +940,9 @@ translate_buffer(
         _(MPEG2, PictureParameter),
         _(MPEG2, IQMatrix),
         _(MPEG2, SliceParameter),
+        _(MPEG4, PictureParameter),
+        _(MPEG4, IQMatrix),
+        _(MPEG4, SliceParameter),
         _(H264, PictureParameter),
         _(H264, IQMatrix),
         _(H264, SliceParameter),
@@ -860,6 +1117,9 @@ vdpau_QueryConfigProfiles(
     static const VAProfile va_profiles[] = {
         VAProfileMPEG2Simple,
         VAProfileMPEG2Main,
+        VAProfileMPEG4Simple,
+        VAProfileMPEG4AdvancedSimple,
+        VAProfileMPEG4Main,
         VAProfileH264Baseline,
         VAProfileH264Main,
         VAProfileH264High,
@@ -903,6 +1163,11 @@ vdpau_QueryConfigEntrypoints(
     switch (profile) {
     case VAProfileMPEG2Simple:
     case VAProfileMPEG2Main:
+        entrypoint = VAEntrypointVLD;
+        break;
+    case VAProfileMPEG4Simple:
+    case VAProfileMPEG4AdvancedSimple:
+    case VAProfileMPEG4Main:
         entrypoint = VAEntrypointVLD;
         break;
     case VAProfileH264Baseline:
@@ -951,15 +1216,19 @@ vdpau_BeginPicture(
 
     obj_surface->va_surface_status           = VASurfaceRendering;
     obj_surface->vdp_output_surface          = VDP_INVALID_HANDLE;
+    obj_context->last_pic_param              = NULL;
     obj_context->last_slice_params           = NULL;
     obj_context->last_slice_params_count     = 0;
     obj_context->current_render_target       = obj_surface->base.id;
+    obj_context->gen_slice_data_size         = 0;
     obj_context->vdp_bitstream_buffers_count = 0;
 
     switch (obj_context->vdp_codec) {
     case VDP_CODEC_MPEG1:
     case VDP_CODEC_MPEG2:
         obj_context->vdp_picture_info.mpeg2.slice_count = 0;
+        break;
+    case VDP_CODEC_MPEG4:
         break;
     case VDP_CODEC_H264:
         obj_context->vdp_picture_info.h264.slice_count = 0;
@@ -1053,6 +1322,9 @@ vdpau_EndPicture(
         case VDP_CODEC_MPEG1:
         case VDP_CODEC_MPEG2:
             dump_VdpPictureInfoMPEG1Or2(&obj_context->vdp_picture_info.mpeg2);
+            break;
+        case VDP_CODEC_MPEG4:
+            dump_VdpPictureInfoMPEG4Part2(&obj_context->vdp_picture_info.mpeg4);
             break;
         case VDP_CODEC_H264:
             dump_VdpPictureInfoH264(&obj_context->vdp_picture_info.h264);

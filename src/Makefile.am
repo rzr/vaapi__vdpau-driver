@@ -36,6 +36,7 @@ source_h = \
 source_c = \
 	debug.c		\
 	object_heap.c	\
+	put_bits.h	\
 	utils.c		\
 	vdpau_buffer.c	\
 	vdpau_decode.c	\

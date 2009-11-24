@@ -179,6 +179,14 @@ vdpau_CreateConfig(
         else
             va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
         break;
+    case VAProfileMPEG4Simple:
+    case VAProfileMPEG4AdvancedSimple:
+    case VAProfileMPEG4Main:
+        if (entrypoint == VAEntrypointVLD)
+            va_status = VA_STATUS_SUCCESS;
+        else
+            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
+        break;
     case VAProfileH264Baseline:
     case VAProfileH264Main:
     case VAProfileH264High:
@@ -468,9 +476,17 @@ VAStatus vdpau_DestroyContext(VADriverContextP ctx, VAContextID context)
     if (obj_context == NULL)
         return VA_STATUS_ERROR_INVALID_CONTEXT;
 
+    if (obj_context->gen_slice_data) {
+        free(obj_context->gen_slice_data);
+        obj_context->gen_slice_data = NULL;
+        obj_context->gen_slice_data_size = 0;
+        obj_context->gen_slice_data_size_max = 0;
+    }
+
     if (obj_context->vdp_bitstream_buffers) {
         free(obj_context->vdp_bitstream_buffers);
         obj_context->vdp_bitstream_buffers = NULL;
+        obj_context->vdp_bitstream_buffers_count = 0;
         obj_context->vdp_bitstream_buffers_count_max = 0;
     }
 
@@ -577,6 +593,9 @@ vdpau_CreateContext(
     obj_context->vdp_decoder            = VDP_INVALID_HANDLE;
     obj_context->vdp_video_surfaces     = (VdpVideoSurface *)
         calloc(num_render_targets, sizeof(VdpVideoSurface));
+    obj_context->gen_slice_data = NULL;
+    obj_context->gen_slice_data_size = 0;
+    obj_context->gen_slice_data_size_max = 0;
     obj_context->vdp_bitstream_buffers = NULL;
     obj_context->vdp_bitstream_buffers_count = 0;
     obj_context->vdp_bitstream_buffers_count_max = 0;

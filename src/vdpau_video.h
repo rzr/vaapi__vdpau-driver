@@ -59,17 +59,22 @@ struct object_context {
     VABufferID                  *dead_buffers;
     uint32_t                     dead_buffers_count;
     uint32_t                     dead_buffers_count_max;
+    void                        *last_pic_param;
     void                        *last_slice_params;
     unsigned int                 last_slice_params_count;
     VdpCodec                     vdp_codec;
     VdpDecoderProfile            vdp_profile;
     VdpDecoder                   vdp_decoder;
     VdpVideoSurface             *vdp_video_surfaces;
+    uint8_t                     *gen_slice_data;
+    unsigned int                 gen_slice_data_size;
+    unsigned int                 gen_slice_data_size_max;
     VdpBitstreamBuffer          *vdp_bitstream_buffers;
     unsigned int                 vdp_bitstream_buffers_count;
     unsigned int                 vdp_bitstream_buffers_count_max;
     union {
         VdpPictureInfoMPEG1Or2   mpeg2;
+        VdpPictureInfoMPEG4Part2 mpeg4;
         VdpPictureInfoH264       h264;
         VdpPictureInfoVC1        vc1;
     }                            vdp_picture_info;
