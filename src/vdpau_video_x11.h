@@ -36,6 +36,7 @@ struct object_output {
     VdpPresentationQueueTarget  vdp_flip_target;
     VdpOutputSurface            vdp_output_surfaces[VDPAU_MAX_OUTPUT_SURFACES];
     int                         current_output_surface;
+    unsigned int                fields;
 };
 
 // Destroy output surface

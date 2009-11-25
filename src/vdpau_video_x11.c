@@ -134,6 +134,7 @@ output_surface_create(
     obj_output->vdp_flip_queue          = VDP_INVALID_HANDLE;
     obj_output->vdp_flip_target         = VDP_INVALID_HANDLE;
     obj_output->current_output_surface  = 0;
+    obj_output->fields                  = 0;
 
     unsigned int i;
     for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++)
@@ -439,6 +440,32 @@ render_subpictures(
     return VA_STATUS_SUCCESS;
 }
 
+static VAStatus
+queue_surface(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    object_output_p      obj_output)
+{
+    VdpStatus vdp_status = vdpau_presentation_queue_display(
+        driver_data,
+        obj_output->vdp_flip_queue,
+        obj_output->vdp_output_surfaces[obj_output->current_output_surface],
+        obj_output->width,
+        obj_output->height,
+        0
+    );
+    if (vdp_status != VDP_STATUS_OK)
+        return vdpau_get_VAStatus(driver_data, vdp_status);
+
+    obj_surface->va_surface_status     = VASurfaceDisplaying;
+    obj_surface->vdp_output_surface    =
+        obj_output->vdp_output_surfaces[obj_output->current_output_surface];
+    obj_output->current_output_surface =
+        (obj_output->current_output_surface + 1) % VDPAU_MAX_OUTPUT_SURFACES;
+    obj_output->fields                 = 0;
+    return VA_STATUS_SUCCESS;
+}
+
 // Render surface to a Drawable
 VAStatus
 put_surface(
@@ -479,6 +506,18 @@ put_surface(
     obj_surface->va_surface_status  = VASurfaceReady;
     obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
 
+    int fields = flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD);
+    if (!fields)
+        fields = VA_TOP_FIELD|VA_BOTTOM_FIELD;
+
+    /* If we are trying to put the same field, this means we have
+       started a new picture, so flush the current one */
+    if (obj_output->fields & fields) {
+        va_status = queue_surface(driver_data, obj_surface, obj_output);
+        if (va_status != VA_STATUS_SUCCESS)
+            return va_status;
+    }
+
     /* Wait for the output surface to be ready.
        i.e. it completed the previous rendering */
     VdpTime dummy_time;
@@ -517,23 +556,13 @@ put_surface(
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
-    /* Queue surface for display */
-    vdp_status  = vdpau_presentation_queue_display(
-        driver_data,
-        obj_output->vdp_flip_queue,
-        obj_output->vdp_output_surfaces[obj_output->current_output_surface],
-        drawable_width,
-        drawable_height,
-        0
-    );
-    if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
-
-    obj_surface->va_surface_status     = VASurfaceDisplaying;
-    obj_surface->vdp_output_surface    =
-        obj_output->vdp_output_surfaces[obj_output->current_output_surface];
-    obj_output->current_output_surface =
-        (obj_output->current_output_surface + 1) % VDPAU_MAX_OUTPUT_SURFACES;
+    /* Queue surface for display, if the picture is complete (all fields mixed in) */
+    obj_output->fields |= fields;
+    if (obj_output->fields == (VA_TOP_FIELD|VA_BOTTOM_FIELD)) {
+        va_status = queue_surface(driver_data, obj_surface, obj_output);
+        if (va_status != VA_STATUS_SUCCESS)
+            return va_status;
+    }
     return VA_STATUS_SUCCESS;
 }
 

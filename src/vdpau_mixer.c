@@ -73,6 +73,9 @@ video_mixer_create(
     obj_mixer->param_values[n++] = &obj_mixer->vdp_chroma_type;
     obj_mixer->n_params          = n;
 
+    for (n = 0; n < 3; n++)
+        obj_mixer->deint_surfaces[n] = VDP_INVALID_HANDLE;
+
     VdpStatus status;
     status = vdpau_video_mixer_create(
         driver_data,
@@ -226,6 +229,14 @@ video_mixer_update_csc_matrix(
     return VDP_STATUS_OK;
 }
 
+static inline void
+video_mixer_push_deint_surface(object_mixer_p obj_mixer, object_surface_p obj_surface)
+{
+    obj_mixer->deint_surfaces[2] = obj_mixer->deint_surfaces[1];
+    obj_mixer->deint_surfaces[1] = obj_mixer->deint_surfaces[0];
+    obj_mixer->deint_surfaces[0] = obj_surface->vdp_surface;
+}
+
 VdpStatus
 video_mixer_render(
     vdpau_driver_data_t *driver_data,
@@ -255,18 +266,32 @@ video_mixer_render(
     if (vdp_status != VDP_STATUS_OK)
         return vdp_status;
 
-    return vdpau_video_mixer_render(
+    unsigned int field_flags = flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD);
+    if (!field_flags || obj_mixer->deint_surfaces[0] == VDP_INVALID_HANDLE)
+        video_mixer_push_deint_surface(obj_mixer, obj_surface);
+
+    VdpVideoMixerPictureStructure field;
+    if (field_flags & VA_TOP_FIELD)
+        field = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_TOP_FIELD;
+    else if (field_flags & VA_BOTTOM_FIELD)
+        field = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_BOTTOM_FIELD;
+    else
+        field = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME;
+
+    vdp_status = vdpau_video_mixer_render(
         driver_data,
         obj_mixer->vdp_video_mixer,
         VDP_INVALID_HANDLE, NULL,
-        VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
-        0, NULL,
-        obj_surface->vdp_surface,
-        0, NULL,
+        field,
+        2, &obj_mixer->deint_surfaces[1],
+        obj_mixer->deint_surfaces[0],
+        1, &obj_surface->vdp_surface,
         vdp_src_rect,
         vdp_output_surface,
         NULL,
         vdp_dst_rect,
         0, NULL
     );
+    video_mixer_push_deint_surface(obj_mixer, obj_surface);
+    return vdp_status;
 }
