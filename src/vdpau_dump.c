@@ -160,6 +160,7 @@ void dump_VdpPictureInfoMPEG1Or2(VdpPictureInfoMPEG1Or2 *pic_info)
 // Dumps VdpPictureInfoMPEG4Part2
 void dump_VdpPictureInfoMPEG4Part2(VdpPictureInfoMPEG4Part2 *pic_info)
 {
+#if HAVE_VDPAU_MPEG4
     INDENT(1);
     TRACE("VdpPictureInfoMPEG4Part2 = {\n");
     INDENT(1);
@@ -182,6 +183,7 @@ void dump_VdpPictureInfoMPEG4Part2(VdpPictureInfoMPEG4Part2 *pic_info)
     INDENT(-1);
     TRACE("};\n");
     INDENT(-1);
+#endif
 }
 
 // Dumps VdpReferenceFrameH264

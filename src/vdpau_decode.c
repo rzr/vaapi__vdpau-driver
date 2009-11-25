@@ -56,6 +56,7 @@ VdpCodec get_VdpCodec(VdpDecoderProfile profile)
     case VDP_DECODER_PROFILE_MPEG2_SIMPLE:
     case VDP_DECODER_PROFILE_MPEG2_MAIN:
         return VDP_CODEC_MPEG2;
+#if USE_VDPAU_MPEG4
     case VDP_DECODER_PROFILE_MPEG4_PART2_SP:
     case VDP_DECODER_PROFILE_MPEG4_PART2_ASP:
     case VDP_DECODER_PROFILE_DIVX4_QMOBILE:
@@ -67,6 +68,7 @@ VdpCodec get_VdpCodec(VdpDecoderProfile profile)
     case VDP_DECODER_PROFILE_DIVX5_HOME_THEATER:
     case VDP_DECODER_PROFILE_DIVX5_HD_1080P:
         return VDP_CODEC_MPEG4;
+#endif
     case VDP_DECODER_PROFILE_H264_BASELINE:
     case VDP_DECODER_PROFILE_H264_MAIN:
     case VDP_DECODER_PROFILE_H264_HIGH:
@@ -86,8 +88,10 @@ VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
     switch (profile) {
     case VAProfileMPEG2Simple:  return VDP_DECODER_PROFILE_MPEG2_SIMPLE;
     case VAProfileMPEG2Main:    return VDP_DECODER_PROFILE_MPEG2_MAIN;
+#if USE_VDPAU_MPEG4
     case VAProfileMPEG4Simple:  return VDP_DECODER_PROFILE_MPEG4_PART2_SP;
     case VAProfileMPEG4AdvancedSimple: return VDP_DECODER_PROFILE_MPEG4_PART2_ASP;
+#endif
     case VAProfileH264Baseline: return VDP_DECODER_PROFILE_H264_BASELINE;
     case VAProfileH264Main:     return VDP_DECODER_PROFILE_H264_MAIN;
     case VAProfileH264High:     return VDP_DECODER_PROFILE_H264_HIGH;
@@ -444,6 +448,7 @@ translate_VASliceDataBuffer(
         return 1;
     }
 
+#if USE_VDPAU_MPEG4
     if (obj_context->vdp_codec == VDP_CODEC_MPEG4 &&
         obj_context->vdp_bitstream_buffers_count == 0) {
         PutBitContext pb;
@@ -529,6 +534,7 @@ translate_VASliceDataBuffer(
             return 0;
         return 1;
     }
+#endif
 
     if (append_VdpBitstreamBuffer(obj_context,
                                   obj_buffer->buffer_data,
@@ -635,6 +641,7 @@ translate_VASliceParameterBufferMPEG2(
     return 1;
 }
 
+#if USE_VDPAU_MPEG4
 // Translate VAPictureParameterBufferMPEG4
 static int
 translate_VAPictureParameterBufferMPEG4(
@@ -735,6 +742,7 @@ translate_VASliceParameterBufferMPEG4(
     obj_context->last_slice_params_count = obj_buffer->num_elements;
     return 1;
 }
+#endif
 
 // Translate VAPictureParameterBufferH264
 static int
@@ -940,9 +948,11 @@ translate_buffer(
         _(MPEG2, PictureParameter),
         _(MPEG2, IQMatrix),
         _(MPEG2, SliceParameter),
+#if USE_VDPAU_MPEG4
         _(MPEG4, PictureParameter),
         _(MPEG4, IQMatrix),
         _(MPEG4, SliceParameter),
+#endif
         _(H264, PictureParameter),
         _(H264, IQMatrix),
         _(H264, SliceParameter),

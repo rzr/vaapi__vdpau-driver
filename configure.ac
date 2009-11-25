@@ -214,12 +214,24 @@ AC_CACHE_CHECK([for VDPAU],
     AC_TRY_LINK(
     [#include <vdpau/vdpau_x11.h>],
     [vdp_device_create_x11(0,0,0,0)],
-    [ac_cv_have_vdpau="yes"; HAVE_VDPAU=1],
-    [ac_cv_have_vdpau="no";  HAVE_VDPAU=0; LIBS="$saved_LIBS"])
+    [ac_cv_have_vdpau="yes" HAVE_VDPAU=1],
+    [ac_cv_have_vdpau="no"  HAVE_VDPAU=0 LIBS="$saved_LIBS"])
 ])
 if test "$ac_cv_have_vdpau" = "no"; then
     AC_MSG_ERROR([you need VDPAU to build this package])
 fi
+
+AC_CACHE_CHECK([for VDPAU/MPEG-4 support],
+    ac_cv_have_vdpau_mpeg4, [
+    saved_LIBS="$LIBS"
+    LIBS="$LIBS -lvdpau"
+    AC_TRY_LINK(
+    [#include <vdpau/vdpau.h>],
+    [VdpPictureInfoMPEG4Part2 pic_info],
+    [ac_cv_have_vdpau_mpeg4="yes" HAVE_VDPAU_MPEG4=1],
+    [ac_cv_have_vdpau_mpeg4="no"  HAVE_VDPAU_MPEG4=0])
+])
+AC_DEFINE_UNQUOTED(HAVE_VDPAU_MPEG4, [$HAVE_VDPAU_MPEG4], [VDPAU/MPEG-4 support])
 
 AC_DEFINE_UNQUOTED(USE_GLX, $USE_GLX, [Defined to 1 if GLX is enabled])
 AM_CONDITIONAL(USE_GLX, test $USE_GLX -eq 1)
