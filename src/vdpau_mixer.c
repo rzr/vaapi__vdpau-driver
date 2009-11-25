@@ -233,7 +233,7 @@ video_mixer_render(
     VdpOutputSurface     vdp_output_surface,
     const VdpRect       *vdp_src_rect,
     const VdpRect       *vdp_dst_rect,
-    VdpColorStandard     vdp_colorspace
+    unsigned int         flags
 )
 {
     /* Make sure there is a suitable video mixer for this surface */
@@ -245,7 +245,13 @@ video_mixer_render(
         obj_surface->video_mixer = obj_mixer;
     }
 
-    VdpStatus vdp_status = video_mixer_update_csc_matrix(driver_data, obj_mixer, vdp_colorspace);
+    VdpColorStandard colorspace;
+    if (flags & VA_SRC_BT709)
+        colorspace = VDP_COLOR_STANDARD_ITUR_BT_709;
+    else
+        colorspace = VDP_COLOR_STANDARD_ITUR_BT_601;
+
+    VdpStatus vdp_status = video_mixer_update_csc_matrix(driver_data, obj_mixer, colorspace);
     if (vdp_status != VDP_STATUS_OK)
         return vdp_status;
 

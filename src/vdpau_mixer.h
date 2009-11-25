@@ -76,7 +76,7 @@ video_mixer_render(
     VdpOutputSurface     vdp_output_surface,
     const VdpRect       *vdp_src_rect,
     const VdpRect       *vdp_dst_rect,
-    VdpColorStandard     vdp_colorspace
+    unsigned int         flags
 ) attribute_hidden;
 
 #endif /* VDPAU_MIXER_H */

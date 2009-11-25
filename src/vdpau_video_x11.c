@@ -311,20 +311,13 @@ render_surface(
     dst_rect.y1 = target_rect->y + target_rect->height;
     ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
 
-    VdpColorStandard csp;
-    if (flags & VA_SRC_BT709)
-        csp = VDP_COLOR_STANDARD_ITUR_BT_709;
-    else
-        csp = VDP_COLOR_STANDARD_ITUR_BT_601;
-
-    VdpStatus vdp_status;
-    vdp_status = video_mixer_render(
+    VdpStatus vdp_status = video_mixer_render(
         driver_data,
         obj_surface,
         obj_output->vdp_output_surfaces[obj_output->current_output_surface],
         &src_rect,
         &dst_rect,
-        csp
+        flags
     );
     return vdpau_get_VAStatus(driver_data, vdp_status);
 }
