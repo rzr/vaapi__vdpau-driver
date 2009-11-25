@@ -31,6 +31,7 @@ typedef struct vdpau_driver_data *vdpau_driver_data_p;
 // VDPAU VTable
 struct vdpau_vtable {
     VdpDeviceDestroy            *vdp_device_destroy;
+    VdpGenerateCSCMatrix        *vdp_generate_csc_matrix;
     VdpVideoSurfaceCreate       *vdp_video_surface_create;
     VdpVideoSurfaceDestroy      *vdp_video_surface_destroy;
     VdpVideoSurfaceGetBitsYCbCr *vdp_video_surface_get_bits_ycbcr;
@@ -50,6 +51,8 @@ struct vdpau_vtable {
     VdpVideoMixerCreate         *vdp_video_mixer_create;
     VdpVideoMixerDestroy        *vdp_video_mixer_destroy;
     VdpVideoMixerRender         *vdp_video_mixer_render;
+    VdpVideoMixerGetAttributeValues *vdp_video_mixer_get_attribute_values;
+    VdpVideoMixerSetAttributeValues *vdp_video_mixer_set_attribute_values;
     VdpPresentationQueueCreate  *vdp_presentation_queue_create;
     VdpPresentationQueueDestroy *vdp_presentation_queue_destroy;
     VdpPresentationQueueDisplay *vdp_presentation_queue_display;
@@ -92,6 +95,15 @@ vdpau_get_information_string(
 const char *
 vdpau_get_error_string(vdpau_driver_data_p driver_data, VdpStatus vdp_status)
     attribute_hidden;
+
+// VdpGenerateCSCMatrix
+VdpStatus
+vdpau_generate_csc_matrix(
+    vdpau_driver_data_p driver_data,
+    VdpProcamp         *procamp,
+    VdpColorStandard    standard,
+    VdpCSCMatrix       *csc_matrix
+) attribute_hidden;
 
 // VdpVideoSurfaceCreate
 VdpStatus
@@ -299,6 +311,26 @@ vdpau_video_mixer_render(
     uint32_t                      layer_count,
     const VdpLayer               *layers
 ) attribute_hidden;
+
+// VdpVideoMixerGetAttributeValues
+VdpStatus
+vdpau_video_mixer_get_attribute_values(
+    vdpau_driver_data_p           driver_data,
+    VdpVideoMixer                 mixer,
+    uint32_t                      attribute_count,
+    const VdpVideoMixerAttribute *attributes,
+    void                        **attribute_values
+);
+
+// VdpVideoMixerSetAttributeValues
+VdpStatus
+vdpau_video_mixer_set_attribute_values(
+    vdpau_driver_data_p           driver_data,
+    VdpVideoMixer                 mixer,
+    uint32_t                      attribute_count,
+    const VdpVideoMixerAttribute *attributes,
+    const void                  **attribute_values
+);
 
 // VdpPresentationQueueCreate
 VdpStatus

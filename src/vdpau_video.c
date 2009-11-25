@@ -765,6 +765,8 @@ static int ensure_display_attributes(vdpau_driver_data_t *driver_data)
     if (driver_data->va_display_attrs_count > 0)
         return 0;
 
+    memset(driver_data->va_display_attrs_mtime, 0, sizeof(driver_data->va_display_attrs_mtime));
+
     attr = &driver_data->va_display_attrs[0];
 
     attr->type      = VADisplayAttribDirectSurface;
@@ -772,6 +774,34 @@ static int ensure_display_attributes(vdpau_driver_data_t *driver_data)
     attr->min_value = attr->value;
     attr->max_value = attr->value;
     attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE;
+    attr++;
+
+    attr->type      = VADisplayAttribBrightness;
+    attr->value     = 0;
+    attr->min_value = -100;
+    attr->max_value = 100;
+    attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE|VA_DISPLAY_ATTRIB_SETTABLE;
+    attr++;
+
+    attr->type      = VADisplayAttribContrast;
+    attr->value     = 0;
+    attr->min_value = -100;
+    attr->max_value = 100;
+    attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE|VA_DISPLAY_ATTRIB_SETTABLE;
+    attr++;
+
+    attr->type      = VADisplayAttribHue;
+    attr->value     = 0;
+    attr->min_value = -100;
+    attr->max_value = 100;
+    attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE|VA_DISPLAY_ATTRIB_SETTABLE;
+    attr++;
+
+    attr->type      = VADisplayAttribSaturation;
+    attr->value     = 0;
+    attr->min_value = -100;
+    attr->max_value = 100;
+    attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE|VA_DISPLAY_ATTRIB_SETTABLE;
     attr++;
 
     driver_data->va_display_attrs_count = attr - driver_data->va_display_attrs;
@@ -865,8 +895,14 @@ vdpau_SetDisplayAttributes(
         if (!dst_attr)
             return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
 
-        if ((dst_attr->flags & VA_DISPLAY_ATTRIB_SETTABLE) != 0)
+        if ((dst_attr->flags & VA_DISPLAY_ATTRIB_SETTABLE) != 0) {
             dst_attr->value = src_attr->value;
+
+            static uint64_t mtime;
+            const int display_attr_index = dst_attr - driver_data->va_display_attrs;
+            ASSERT(display_attr_index < VDPAU_MAX_DISPLAY_ATTRIBUTES);
+            driver_data->va_display_attrs_mtime[display_attr_index] = ++mtime;
+        }
     }
     return VA_STATUS_SUCCESS;
 }

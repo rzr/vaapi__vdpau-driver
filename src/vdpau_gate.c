@@ -43,6 +43,8 @@ int vdpau_gate_init(vdpau_driver_data_t *driver_data)
 
     VDP_INIT_PROC(DEVICE_DESTROY,
                   device_destroy);
+    VDP_INIT_PROC(GENERATE_CSC_MATRIX,
+                  generate_csc_matrix);
     VDP_INIT_PROC(VIDEO_SURFACE_CREATE,
                   video_surface_create);
     VDP_INIT_PROC(VIDEO_SURFACE_DESTROY,
@@ -81,6 +83,10 @@ int vdpau_gate_init(vdpau_driver_data_t *driver_data)
                   video_mixer_destroy);
     VDP_INIT_PROC(VIDEO_MIXER_RENDER,
                   video_mixer_render);
+    VDP_INIT_PROC(VIDEO_MIXER_GET_ATTRIBUTE_VALUES,
+                  video_mixer_get_attribute_values);
+    VDP_INIT_PROC(VIDEO_MIXER_SET_ATTRIBUTE_VALUES,
+                  video_mixer_set_attribute_values);
     VDP_INIT_PROC(PRESENTATION_QUEUE_CREATE,
                   presentation_queue_create);
     VDP_INIT_PROC(PRESENTATION_QUEUE_DESTROY,
@@ -131,6 +137,21 @@ void vdpau_gate_exit(vdpau_driver_data_t *driver_data)
 #define VDPAU_INVOKE(func, ...)                        \
     VDPAU_INVOKE_(VDP_STATUS_INVALID_POINTER,          \
                   func, __VA_ARGS__)
+
+// VdpGenerateCSCMatrix
+VdpStatus
+vdpau_generate_csc_matrix(
+    vdpau_driver_data_p driver_data,
+    VdpProcamp         *procamp,
+    VdpColorStandard    standard,
+    VdpCSCMatrix       *csc_matrix
+)
+{
+    return VDPAU_INVOKE(generate_csc_matrix,
+                        procamp,
+                        standard,
+                        csc_matrix);
+}
 
 // VdpVideoSurfaceCreate
 VdpStatus
@@ -483,6 +504,40 @@ vdpau_video_mixer_render(
                         destination_video_rect,
                         layer_count,
                         layers);
+}
+
+// VdpVideoMixerGetAttributeValues
+VdpStatus
+vdpau_video_mixer_get_attribute_values(
+    vdpau_driver_data_p           driver_data,
+    VdpVideoMixer                 mixer,
+    uint32_t                      attribute_count,
+    const VdpVideoMixerAttribute *attributes,
+    void                        **attribute_values
+)
+{
+    return VDPAU_INVOKE(video_mixer_get_attribute_values,
+                        mixer,
+                        attribute_count,
+                        attributes,
+                        attribute_values);
+}
+
+// VdpVideoMixerSetAttributeValues
+VdpStatus
+vdpau_video_mixer_set_attribute_values(
+    vdpau_driver_data_p           driver_data,
+    VdpVideoMixer                 mixer,
+    uint32_t                      attribute_count,
+    const VdpVideoMixerAttribute *attributes,
+    const void                  **attribute_values
+)
+{
+    return VDPAU_INVOKE(video_mixer_set_attribute_values,
+                        mixer,
+                        attribute_count,
+                        attributes,
+                        attribute_values);
 }
 
 // VdpPresentationQueueCreate

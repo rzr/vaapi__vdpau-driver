@@ -21,6 +21,7 @@
 #include "sysdeps.h"
 #include "vdpau_mixer.h"
 #include "vdpau_video.h"
+#include <math.h>
 
 
 static inline int
@@ -53,6 +54,15 @@ video_mixer_create(
     obj_mixer->width             = obj_surface->width;
     obj_mixer->height            = obj_surface->height;
     obj_mixer->vdp_chroma_type   = obj_surface->vdp_chroma_type;
+    obj_mixer->vdp_colorspace    = VDP_COLOR_STANDARD_ITUR_BT_601;
+    obj_mixer->vdp_procamp_mtime = 0;
+
+    VdpProcamp * const procamp   = &obj_mixer->vdp_procamp;
+    procamp->struct_version      = VDP_PROCAMP_VERSION;
+    procamp->brightness          = 0.0;
+    procamp->contrast            = 1.0;
+    procamp->saturation          = 1.0;
+    procamp->hue                 = 0.0;
 
     unsigned int n = 0;
     obj_mixer->params[n]         = VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH;
@@ -140,6 +150,80 @@ video_mixer_unref(
         video_mixer_destroy(driver_data, obj_mixer);
 }
 
+static VdpStatus
+video_mixer_update_csc_matrix(
+    vdpau_driver_data_t *driver_data,
+    object_mixer_p       obj_mixer
+)
+{
+    uint64_t new_mtime = obj_mixer->vdp_procamp_mtime;
+    unsigned int i;
+
+    for (i = 0; i < driver_data->va_display_attrs_count; i++) {
+        VADisplayAttribute * const attr = &driver_data->va_display_attrs[i];
+        if (obj_mixer->vdp_procamp_mtime >= driver_data->va_display_attrs_mtime[i])
+            continue;
+
+        float *vp, v = attr->value / 100.0;
+        switch (attr->type) {
+        case VADisplayAttribBrightness: /* VDPAU range: -1.0 to 1.0 */
+            vp = &obj_mixer->vdp_procamp.brightness;
+            break;
+        case VADisplayAttribContrast:   /* VDPAU range: 0.0 to 10.0 */
+            vp = &obj_mixer->vdp_procamp.contrast;
+            goto do_range_0_10;
+        case VADisplayAttribSaturation: /* VDPAU range: 0.0 to 10.0 */
+            vp = &obj_mixer->vdp_procamp.saturation;
+        do_range_0_10:
+            if (attr->value > 0) /* scale VA:0-100 to VDPAU:1.0-10.0 */
+                v *= 9.0;
+            v += 1.0;
+            break;
+        case VADisplayAttribHue:        /* VDPAU range: -PI to PI */
+            vp = &obj_mixer->vdp_procamp.hue;
+            v *= M_PI;
+            break;
+        default:
+            vp = NULL;
+            break;
+        }
+
+        if (vp) {
+            *vp = v;
+            if (new_mtime < driver_data->va_display_attrs_mtime[i])
+                new_mtime = driver_data->va_display_attrs_mtime[i];
+        }
+    }
+
+    /* Commit changes, if any */
+    if (new_mtime > obj_mixer->vdp_procamp_mtime) {
+        VdpCSCMatrix vdp_matrix;
+        VdpStatus vdp_status;
+        static const VdpVideoMixerAttribute attrs[1] = { VDP_VIDEO_MIXER_ATTRIBUTE_CSC_MATRIX };
+        const void *attr_values[1] = { &vdp_matrix };
+
+        vdp_status = vdpau_generate_csc_matrix(
+            driver_data,
+            &obj_mixer->vdp_procamp,
+            obj_mixer->vdp_colorspace,
+            &vdp_matrix
+        );
+        if (vdp_status != VDP_STATUS_OK)
+            return vdp_status;
+
+        vdp_status = vdpau_video_mixer_set_attribute_values(
+            driver_data,
+            obj_mixer->vdp_video_mixer,
+            1, attrs, attr_values
+        );
+        if (vdp_status != VDP_STATUS_OK)
+            return vdp_status;
+
+        obj_mixer->vdp_procamp_mtime = new_mtime;
+    }
+    return VDP_STATUS_OK;
+}
+
 VdpStatus
 video_mixer_render(
     vdpau_driver_data_t *driver_data,
@@ -157,6 +241,10 @@ video_mixer_render(
             return VDP_STATUS_ERROR;
         obj_surface->video_mixer = obj_mixer;
     }
+
+    VdpStatus vdp_status = video_mixer_update_csc_matrix(driver_data, obj_mixer);
+    if (vdp_status != VDP_STATUS_OK)
+        return vdp_status;
 
     return vdpau_video_mixer_render(
         driver_data,
