@@ -75,7 +75,8 @@ video_mixer_render(
     object_surface_p     obj_surface,
     VdpOutputSurface     vdp_output_surface,
     const VdpRect       *vdp_src_rect,
-    const VdpRect       *vdp_dst_rect
+    const VdpRect       *vdp_dst_rect,
+    VdpColorStandard     vdp_colorspace
 ) attribute_hidden;
 
 #endif /* VDPAU_MIXER_H */

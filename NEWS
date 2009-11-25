@@ -4,6 +4,7 @@ Copyright (C) 2009 Splitted-Desktop Systems
 Version 0.6.0 - DD.Dec.2009
 * Add MPEG-4 decoding support
 * Add brightness/contrast/hue/saturation display attributes
+* Allow use of ITU-R BT.601/709 through colorspace conversion flags to vaPutSurface()
 
 Version 0.5.2 - 15.Oct.2009
 * Add indexed color subpicture formats

@@ -293,7 +293,8 @@ render_surface(
     object_surface_p     obj_surface,
     object_output_p      obj_output,
     const VARectangle   *source_rect,
-    const VARectangle   *target_rect
+    const VARectangle   *target_rect,
+    unsigned int         flags
 )
 {
     VdpRect src_rect;
@@ -310,13 +311,20 @@ render_surface(
     dst_rect.y1 = target_rect->y + target_rect->height;
     ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
 
+    VdpColorStandard csp;
+    if (flags & VA_SRC_BT709)
+        csp = VDP_COLOR_STANDARD_ITUR_BT_709;
+    else
+        csp = VDP_COLOR_STANDARD_ITUR_BT_601;
+
     VdpStatus vdp_status;
     vdp_status = video_mixer_render(
         driver_data,
         obj_surface,
         obj_output->vdp_output_surfaces[obj_output->current_output_surface],
         &src_rect,
-        &dst_rect
+        &dst_rect,
+        csp
     );
     return vdpau_get_VAStatus(driver_data, vdp_status);
 }
@@ -447,7 +455,8 @@ put_surface(
     unsigned int         drawable_width,
     unsigned int         drawable_height,
     const VARectangle   *source_rect,
-    const VARectangle   *target_rect
+    const VARectangle   *target_rect,
+    unsigned int         flags
 )
 {
     VdpStatus vdp_status;
@@ -499,7 +508,8 @@ put_surface(
         obj_surface,
         obj_output,
         source_rect,
-        target_rect
+        target_rect,
+        flags
     );
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
@@ -559,10 +569,6 @@ vdpau_PutSurface(
     if (cliprects || number_cliprects > 0)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
-    /* XXX: only support VA_FRAME_PICTURE */
-    if (flags)
-        return VA_STATUS_ERROR_FLAG_NOT_SUPPORTED;
-
     unsigned int w, h;
     if (get_drawable_size(ctx->x11_dpy, draw, &w, &h) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
@@ -576,5 +582,5 @@ vdpau_PutSurface(
     dst_rect.y      = desty;
     dst_rect.width  = destw;
     dst_rect.height = desth;
-    return put_surface(driver_data, surface, draw, w, h, &src_rect, &dst_rect);
+    return put_surface(driver_data, surface, draw, w, h, &src_rect, &dst_rect, flags);
 }

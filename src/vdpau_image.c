@@ -442,7 +442,8 @@ get_image(
             obj_surface,
             obj_image->vdp_rgba_output_surface,
             &vdp_rect,
-            &vdp_rect
+            &vdp_rect,
+            VDP_COLOR_STANDARD_ITUR_BT_601
         );
         if (vdp_status != VDP_STATUS_OK)
             return vdpau_get_VAStatus(driver_data, vdp_status);

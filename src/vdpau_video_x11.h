@@ -69,7 +69,8 @@ put_surface(
     unsigned int         drawable_width,
     unsigned int         drawable_height,
     const VARectangle   *source_rect,
-    const VARectangle   *target_rect
+    const VARectangle   *target_rect,
+    unsigned int         flags
 ) attribute_hidden;
 
 // vaPutSurface

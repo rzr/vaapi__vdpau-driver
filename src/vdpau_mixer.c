@@ -153,7 +153,8 @@ video_mixer_unref(
 static VdpStatus
 video_mixer_update_csc_matrix(
     vdpau_driver_data_t *driver_data,
-    object_mixer_p       obj_mixer
+    object_mixer_p       obj_mixer,
+    VdpColorStandard     vdp_colorspace
 )
 {
     uint64_t new_mtime = obj_mixer->vdp_procamp_mtime;
@@ -196,7 +197,7 @@ video_mixer_update_csc_matrix(
     }
 
     /* Commit changes, if any */
-    if (new_mtime > obj_mixer->vdp_procamp_mtime) {
+    if (new_mtime > obj_mixer->vdp_procamp_mtime || vdp_colorspace != obj_mixer->vdp_colorspace) {
         VdpCSCMatrix vdp_matrix;
         VdpStatus vdp_status;
         static const VdpVideoMixerAttribute attrs[1] = { VDP_VIDEO_MIXER_ATTRIBUTE_CSC_MATRIX };
@@ -205,7 +206,7 @@ video_mixer_update_csc_matrix(
         vdp_status = vdpau_generate_csc_matrix(
             driver_data,
             &obj_mixer->vdp_procamp,
-            obj_mixer->vdp_colorspace,
+            vdp_colorspace,
             &vdp_matrix
         );
         if (vdp_status != VDP_STATUS_OK)
@@ -219,6 +220,7 @@ video_mixer_update_csc_matrix(
         if (vdp_status != VDP_STATUS_OK)
             return vdp_status;
 
+        obj_mixer->vdp_colorspace    = vdp_colorspace;
         obj_mixer->vdp_procamp_mtime = new_mtime;
     }
     return VDP_STATUS_OK;
@@ -230,7 +232,8 @@ video_mixer_render(
     object_surface_p     obj_surface,
     VdpOutputSurface     vdp_output_surface,
     const VdpRect       *vdp_src_rect,
-    const VdpRect       *vdp_dst_rect
+    const VdpRect       *vdp_dst_rect,
+    VdpColorStandard     vdp_colorspace
 )
 {
     /* Make sure there is a suitable video mixer for this surface */
@@ -242,7 +245,7 @@ video_mixer_render(
         obj_surface->video_mixer = obj_mixer;
     }
 
-    VdpStatus vdp_status = video_mixer_update_csc_matrix(driver_data, obj_mixer);
+    VdpStatus vdp_status = video_mixer_update_csc_matrix(driver_data, obj_mixer, vdp_colorspace);
     if (vdp_status != VDP_STATUS_OK)
         return vdp_status;
 

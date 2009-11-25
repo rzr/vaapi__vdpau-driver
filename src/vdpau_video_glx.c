@@ -811,10 +811,6 @@ vdpau_AssociateSurfaceGLX(
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    /* XXX: only support VA_FRAME_PICTURE */
-    if (flags != VA_FRAME_PICTURE)
-        return VA_STATUS_ERROR_FLAG_NOT_SUPPORTED;
-
     /* XXX: optimise case where we are associating the same VA surface
        as before an no changed occurred to it */
     VAStatus va_status;
@@ -836,7 +832,7 @@ vdpau_AssociateSurfaceGLX(
                             obj_glx_surface->pixmap,
                             obj_glx_surface->width,
                             obj_glx_surface->height,
-                            &src_rect, &dst_rect);
+                            &src_rect, &dst_rect, flags);
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
