@@ -941,10 +941,6 @@ vdpau_CopySurfaceGLX(
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    /* XXX: only support VA_FRAME_PICTURE */
-    if (flags != VA_FRAME_PICTURE)
-        return VA_STATUS_ERROR_FLAG_NOT_SUPPORTED;
-
     /* Create framebuffer surface */
     if (obj_glx_surface->fbo == 0 ||
         obj_glx_surface->fbo_buffer == 0 ||
