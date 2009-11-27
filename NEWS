@@ -1,11 +1,11 @@
-vdpau-video NEWS -- summary of changes.  2009-12-DD
+vdpau-video NEWS -- summary of changes.  2009-11-27
 Copyright (C) 2009 Splitted-Desktop Systems
 
-Version 0.6.0 - DD.Dec.2009
+Version 0.6.0 - 27.Nov.2009
 * Add MPEG-4 decoding support
 * Add support for bob deinterlacing
 * Add brightness/contrast/hue/saturation display attributes
-* Allow use of ITU-R BT.601/709 through colorspace conversion flags to vaPutSurface()
+* Allow ITU-R BT.601/709 colorspace conversion flags to vaPutSurface()
 
 Version 0.5.2 - 15.Oct.2009
 * Add indexed color subpicture formats
