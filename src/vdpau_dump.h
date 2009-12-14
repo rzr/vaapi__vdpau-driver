@@ -41,8 +41,10 @@ void dump_VdpPictureInfoMPEG1Or2(VdpPictureInfoMPEG1Or2 *pic_info)
     attribute_hidden;
 
 // Dumps VdpPictureInfoMPEG4Part2
+#if HAVE_VDPAU_MPEG4
 void dump_VdpPictureInfoMPEG4Part2(VdpPictureInfoMPEG4Part2 *pic_info)
     attribute_hidden;
+#endif
 
 // Dumps VdpPictureInfoH264
 void dump_VdpPictureInfoH264(VdpPictureInfoH264 *pic_info)

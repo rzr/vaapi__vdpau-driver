@@ -1333,9 +1333,11 @@ vdpau_EndPicture(
         case VDP_CODEC_MPEG2:
             dump_VdpPictureInfoMPEG1Or2(&obj_context->vdp_picture_info.mpeg2);
             break;
+#if HAVE_VDPAU_MPEG4
         case VDP_CODEC_MPEG4:
             dump_VdpPictureInfoMPEG4Part2(&obj_context->vdp_picture_info.mpeg4);
             break;
+#endif
         case VDP_CODEC_H264:
             dump_VdpPictureInfoH264(&obj_context->vdp_picture_info.h264);
             break;

@@ -74,7 +74,9 @@ struct object_context {
     unsigned int                 vdp_bitstream_buffers_count_max;
     union {
         VdpPictureInfoMPEG1Or2   mpeg2;
+#if HAVE_VDPAU_MPEG4
         VdpPictureInfoMPEG4Part2 mpeg4;
+#endif
         VdpPictureInfoH264       h264;
         VdpPictureInfoVC1        vc1;
     }                            vdp_picture_info;
