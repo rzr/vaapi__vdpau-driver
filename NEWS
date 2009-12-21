@@ -1,8 +1,10 @@
-vdpau-video NEWS -- summary of changes.  2009-12-DD
+vdpau-video NEWS -- summary of changes.  2009-12-21
 Copyright (C) 2009 Splitted-Desktop Systems
 
-Version 0.6.1 - DD.Dec.2009
+Version 0.6.1 - 21.Dec.2009
+* Set VDPAU_VIDEO_DPB to 0, i.e. use H.264 DPB from libVA
 * Fix build with older VDPAU headers (without MPEG-4 support)
+* Fix image palette allocation and conversion to VDPAU format
 
 Version 0.6.0 - 27.Nov.2009
 * Add MPEG-4 decoding support
