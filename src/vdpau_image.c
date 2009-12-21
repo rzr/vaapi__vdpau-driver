@@ -260,6 +260,7 @@ vdpau_CreateImage(
     obj_image->vdp_rgba_output_surface = VDP_INVALID_HANDLE;
     obj_image->vdp_format_type  = m->vdp_format_type;
     obj_image->vdp_format       = m->vdp_format;
+    obj_image->vdp_palette      = NULL;
 
     image->image_id             = image_id;
     image->format               = *format;
