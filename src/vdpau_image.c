@@ -342,7 +342,7 @@ set_image_palette(
         /* B8G8R8X8 format */
         obj_image->vdp_palette[i] = ((palette[3*i + 0] << 16) |
                                      (palette[3*i + 1] <<  8) |
-                                      palette[3*i + 0]);
+                                      palette[3*i + 2]);
     }
     return VA_STATUS_SUCCESS;
 }
