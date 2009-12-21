@@ -488,7 +488,8 @@ translate_VASliceDataBuffer(
                      pic_param->quant_precision +       /* vop_quant            */
                      (pic_param->vop_fields.bits.vop_coding_type != VOP_I_TYPE ? 3 : 0) +
                      (pic_param->vop_fields.bits.vop_coding_type == VOP_B_TYPE ? 3 : 0));
-        nbits = slice_param->macroblock_offset - (nbits % 8);
+        if ((nbits = slice_param->macroblock_offset - (nbits % 8)) < 0)
+            nbits += 8;
 
         /* Reconstruct the VOP header */
         init_put_bits(&pb, slice_header_buffer, sizeof(slice_header_buffer));

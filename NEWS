@@ -3,6 +3,7 @@ Copyright (C) 2009 Splitted-Desktop Systems
 
 Version 0.6.1 - 21.Dec.2009
 * Set VDPAU_VIDEO_DPB to 0, i.e. use H.264 DPB from libVA
+* Fix VOP header reconstruction bug for MPEG-4 decoding
 * Fix build with older VDPAU headers (without MPEG-4 support)
 * Fix image palette allocation and conversion to VDPAU format
 
