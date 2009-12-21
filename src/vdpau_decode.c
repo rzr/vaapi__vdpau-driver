@@ -33,7 +33,7 @@
 
 /* Define to 1 if we want this VDPAU backend to handle H.264 DPB itself and not
    strictly replicate VAPictureParameterBufferH264.ReferenceFrames[]. */
-#define VDPAU_VIDEO_DPB 1
+#define VDPAU_VIDEO_DPB 0
 
 // Returns 1 if we want to handle H.264 DPB ourselves
 static inline int vdpau_video_dpb(void)
