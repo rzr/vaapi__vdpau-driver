@@ -69,8 +69,11 @@ output_surface_ensure_size(
     if (!obj_output)
         return -1;
 
-    if (width <= obj_output->max_width && height <= obj_output->max_height)
+    if (width <= obj_output->max_width && height <= obj_output->max_height) {
+        obj_output->width  = width;
+        obj_output->height = height;
         return 0;
+    }
 
     const unsigned int max_waste = 1U << 8;
     unsigned int new_max_width   = (width  + max_waste - 1) & -max_waste;
