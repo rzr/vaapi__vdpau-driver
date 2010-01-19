@@ -383,23 +383,9 @@ get_image(
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    switch (image->format.fourcc) {
-    case VA_FOURCC('Y','V','1','2'):
-        /* VDPAU exposes YV12 pixels as Y/U/V planes, which turns out
-           to be I420, whereas VA-API expects standard Y/V/U order */
-        src[0] = (uint8_t *)obj_buffer->buffer_data + image->offsets[0];
-        src_stride[0] = image->pitches[0];
-        src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
-        src_stride[1] = image->pitches[2];
-        src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
-        src_stride[2] = image->pitches[1];
-        break;
-    default:
-        for (i = 0; i < image->num_planes; i++) {
-            src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
-            src_stride[i] = image->pitches[i];
-        }
-        break;
+    for (i = 0; i < image->num_planes; i++) {
+        src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+        src_stride[i] = image->pitches[i];
     }
 
     switch (obj_image->vdp_format_type) {
@@ -539,23 +525,9 @@ put_image(
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    switch (image->format.fourcc) {
-    case VA_FOURCC('Y','V','1','2'):
-        /* VDPAU exposes YV12 pixels as Y/U/V planes, which turns out
-           to be I420, whereas VA-API expects standard Y/V/U order */
-        src[0] = (uint8_t *)obj_buffer->buffer_data + image->offsets[0];
-        src_stride[0] = image->pitches[0];
-        src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
-        src_stride[1] = image->pitches[2];
-        src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
-        src_stride[2] = image->pitches[1];
-        break;
-    default:
-        for (i = 0; i < image->num_planes; i++) {
-            src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
-            src_stride[i] = image->pitches[i];
-        }
-        break;
+    for (i = 0; i < image->num_planes; i++) {
+        src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+        src_stride[i] = image->pitches[i];
     }
 
     /* XXX: only support YCbCr surfaces for now */

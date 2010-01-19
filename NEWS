@@ -2,6 +2,7 @@ vdpau-video NEWS -- summary of changes.  2010-01-DD
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
 Version 0.6.2 - DD.Jan.2010
+* Fix vaGetImage() with YV12 format
 * Fix window resize by less than 256 pixels in either dimension
 
 Version 0.6.1 - 21.Dec.2009
