@@ -69,43 +69,38 @@ output_surface_ensure_size(
     if (!obj_output)
         return -1;
 
-    if (width <= obj_output->max_width && height <= obj_output->max_height) {
-        obj_output->width  = width;
-        obj_output->height = height;
-        return 0;
-    }
+    if (width > obj_output->max_width || height > obj_output->max_height) {
+        const unsigned int max_waste = 1U << 8;
+        obj_output->max_width        = (width  + max_waste - 1) & -max_waste;
+        obj_output->max_height       = (height + max_waste - 1) & -max_waste;
 
-    const unsigned int max_waste = 1U << 8;
-    unsigned int new_max_width   = (width  + max_waste - 1) & -max_waste;
-    unsigned int new_max_height  = (height + max_waste - 1) & -max_waste;
-
-    unsigned int i;
-    for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++) {
-        if (obj_output->vdp_output_surfaces[i] != VDP_INVALID_HANDLE) {
-            vdpau_output_surface_destroy(
-                driver_data,
-                obj_output->vdp_output_surfaces[i]
-            );
-            obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
+        unsigned int i;
+        for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++) {
+            if (obj_output->vdp_output_surfaces[i] != VDP_INVALID_HANDLE) {
+                vdpau_output_surface_destroy(
+                    driver_data,
+                    obj_output->vdp_output_surfaces[i]
+                );
+                obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
+            }
         }
+    }
+    obj_output->width  = width;
+    obj_output->height = height;
 
+    if (obj_output->vdp_output_surfaces[obj_output->current_output_surface] == VDP_INVALID_HANDLE) {
         VdpStatus vdp_status;
         vdp_status = vdpau_output_surface_create(
             driver_data,
             driver_data->vdp_device,
             VDP_RGBA_FORMAT_B8G8R8A8,
-            new_max_width,
-            new_max_height,
-            &obj_output->vdp_output_surfaces[i]
+            obj_output->max_width,
+            obj_output->max_height,
+            &obj_output->vdp_output_surfaces[obj_output->current_output_surface]
         );
         if (vdp_status != VDP_STATUS_OK)
             return -1;
     }
-
-    obj_output->width      = width;
-    obj_output->height     = height;
-    obj_output->max_width  = new_max_width;
-    obj_output->max_height = new_max_height;
     return 0;
 }
 
@@ -165,11 +160,6 @@ output_surface_create(
             output_surface_destroy(driver_data, obj_output);
             return NULL;
         }
-    }
-
-    if (output_surface_ensure_size(driver_data, obj_output, width, height) < 0) {
-        output_surface_destroy(driver_data, obj_output);
-        return NULL;
     }
     return obj_output;
 }
@@ -523,15 +513,17 @@ put_surface(
 
     /* Wait for the output surface to be ready.
        i.e. it completed the previous rendering */
-    VdpTime dummy_time;
-    vdp_status = vdpau_presentation_queue_block_until_surface_idle(
-        driver_data,
-        obj_output->vdp_flip_queue,
-        obj_output->vdp_output_surfaces[obj_output->current_output_surface],
-        &dummy_time
-    );
-    if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
+    if (obj_output->vdp_output_surfaces[obj_output->current_output_surface] != VDP_INVALID_HANDLE) {
+        VdpTime dummy_time;
+        vdp_status = vdpau_presentation_queue_block_until_surface_idle(
+            driver_data,
+            obj_output->vdp_flip_queue,
+            obj_output->vdp_output_surfaces[obj_output->current_output_surface],
+            &dummy_time
+        );
+        if (vdp_status != VDP_STATUS_OK)
+            return vdpau_get_VAStatus(driver_data, vdp_status);
+    }
 
     if (output_surface_ensure_size(driver_data, obj_output,
                                    drawable_width, drawable_height) < 0)
