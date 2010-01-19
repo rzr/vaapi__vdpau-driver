@@ -357,10 +357,13 @@ vdpau_DestroySurfaces(
             obj_surface->vdp_surface = VDP_INVALID_HANDLE;
         }
 
-        if (obj_surface->output_surface) {
-            output_surface_unref(driver_data, obj_surface->output_surface);
-            obj_surface->output_surface = NULL;
+        for (j = 0; j < obj_surface->output_surfaces_count; j++) {
+            output_surface_unref(driver_data, obj_surface->output_surfaces[j]);
+            obj_surface->output_surfaces[j] = NULL;
         }
+        free(obj_surface->output_surfaces);
+        obj_surface->output_surfaces_count = 0;
+        obj_surface->output_surfaces_count_max = 0;
 
         if (obj_surface->video_mixer) {
             video_mixer_unref(driver_data, obj_surface->video_mixer);
@@ -439,19 +442,21 @@ vdpau_CreateSurfaces(
             va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
             break;
         }
-        obj_surface->va_context         = VA_INVALID_ID;
-        obj_surface->va_surface_status  = VASurfaceReady;
-        obj_surface->vdp_surface        = vdp_surface;
-        obj_surface->width              = width;
-        obj_surface->height             = height;
-        obj_surface->assocs             = NULL;
-        obj_surface->assocs_count       = 0;
-        obj_surface->assocs_count_max   = 0;
-        obj_surface->vdp_chroma_type    = vdp_chroma_type;
-        obj_surface->output_surface     = NULL;
-        obj_surface->video_mixer        = NULL;
-        surfaces[i]                     = va_surface;
-        vdp_surface                     = VDP_INVALID_HANDLE;
+        obj_surface->va_context                 = VA_INVALID_ID;
+        obj_surface->va_surface_status          = VASurfaceReady;
+        obj_surface->vdp_surface                = vdp_surface;
+        obj_surface->width                      = width;
+        obj_surface->height                     = height;
+        obj_surface->assocs                     = NULL;
+        obj_surface->assocs_count               = 0;
+        obj_surface->assocs_count_max           = 0;
+        obj_surface->vdp_chroma_type            = vdp_chroma_type;
+        obj_surface->output_surfaces            = NULL;
+        obj_surface->output_surfaces_count      = 0;
+        obj_surface->output_surfaces_count_max  = 0;
+        obj_surface->video_mixer                = NULL;
+        surfaces[i]                             = va_surface;
+        vdp_surface                             = VDP_INVALID_HANDLE;
     }
 
     /* Error recovery */
@@ -633,15 +638,18 @@ query_surface_status(
     VAStatus va_status = VA_STATUS_SUCCESS;
 
     if (obj_surface->va_surface_status == VASurfaceDisplaying) {
-        object_output_p obj_output = obj_surface->output_surface;
-        ASSERT(obj_output);
-        if (!obj_output)
-            return VA_STATUS_ERROR_INVALID_SURFACE;
+        unsigned int i, num_output_surfaces_displaying = 0;
+        for (i = 0; i < obj_surface->output_surfaces_count; i++) {
+            object_output_p obj_output = obj_surface->output_surfaces[i];
+            ASSERT(obj_output);
+            if (!obj_output)
+                return VA_STATUS_ERROR_INVALID_SURFACE;
 
-        VdpOutputSurface vdp_output_surface;
-        vdp_output_surface = obj_output->vdp_output_surfaces[(obj_output->current_output_surface + VDPAU_MAX_OUTPUT_SURFACES - 1) % VDPAU_MAX_OUTPUT_SURFACES];
+            VdpOutputSurface vdp_output_surface;
+            vdp_output_surface = obj_output->vdp_output_surfaces[(obj_output->current_output_surface + VDPAU_MAX_OUTPUT_SURFACES - 1) % VDPAU_MAX_OUTPUT_SURFACES];
+            if (vdp_output_surface == VDP_INVALID_HANDLE)
+                continue;
 
-        if (vdp_output_surface != VDP_INVALID_HANDLE) {
             VdpPresentationQueueStatus vdp_queue_status;
             VdpTime vdp_dummy_time;
             VdpStatus vdp_status;
@@ -654,9 +662,12 @@ query_surface_status(
             );
             va_status = vdpau_get_VAStatus(driver_data, vdp_status);
 
-            if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE)
-                obj_surface->va_surface_status = VASurfaceReady;
+            if (vdp_queue_status != VDP_PRESENTATION_QUEUE_STATUS_VISIBLE)
+                ++num_output_surfaces_displaying;
         }
+
+        if (num_output_surfaces_displaying == 0)
+            obj_surface->va_surface_status = VASurfaceReady;
     }
 
     if (status)

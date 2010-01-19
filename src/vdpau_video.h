@@ -88,7 +88,9 @@ struct object_surface {
     VAContextID                  va_context;
     VASurfaceStatus              va_surface_status;
     VdpVideoSurface              vdp_surface;
-    object_output_p              output_surface;
+    object_output_p             *output_surfaces;
+    unsigned int                 output_surfaces_count;
+    unsigned int                 output_surfaces_count_max;
     object_mixer_p               video_mixer;
     unsigned int                 width;
     unsigned int                 height;

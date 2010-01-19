@@ -235,39 +235,52 @@ output_surface_ensure(
     unsigned int         height
 )
 {
+    object_output_p obj_output = NULL;
+    int new_obj_output = 0;
+    unsigned int i;
+
     if (!obj_surface)
         return NULL;
 
     /* Check for a output surface matching Drawable */
-    if (!obj_surface->output_surface) {
+    for (i = 0; i < obj_surface->output_surfaces_count; i++) {
+        if (obj_surface->output_surfaces[i]->drawable == drawable) {
+            obj_output = obj_surface->output_surfaces[i];
+            break;
+        }
+    }
+
+    /* ... that might have been created for another video surface */
+    if (!obj_output) {
         object_heap_iterator iter;
         object_base_p obj = object_heap_first(&driver_data->output_heap, &iter);
         while (obj) {
-            object_output_p obj_output = (object_output_p)obj;
-            if (obj_output->drawable == drawable) {
-                obj_surface->output_surface = output_surface_ref(
-                    driver_data,
-                    obj_output
-                );
+            object_output_p m = (object_output_p)obj;
+            if (m->drawable == drawable) {
+                obj_output = output_surface_ref(driver_data, m);
+                new_obj_output = 1;
                 break;
             }
             obj = object_heap_next(&driver_data->output_heap, &iter);
         }
     }
 
-    if (obj_surface->output_surface &&
-        obj_surface->output_surface->drawable != drawable) {
-        output_surface_unref(driver_data, obj_surface->output_surface);
-        obj_surface->output_surface = NULL;
+    /* Fallback: create a new output surface */
+    if (!obj_output) {
+        obj_output = output_surface_create(driver_data, drawable, width, height);
+        new_obj_output = 1;
     }
 
-    /* Fallback: create a new output surface */
-    if (!obj_surface->output_surface)
-        obj_surface->output_surface = output_surface_create(driver_data,
-                                                            drawable,
-                                                            width, height);
-
-    return obj_surface->output_surface;
+    /* Append output surface */
+    if (new_obj_output) {
+        if (realloc_buffer(&obj_surface->output_surfaces,
+                           &obj_surface->output_surfaces_count_max,
+                           1 + obj_surface->output_surfaces_count,
+                           sizeof(*obj_surface->output_surfaces)) == NULL)
+            return NULL;
+        obj_surface->output_surfaces[obj_surface->output_surfaces_count++] = obj_output;
+    }
+    return obj_output;
 }
 
 // Ensure rectangle is within specified bounds

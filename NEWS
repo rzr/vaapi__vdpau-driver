@@ -4,6 +4,7 @@ Copyright (C) 2009-2010 Splitted-Desktop Systems
 Version 0.6.2 - DD.Jan.2010
 * Fix vaGetImage() with YV12 format
 * Fix window resize by less than 256 pixels in either dimension
+* Allow vaPutSurface() to render to multiple drawables from a single surface
 
 Version 0.6.1 - 21.Dec.2009
 * Set VDPAU_VIDEO_DPB to 0, i.e. use H.264 DPB from libVA
