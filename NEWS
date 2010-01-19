@@ -1,7 +1,7 @@
-vdpau-video NEWS -- summary of changes.  2010-01-DD
+vdpau-video NEWS -- summary of changes.  2010-01-19
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
-Version 0.6.2 - DD.Jan.2010
+Version 0.6.2 - 19.Jan.2010
 * Fix vaGetImage() with YV12 format
 * Fix window resize by less than 256 pixels in either dimension
 * Allow vaPutSurface() to render to multiple drawables from a single surface
