@@ -451,8 +451,6 @@ queue_surface(
         return vdpau_get_VAStatus(driver_data, vdp_status);
 
     obj_surface->va_surface_status     = VASurfaceDisplaying;
-    obj_surface->vdp_output_surface    =
-        obj_output->vdp_output_surfaces[obj_output->current_output_surface];
     obj_output->current_output_surface =
         (obj_output->current_output_surface + 1) % VDPAU_MAX_OUTPUT_SURFACES;
     obj_output->fields                 = 0;
@@ -496,8 +494,7 @@ put_surface(
     ASSERT(obj_output->vdp_flip_queue != VDP_INVALID_HANDLE);
     ASSERT(obj_output->vdp_flip_target != VDP_INVALID_HANDLE);
 
-    obj_surface->va_surface_status  = VASurfaceReady;
-    obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
+    obj_surface->va_surface_status = VASurfaceReady;
 
     int fields = flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD);
     if (!fields)

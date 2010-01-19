@@ -1226,7 +1226,6 @@ vdpau_BeginPicture(
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     obj_surface->va_surface_status           = VASurfaceRendering;
-    obj_surface->vdp_output_surface          = VDP_INVALID_HANDLE;
     obj_context->last_pic_param              = NULL;
     obj_context->last_slice_params           = NULL;
     obj_context->last_slice_params_count     = 0;

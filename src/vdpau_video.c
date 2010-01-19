@@ -442,7 +442,6 @@ vdpau_CreateSurfaces(
         obj_surface->va_context         = VA_INVALID_ID;
         obj_surface->va_surface_status  = VASurfaceReady;
         obj_surface->vdp_surface        = vdp_surface;
-        obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
         obj_surface->width              = width;
         obj_surface->height             = height;
         obj_surface->assocs             = NULL;
@@ -633,28 +632,30 @@ query_surface_status(
 {
     VAStatus va_status = VA_STATUS_SUCCESS;
 
-    if (obj_surface->va_surface_status == VASurfaceDisplaying &&
-        obj_surface->vdp_output_surface != VDP_INVALID_HANDLE) {
+    if (obj_surface->va_surface_status == VASurfaceDisplaying) {
         object_output_p obj_output = obj_surface->output_surface;
         ASSERT(obj_output);
         if (!obj_output)
             return VA_STATUS_ERROR_INVALID_SURFACE;
 
-        VdpPresentationQueueStatus vdp_queue_status;
-        VdpTime vdp_dummy_time;
-        VdpStatus vdp_status;
-        vdp_status = vdpau_presentation_queue_query_surface_status(
-            driver_data,
-            obj_output->vdp_flip_queue,
-            obj_surface->vdp_output_surface,
-            &vdp_queue_status,
-            &vdp_dummy_time
-        );
-        va_status = vdpau_get_VAStatus(driver_data, vdp_status);
+        VdpOutputSurface vdp_output_surface;
+        vdp_output_surface = obj_output->vdp_output_surfaces[(obj_output->current_output_surface + VDPAU_MAX_OUTPUT_SURFACES - 1) % VDPAU_MAX_OUTPUT_SURFACES];
 
-        if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE) {
-            obj_surface->va_surface_status  = VASurfaceReady;
-            obj_surface->vdp_output_surface = VDP_INVALID_HANDLE;
+        if (vdp_output_surface != VDP_INVALID_HANDLE) {
+            VdpPresentationQueueStatus vdp_queue_status;
+            VdpTime vdp_dummy_time;
+            VdpStatus vdp_status;
+            vdp_status = vdpau_presentation_queue_query_surface_status(
+                driver_data,
+                obj_output->vdp_flip_queue,
+                vdp_output_surface,
+                &vdp_queue_status,
+                &vdp_dummy_time
+            );
+            va_status = vdpau_get_VAStatus(driver_data, vdp_status);
+
+            if (vdp_queue_status == VDP_PRESENTATION_QUEUE_STATUS_VISIBLE)
+                obj_surface->va_surface_status = VASurfaceReady;
         }
     }
 

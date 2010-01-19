@@ -88,7 +88,6 @@ struct object_surface {
     VAContextID                  va_context;
     VASurfaceStatus              va_surface_status;
     VdpVideoSurface              vdp_surface;
-    VdpOutputSurface             vdp_output_surface;
     object_output_p              output_surface;
     object_mixer_p               video_mixer;
     unsigned int                 width;
