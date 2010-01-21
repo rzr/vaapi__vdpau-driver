@@ -72,7 +72,7 @@
 #define VDPAU_MAX_IMAGE_FORMATS         10
 #define VDPAU_MAX_SUBPICTURES           8
 #define VDPAU_MAX_SUBPICTURE_FORMATS    6
-#define VDPAU_MAX_DISPLAY_ATTRIBUTES    5
+#define VDPAU_MAX_DISPLAY_ATTRIBUTES    6
 #define VDPAU_MAX_OUTPUT_SURFACES       2
 #define VDPAU_STR_DRIVER_VENDOR         "Splitted-Desktop Systems"
 #define VDPAU_STR_DRIVER_NAME           "VDPAU backend for VA API"

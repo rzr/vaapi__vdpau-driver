@@ -91,6 +91,10 @@ int vdpau_gate_init(vdpau_driver_data_t *driver_data)
                   presentation_queue_create);
     VDP_INIT_PROC(PRESENTATION_QUEUE_DESTROY,
                   presentation_queue_destroy);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_SET_BACKGROUND_COLOR,
+                  presentation_queue_set_background_color);
+    VDP_INIT_PROC(PRESENTATION_QUEUE_GET_BACKGROUND_COLOR,
+                  presentation_queue_get_background_color);
     VDP_INIT_PROC(PRESENTATION_QUEUE_DISPLAY,
                   presentation_queue_display);
     VDP_INIT_PROC(PRESENTATION_QUEUE_BLOCK_UNTIL_SURFACE_IDLE,
@@ -564,6 +568,32 @@ vdpau_presentation_queue_destroy(
 {
 
     return VDPAU_INVOKE(presentation_queue_destroy, presentation_queue);
+}
+
+// VdpPresentationQueueSetBackgroundColor
+VdpStatus
+vdpau_presentation_queue_set_background_color(
+    vdpau_driver_data_p  driver_data,
+    VdpPresentationQueue presentation_queue,
+    const VdpColor      *background_color
+)
+{
+    return VDPAU_INVOKE(presentation_queue_set_background_color,
+                        presentation_queue,
+                        (VdpColor *)background_color);
+}
+
+//VdpPresentationQueueGetBackgroundColor
+VdpStatus
+vdpau_presentation_queue_get_background_color(
+    vdpau_driver_data_p  driver_data,
+    VdpPresentationQueue presentation_queue,
+    VdpColor            *background_color
+)
+{
+    return VDPAU_INVOKE(presentation_queue_get_background_color,
+                        presentation_queue,
+                        background_color);
 }
 
 // VdpPresentationQueueDisplay

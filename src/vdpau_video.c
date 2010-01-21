@@ -816,6 +816,13 @@ static int ensure_display_attributes(vdpau_driver_data_t *driver_data)
     attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE|VA_DISPLAY_ATTRIB_SETTABLE;
     attr++;
 
+    attr->type      = VADisplayAttribBackgroundColor;
+    attr->value     = 0;
+    attr->min_value = 0;
+    attr->max_value = 0xffffff;
+    attr->flags     = VA_DISPLAY_ATTRIB_GETTABLE|VA_DISPLAY_ATTRIB_SETTABLE;
+    attr++;
+
     driver_data->va_display_attrs_count = attr - driver_data->va_display_attrs;
     return 0;
 }

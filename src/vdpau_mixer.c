@@ -56,6 +56,7 @@ video_mixer_create(
     obj_mixer->vdp_chroma_type   = obj_surface->vdp_chroma_type;
     obj_mixer->vdp_colorspace    = VDP_COLOR_STANDARD_ITUR_BT_601;
     obj_mixer->vdp_procamp_mtime = 0;
+    obj_mixer->vdp_bgcolor_mtime = 0;
 
     VdpProcamp * const procamp   = &obj_mixer->vdp_procamp;
     procamp->struct_version      = VDP_PROCAMP_VERSION;
@@ -229,6 +230,44 @@ video_mixer_update_csc_matrix(
     return VDP_STATUS_OK;
 }
 
+static VdpStatus
+video_mixer_update_background_color(
+    vdpau_driver_data_t *driver_data,
+    object_mixer_p       obj_mixer
+)
+{
+    unsigned int i;
+    for (i = 0; i < driver_data->va_display_attrs_count; i++) {
+        VADisplayAttribute * const attr = &driver_data->va_display_attrs[i];
+        if (attr->type != VADisplayAttribBackgroundColor)
+            continue;
+
+        if (obj_mixer->vdp_bgcolor_mtime < driver_data->va_display_attrs_mtime[i]) {
+            VdpStatus  vdp_status;
+            VdpColor vdp_color;
+            static const VdpVideoMixerAttribute attrs[1] = { VDP_VIDEO_MIXER_ATTRIBUTE_BACKGROUND_COLOR };
+            const void *attr_values[1] = { &vdp_color };
+
+            vdp_color.red   = ((attr->value >> 16) & 0xff) / 255.0f;
+            vdp_color.green = ((attr->value >> 8) & 0xff) / 255.0f;
+            vdp_color.blue  = (attr->value & 0xff)/ 255.0f;
+            vdp_color.alpha = 1.0f;
+
+            vdp_status = vdpau_video_mixer_set_attribute_values(
+                driver_data,
+                obj_mixer->vdp_video_mixer,
+                1, attrs, attr_values
+            );
+            if (vdp_status != VDP_STATUS_OK)
+                return vdp_status;
+
+            obj_mixer->vdp_bgcolor_mtime = driver_data->va_display_attrs_mtime[i];
+            break;
+        }
+    }
+    return VDP_STATUS_OK;
+}
+
 static inline void
 video_mixer_push_deint_surface(object_mixer_p obj_mixer, object_surface_p obj_surface)
 {
@@ -263,6 +302,10 @@ video_mixer_render(
         colorspace = VDP_COLOR_STANDARD_ITUR_BT_601;
 
     VdpStatus vdp_status = video_mixer_update_csc_matrix(driver_data, obj_mixer, colorspace);
+    if (vdp_status != VDP_STATUS_OK)
+        return vdp_status;
+
+    vdp_status = video_mixer_update_background_color(driver_data, obj_mixer);
     if (vdp_status != VDP_STATUS_OK)
         return vdp_status;
 

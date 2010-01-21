@@ -37,6 +37,7 @@ struct object_mixer {
     VdpColorStandard            vdp_colorspace;
     VdpProcamp                  vdp_procamp;
     uint64_t                    vdp_procamp_mtime;
+    uint64_t                    vdp_bgcolor_mtime;
     VdpVideoSurface             deint_surfaces[3];
 };
 

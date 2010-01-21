@@ -55,6 +55,8 @@ struct vdpau_vtable {
     VdpVideoMixerSetAttributeValues *vdp_video_mixer_set_attribute_values;
     VdpPresentationQueueCreate  *vdp_presentation_queue_create;
     VdpPresentationQueueDestroy *vdp_presentation_queue_destroy;
+    VdpPresentationQueueSetBackgroundColor *vdp_presentation_queue_set_background_color;
+    VdpPresentationQueueGetBackgroundColor *vdp_presentation_queue_get_background_color;
     VdpPresentationQueueDisplay *vdp_presentation_queue_display;
     VdpPresentationQueueBlockUntilSurfaceIdle *vdp_presentation_queue_block_until_surface_idle;
     VdpPresentationQueueQuerySurfaceStatus *vdp_presentation_queue_query_surface_status;
@@ -346,6 +348,22 @@ VdpStatus
 vdpau_presentation_queue_destroy(
     vdpau_driver_data_p  driver_data,
     VdpPresentationQueue presentation_queue
+) attribute_hidden;
+
+// VdpPresentationQueueSetBackgroundColor
+VdpStatus
+vdpau_presentation_queue_set_background_color(
+    vdpau_driver_data_p  driver_data,
+    VdpPresentationQueue presentation_queue,
+    const VdpColor      *background_color
+) attribute_hidden;
+
+//VdpPresentationQueueGetBackgroundColor
+VdpStatus
+vdpau_presentation_queue_get_background_color(
+    vdpau_driver_data_p  driver_data,
+    VdpPresentationQueue presentation_queue,
+    VdpColor            *background_color
 ) attribute_hidden;
 
 // VdpPresentationQueueDisplay
