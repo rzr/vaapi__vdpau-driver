@@ -824,6 +824,7 @@ static int ensure_display_attributes(vdpau_driver_data_t *driver_data)
     attr++;
 
     driver_data->va_display_attrs_count = attr - driver_data->va_display_attrs;
+    ASSERT(driver_data->va_display_attrs_count <= VDPAU_MAX_DISPLAY_ATTRIBUTES);
     return 0;
 }
 
