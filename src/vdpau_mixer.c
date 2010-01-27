@@ -112,7 +112,7 @@ video_mixer_create_cached(
         obj_mixer = (object_mixer_p)obj;
         if (video_mixer_check_params(obj_mixer, obj_surface))
             return video_mixer_ref(driver_data, obj_mixer);
-        obj = object_heap_next(&driver_data->output_heap, &iter);
+        obj = object_heap_next(&driver_data->mixer_heap, &iter);
     }
     return video_mixer_create(driver_data, obj_surface);
 }
