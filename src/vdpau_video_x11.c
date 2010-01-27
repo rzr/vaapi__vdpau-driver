@@ -336,7 +336,8 @@ render_subpicture(
     object_subpicture_p          obj_subpicture,
     object_surface_p             obj_surface,
     object_output_p              obj_output,
-    const VARectangle           *output_rect,
+    const VARectangle           *source_rect,
+    const VARectangle           *target_rect,
     const SubpictureAssociationP assoc
 )
 {
@@ -348,26 +349,44 @@ render_subpicture(
     if (!obj_image)
         return VA_STATUS_ERROR_INVALID_IMAGE;
 
-    const float psx = (float)obj_surface->width  / (float)obj_subpicture->width;
-    const float psy = (float)obj_surface->height / (float)obj_subpicture->height;
-    const float ssx = (float)output_rect->width  / (float)obj_surface->width;
-    const float ssy = (float)output_rect->height / (float)obj_surface->height;
-    const float sx  = psx * ssx;
-    const float sy  = psy * ssy;
+    VARectangle * const sp_src_rect = &assoc->src_rect;
+    VARectangle * const sp_dst_rect = &assoc->dst_rect;
 
+    VdpRect clip_rect;
+    clip_rect.x0 = MAX(sp_dst_rect->x, source_rect->x);
+    clip_rect.y0 = MAX(sp_dst_rect->y, source_rect->y);
+    clip_rect.x1 = MIN(sp_dst_rect->x + sp_dst_rect->width,
+                       source_rect->x + source_rect->width);
+    clip_rect.y1 = MIN(sp_dst_rect->y + sp_dst_rect->height,
+                       source_rect->y + source_rect->height);
+
+    /* Check we actually have something to render */
+    if (clip_rect.x1 <= clip_rect.x0 || clip_rect.y1 < clip_rect.y0)
+        return VA_STATUS_SUCCESS;
+
+    /* Recompute clipped source area (relative to subpicture) */
     VdpRect src_rect;
-    src_rect.x0 = assoc->src_rect.x;
-    src_rect.y0 = assoc->src_rect.y;
-    src_rect.x1 = src_rect.x0 + assoc->src_rect.width;
-    src_rect.y1 = src_rect.y0 + assoc->src_rect.height;
-    ensure_bounds(&src_rect, obj_subpicture->width, obj_subpicture->height);
+    {
+        const float sx = sp_src_rect->width / (float)sp_dst_rect->width;
+        const float sy = sp_src_rect->height / (float)sp_dst_rect->height;
+        src_rect.x0 = sp_src_rect->x + (clip_rect.x0 - sp_dst_rect->x) * sx;
+        src_rect.x1 = sp_src_rect->x + (clip_rect.x1 - sp_dst_rect->x) * sx;
+        src_rect.y0 = sp_src_rect->y + (clip_rect.y0 - sp_dst_rect->y) * sy;
+        src_rect.y1 = sp_src_rect->y + (clip_rect.y1 - sp_dst_rect->y) * sy;
+        ensure_bounds(&src_rect, obj_subpicture->width, obj_subpicture->height);
+    }
 
+    /* Recompute clipped target area (relative to output surface) */
     VdpRect dst_rect;
-    dst_rect.x0 = output_rect->x + sx * (float)assoc->dst_rect.x;
-    dst_rect.y0 = output_rect->y + sx * (float)assoc->dst_rect.y;
-    dst_rect.x1 = dst_rect.x0 + sx * (float)assoc->dst_rect.width;
-    dst_rect.y1 = dst_rect.y0 + sy * (float)assoc->dst_rect.height;
-    ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
+    {
+        const float sx = target_rect->width / (float)source_rect->width;
+        const float sy = target_rect->height / (float)source_rect->height;
+        dst_rect.x0 = target_rect->x + clip_rect.x0 * sx;
+        dst_rect.x1 = target_rect->x + clip_rect.x1 * sx;
+        dst_rect.y0 = target_rect->y + clip_rect.y0 * sy;
+        dst_rect.y1 = target_rect->y + clip_rect.y1 * sy;
+        ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
+    }
 
     VdpOutputSurfaceRenderBlendState blend_state;
     blend_state.struct_version                 = VDP_OUTPUT_SURFACE_RENDER_BLEND_STATE_VERSION;
@@ -416,7 +435,8 @@ render_subpictures(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
     object_output_p      obj_output,
-    const VARectangle   *output_rect
+    const VARectangle   *source_rect,
+    const VARectangle   *target_rect
 )
 {
     unsigned int i;
@@ -437,7 +457,8 @@ render_subpictures(
             obj_subpicture,
             obj_surface,
             obj_output,
-            output_rect,
+            source_rect,
+            target_rect,
             assoc
         );
         if (va_status != VA_STATUS_SUCCESS)
@@ -556,6 +577,7 @@ put_surface(
         driver_data,
         obj_surface,
         obj_output,
+        source_rect,
         target_rect
     );
     if (va_status != VA_STATUS_SUCCESS)
