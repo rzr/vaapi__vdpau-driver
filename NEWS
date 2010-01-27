@@ -1,7 +1,7 @@
-vdpau-video NEWS -- summary of changes.  2010-01-19
+vdpau-video NEWS -- summary of changes.  2010-01-27
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
-Version 0.6.3 - DD.Jan.2010
+Version 0.6.3 - 27.Jan.2010
 * Fix video mixer caching
 * Fix rendering of subpictures
 * Add background-color display attribute
