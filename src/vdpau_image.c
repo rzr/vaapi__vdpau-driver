@@ -217,9 +217,9 @@ vdpau_CreateImage(
         image->pitches[0] = width;
         image->offsets[0] = 0;
         image->pitches[1] = width2;
-        image->offsets[1] = size + size2;
+        image->offsets[1] = size;
         image->pitches[2] = width2;
-        image->offsets[2] = size;
+        image->offsets[2] = size + size2;
         image->data_size  = size + 2 * size2;
         break;
     case VA_FOURCC('A','R','G','B'):
