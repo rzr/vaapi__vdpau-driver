@@ -70,7 +70,7 @@ create_va_buffer(
 void
 destroy_va_buffer(
     vdpau_driver_data_t *driver_data,
-    object_buffer_p     obj_buffer
+    object_buffer_p      obj_buffer
 )
 {
     if (!obj_buffer)
@@ -80,7 +80,7 @@ destroy_va_buffer(
         free(obj_buffer->buffer_data);
         obj_buffer->buffer_data = NULL;
     }
-    object_heap_free(&driver_data->buffer_heap, &obj_buffer->base);
+    object_heap_free(&driver_data->buffer_heap, (object_base_p)obj_buffer);
 }
 
 // Schedule VA buffer object for destruction
