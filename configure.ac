@@ -166,7 +166,18 @@ AC_CACHE_CHECK([for VA API],
 VA_VERSION=`$PKG_CONFIG --modversion libva`
 VA_MAJOR_VERSION=`echo "$VA_VERSION" | cut -d'.' -f1`
 VA_MINOR_VERSION=`echo "$VA_VERSION" | cut -d'.' -f2`
-VA_DRIVER_INIT_FUNC="__vaDriverInit_${VA_MAJOR_VERSION}_${VA_MINOR_VERSION}_sds"
+VA_MICRO_VERSION=`echo "$VA_VERSION" | cut -d'.' -f3`
+VA_SDS_VERSION=`$PKG_CONFIG libva --variable sdsversion`
+va_full_version_int=`expr ${VA_MAJOR_VERSION:-0} "*" 1000000 + \
+                          ${VA_MINOR_VERSION:-0} "*" 10000   + \
+                          ${VA_MICRO_VERSION:-0} "*" 100     + \
+                          ${VA_SDS_VERSION:-0}`
+VA_DRIVER_INIT_FUNC="__vaDriverInit_${VA_MAJOR_VERSION}_${VA_MINOR_VERSION}"
+if test $va_full_version_int -ge 00310005; then
+    VA_DRIVER_INIT_FUNC="${VA_DRIVER_INIT_FUNC}_${VA_MICRO_VERSION}_sds${VA_SDS_VERSION}"
+else
+    VA_DRIVER_INIT_FUNC="${VA_DRIVER_INIT_FUNC}_sds"
+fi
 if test "$ac_cv_libva_sds_extensions" = "yes"; then
     AC_DEFINE_UNQUOTED([VA_DRIVER_INIT_FUNC], [$VA_DRIVER_INIT_FUNC], [Define driver entry-point])
 else
