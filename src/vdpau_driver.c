@@ -35,8 +35,13 @@
 #include "debug.h"
 
 
+// Check for VA/SDS version
+#define VA_CHECK_VERSION_SDS(major, minor, micro, sds)                  \
+    (VA_CHECK_VERSION(major, minor, (micro)+1) ||                       \
+     (VA_CHECK_VERSION(major, minor, micro) && VA_SDS_VERSION >= (sds)))
+
 // Check for VA/GLX changes from libVA API >= 0.31.0-sds2
-#if VA_CHECK_VERSION(0,31,1) || (VA_CHECK_VERSION(0,31,0) && VA_SDS_VERSION >= 2)
+#if VA_CHECK_VERSION_SDS(0,31,0,2)
 #define VA_DRIVER_VTABLE_GLX(ctx) (&(ctx)->vtable.glx)
 typedef struct VADriverVTableGLX *VADriverVTableGLXP;
 #else
@@ -309,11 +314,13 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     VADriverVTableGLXP const glx_vtable     = VA_DRIVER_VTABLE_GLX(ctx);
     glx_vtable->vaCreateSurfaceGLX          = vdpau_CreateSurfaceGLX;
     glx_vtable->vaDestroySurfaceGLX         = vdpau_DestroySurfaceGLX;
+#if !VA_CHECK_VERSION_SDS(0,31,0,5) /* 0.31.0-sds5 dropped 'bind' API */
     glx_vtable->vaAssociateSurfaceGLX       = vdpau_AssociateSurfaceGLX;
     glx_vtable->vaDeassociateSurfaceGLX     = vdpau_DeassociateSurfaceGLX;
     glx_vtable->vaSyncSurfaceGLX            = vdpau_SyncSurfaceGLX;
     glx_vtable->vaBeginRenderSurfaceGLX     = vdpau_BeginRenderSurfaceGLX;
     glx_vtable->vaEndRenderSurfaceGLX       = vdpau_EndRenderSurfaceGLX;
+#endif
     glx_vtable->vaCopySurfaceGLX            = vdpau_CopySurfaceGLX;
 #endif
 
