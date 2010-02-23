@@ -287,9 +287,9 @@ int surface_add_association(
         for (i = 0; i < obj_surface->assocs_count; i++) {
             if (obj_surface->assocs[i] == assoc)
                 return 0;
-            if (obj_surface->assocs[i]->surface == assoc->surface) {
+            if (obj_surface->assocs[i]->subpicture == assoc->subpicture) {
                 /* XXX: this should not happen, but replace it in the interim */
-                ASSERT(obj_surface->assocs[i]->surface != assoc->surface);
+                ASSERT(obj_surface->assocs[i]->surface == assoc->surface);
                 obj_surface->assocs[i] = assoc;
                 return 0;
             }
@@ -302,10 +302,12 @@ int surface_add_association(
 
     /* Append this subpicture association */
     SubpictureAssociationP *assocs;
-    assocs = realloc_buffer(&obj_surface->assocs,
-                            &obj_surface->assocs_count_max,
-                            1 + obj_surface->assocs_count,
-                            sizeof(obj_surface->assocs[0]));
+    assocs = realloc_buffer(
+        &obj_surface->assocs,
+        &obj_surface->assocs_count_max,
+        1 + obj_surface->assocs_count,
+        sizeof(obj_surface->assocs[0])
+    );
     if (!assocs)
         return -1;
 
