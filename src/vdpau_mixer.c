@@ -280,6 +280,7 @@ VdpStatus
 video_mixer_render(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
+    VdpOutputSurface     vdp_background,
     VdpOutputSurface     vdp_output_surface,
     const VdpRect       *vdp_src_rect,
     const VdpRect       *vdp_dst_rect,
@@ -324,7 +325,7 @@ video_mixer_render(
     vdp_status = vdpau_video_mixer_render(
         driver_data,
         obj_mixer->vdp_video_mixer,
-        VDP_INVALID_HANDLE, NULL,
+        vdp_background, NULL,
         field,
         2, &obj_mixer->deint_surfaces[1],
         obj_mixer->deint_surfaces[0],

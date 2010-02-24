@@ -318,9 +318,14 @@ render_surface(
     dst_rect.y1 = target_rect->y + target_rect->height;
     ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
 
+    VdpOutputSurface vdp_background = VDP_INVALID_HANDLE;
+    if (obj_output->queued_surfaces > 0)
+        vdp_background = obj_output->vdp_output_surfaces[(obj_output->queued_surfaces - 1) % VDPAU_MAX_OUTPUT_SURFACES];
+
     VdpStatus vdp_status = video_mixer_render(
         driver_data,
         obj_surface,
+        vdp_background,
         obj_output->vdp_output_surfaces[obj_output->current_output_surface],
         &src_rect,
         &dst_rect,
@@ -471,7 +476,8 @@ static VAStatus
 queue_surface(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
-    object_output_p      obj_output)
+    object_output_p      obj_output
+)
 {
     VdpStatus vdp_status = vdpau_presentation_queue_display(
         driver_data,
@@ -486,7 +492,7 @@ queue_surface(
 
     obj_surface->va_surface_status     = VASurfaceDisplaying;
     obj_output->current_output_surface =
-        (obj_output->current_output_surface + 1) % VDPAU_MAX_OUTPUT_SURFACES;
+        (++obj_output->queued_surfaces) % VDPAU_MAX_OUTPUT_SURFACES;
     obj_output->fields                 = 0;
     return VA_STATUS_SUCCESS;
 }

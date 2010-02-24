@@ -427,6 +427,7 @@ get_image(
         vdp_status = video_mixer_render(
             driver_data,
             obj_surface,
+            VDP_INVALID_HANDLE,
             obj_image->vdp_rgba_output_surface,
             &vdp_rect,
             &vdp_rect,

@@ -75,6 +75,7 @@ VdpStatus
 video_mixer_render(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
+    VdpOutputSurface     vdp_background,
     VdpOutputSurface     vdp_output_surface,
     const VdpRect       *vdp_src_rect,
     const VdpRect       *vdp_dst_rect,

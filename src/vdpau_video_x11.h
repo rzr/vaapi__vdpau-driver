@@ -35,7 +35,8 @@ struct object_output {
     VdpPresentationQueue        vdp_flip_queue;
     VdpPresentationQueueTarget  vdp_flip_target;
     VdpOutputSurface            vdp_output_surfaces[VDPAU_MAX_OUTPUT_SURFACES];
-    int                         current_output_surface;
+    unsigned int                current_output_surface;
+    unsigned int                queued_surfaces;
     unsigned int                fields;
 };
 
