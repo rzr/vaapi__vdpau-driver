@@ -4,6 +4,7 @@ Copyright (C) 2009-2010 Splitted-Desktop Systems
 Version 0.6.4 - DD.Feb.2010
 * Fix rendering of multiple surfaces per window
 * Fix rendering of multiple subpictures per surface
+* Fix another VOP header reconstruction bug for MPEG-4 decoding
 * Add support for VA_CLEAR_DRAWABLE to vaPutSurface()
 * Drop VA/GLX 'bind' API for libVA API >= 0.31.0-sds5
 

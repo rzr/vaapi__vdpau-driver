@@ -521,7 +521,8 @@ translate_VASliceDataBuffer(
         if ((put_bits_count(&pb) % 8) != slice_param->macroblock_offset)
             return 0;
         const int r = 8 - (put_bits_count(&pb) % 8);
-        put_bits(&pb, r, slice_data[0] & ((1U << r) - 1));
+        if (r > 0)
+            put_bits(&pb, r, slice_data[0] & ((1U << r) - 1));
         flush_put_bits(&pb);
 
         ASSERT((put_bits_counts(&pb) % 8) == 0);
