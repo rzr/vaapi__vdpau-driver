@@ -78,9 +78,10 @@
 #define VDPAU_STR_DRIVER_NAME           "VDPAU backend for VA API"
 
 /* Check we have MPEG-4 support in VDPAU and the necessary VAAPI extensions */
-#define USE_VDPAU_MPEG4                                                 \
-    (HAVE_VDPAU_MPEG4 &&                                                \
-     (VA_CHECK_VERSION(0,31,1) || (VA_CHECK_VERSION(0,31,0) && VA_SDS_VERSION == 4)))
+#define USE_VDPAU_MPEG4                                         \
+    (HAVE_VDPAU_MPEG4 &&                                        \
+     (VA_CHECK_VERSION(0,31,1) ||                               \
+      (VA_CHECK_VERSION(0,31,0) && VA_SDS_VERSION >= 4)))
 
 typedef enum {
     VDP_IMPLEMENTATION_NVIDIA = 1,
