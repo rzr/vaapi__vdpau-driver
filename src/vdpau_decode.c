@@ -524,7 +524,9 @@ translate_VASliceDataBuffer(
         put_bits(&pb, r, slice_data[0] & ((1U << r) - 1));
         flush_put_bits(&pb);
 
+        ASSERT((put_bits_counts(&pb) % 8) == 0);
         slice_header_size = put_bits_count(&pb) / 8;
+        ASSERT(slice_header_size <= sizeof(slice_header_buffer));
         slice_header = alloc_gen_slice_data(obj_context, slice_header_size);
         if (!slice_header)
             return 0;
