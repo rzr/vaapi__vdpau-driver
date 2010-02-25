@@ -322,6 +322,9 @@ video_mixer_render(
     else
         field = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME;
 
+    if (flags & VA_CLEAR_DRAWABLE)
+        vdp_background = VDP_INVALID_HANDLE;
+
     vdp_status = vdpau_video_mixer_render(
         driver_data,
         obj_mixer->vdp_video_mixer,
