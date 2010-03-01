@@ -207,7 +207,7 @@ vdpau_output_surface_render_output_surface(
     const VdpColor     *colors,
     const VdpOutputSurfaceRenderBlendState *blend_state,
     uint32_t            flags
-);
+) attribute_hidden;
 
 // VdpOutputSurfaceQueryPutBitsIndexedCapabilities
 VdpStatus
@@ -322,7 +322,7 @@ vdpau_video_mixer_get_attribute_values(
     uint32_t                      attribute_count,
     const VdpVideoMixerAttribute *attributes,
     void                        **attribute_values
-);
+) attribute_hidden;
 
 // VdpVideoMixerSetAttributeValues
 VdpStatus
@@ -332,7 +332,7 @@ vdpau_video_mixer_set_attribute_values(
     uint32_t                      attribute_count,
     const VdpVideoMixerAttribute *attributes,
     const void                  **attribute_values
-);
+) attribute_hidden;
 
 // VdpPresentationQueueCreate
 VdpStatus
