@@ -204,19 +204,21 @@ output_surface_create(
     if (!obj_output)
         return NULL;
 
-    obj_output->refcount                = 1;
-    obj_output->drawable                = drawable;
-    obj_output->width                   = width;
-    obj_output->height                  = height;
-    obj_output->max_width               = 0;
-    obj_output->max_height              = 0;
-    obj_output->vdp_flip_queue          = VDP_INVALID_HANDLE;
-    obj_output->vdp_flip_target         = VDP_INVALID_HANDLE;
-    obj_output->current_output_surface  = 0;
-    obj_output->fields                  = 0;
-    obj_output->render_comm             = NULL;
-    obj_output->render_thread           = 0;
-    obj_output->render_thread_ok        = 0;
+    obj_output->refcount                 = 1;
+    obj_output->drawable                 = drawable;
+    obj_output->width                    = width;
+    obj_output->height                   = height;
+    obj_output->max_width                = 0;
+    obj_output->max_height               = 0;
+    obj_output->vdp_flip_queue           = VDP_INVALID_HANDLE;
+    obj_output->vdp_flip_target          = VDP_INVALID_HANDLE;
+    obj_output->current_output_surface   = 0;
+    obj_output->displayed_output_surface = 0;
+    obj_output->queued_surfaces          = 0;
+    obj_output->fields                   = 0;
+    obj_output->render_comm              = NULL;
+    obj_output->render_thread            = 0;
+    obj_output->render_thread_ok         = 0;
 
     if (use_putsurface_fast() && driver_data->va_display_type == VA_DISPLAY_X11) {
         obj_output->render_comm = async_queue_new();
@@ -433,7 +435,7 @@ render_surface(
     if (obj_output->render_thread_ok)
         vdp_background = obj_output->vdp_output_surfaces[obj_output->current_output_surface];
     else if (obj_output->queued_surfaces > 0)
-        vdp_background = obj_output->vdp_output_surfaces[(obj_output->queued_surfaces - 1) % VDPAU_MAX_OUTPUT_SURFACES];
+        vdp_background = obj_output->vdp_output_surfaces[obj_output->displayed_output_surface];
 
     VdpStatus vdp_status = video_mixer_render(
         driver_data,
@@ -602,7 +604,8 @@ flip_surface(
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(driver_data, vdp_status);
 
-    obj_output->current_output_surface =
+    obj_output->displayed_output_surface = obj_output->current_output_surface;
+    obj_output->current_output_surface   =
         (++obj_output->queued_surfaces) % VDPAU_MAX_OUTPUT_SURFACES;
     return VA_STATUS_SUCCESS;
 }
@@ -614,8 +617,8 @@ queue_surface(
     object_output_p      obj_output
 )
 {
-    obj_surface->va_surface_status = VASurfaceDisplaying;
-    obj_output->fields             = 0;
+    obj_surface->va_surface_status       = VASurfaceDisplaying;
+    obj_output->fields                   = 0;
 
     if (obj_output->render_thread_ok) {
         if (!async_queue_push(obj_output->render_comm, MSG2PTR(MSG_TYPE_QUEUE)))
