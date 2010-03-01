@@ -105,7 +105,7 @@ static void *render_thread(void *arg)
     vdpau_driver_data_t * const driver_data = args->driver_data;
     object_output_p const       obj_output  = args->obj_output;
     unsigned int stop = 0, num_surfaces = 0;
-    uint64_t next, first = 0;
+    uint64_t next;
 
     next = get_ticks_usec() + VIDEO_REFRESH;
     while (!stop) {
@@ -118,15 +118,13 @@ static void *render_thread(void *arg)
                 stop = 1;
                 break;
             case MSG_TYPE_QUEUE:
-                if (++num_surfaces == 1) {
-                    first = get_ticks_usec();
+                if (++num_surfaces == 1)
                     next = get_ticks_usec() + VIDEO_REFRESH;
-                }
                 break;
             }
         }
 
-        // Timeout. We got enough surfaces to render the FBO
+        // Timeout. Display the output surface
         else if (num_surfaces > 0) {
             flip_surface(driver_data, obj_output);
             num_surfaces = 0;
