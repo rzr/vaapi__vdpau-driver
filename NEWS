@@ -1,11 +1,11 @@
-vdpau-video NEWS -- summary of changes.  2010-02-DD
+vdpau-video NEWS -- summary of changes.  2010-03-01
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
-Version 0.6.4 - DD.Feb.2010
+Version 0.6.4 - 01.Mar.2010
 * Fix rendering of multiple surfaces per window
 * Fix rendering of multiple subpictures per surface
+* Add support for VA-API 0.31.0-sds5
 * Add support for VA_CLEAR_DRAWABLE to vaPutSurface()
-* Drop VA/GLX 'bind' API for libVA API >= 0.31.0-sds5
 
 Version 0.6.3 - 27.Jan.2010
 * Fix video mixer caching
