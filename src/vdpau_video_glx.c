@@ -746,6 +746,8 @@ vdpau_CreateSurfaceGLX(
 {
     VDPAU_DRIVER_DATA_INIT;
 
+    vdpau_set_display_type(driver_data, VA_DISPLAY_GLX);
+
     if (!gl_surface)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
@@ -784,6 +786,8 @@ vdpau_DestroySurfaceGLX(
 {
     VDPAU_DRIVER_DATA_INIT;
 
+    vdpau_set_display_type(driver_data, VA_DISPLAY_GLX);
+
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
@@ -802,6 +806,8 @@ vdpau_AssociateSurfaceGLX(
 )
 {
     VDPAU_DRIVER_DATA_INIT;
+
+    vdpau_set_display_type(driver_data, VA_DISPLAY_GLX);
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
@@ -849,6 +855,8 @@ vdpau_DeassociateSurfaceGLX(
 {
     VDPAU_DRIVER_DATA_INIT;
 
+    vdpau_set_display_type(driver_data, VA_DISPLAY_GLX);
+
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
@@ -869,6 +877,8 @@ vdpau_SyncSurfaceGLX(
 {
     VDPAU_DRIVER_DATA_INIT;
 
+    vdpau_set_display_type(driver_data, VA_DISPLAY_GLX);
+
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
@@ -888,6 +898,8 @@ vdpau_BeginRenderSurfaceGLX(
 )
 {
     VDPAU_DRIVER_DATA_INIT;
+
+    vdpau_set_display_type(driver_data, VA_DISPLAY_GLX);
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
@@ -912,6 +924,8 @@ vdpau_EndRenderSurfaceGLX(
 {
     VDPAU_DRIVER_DATA_INIT;
 
+    vdpau_set_display_type(driver_data, VA_DISPLAY_GLX);
+
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
@@ -932,6 +946,8 @@ vdpau_CopySurfaceGLX(
 )
 {
     VDPAU_DRIVER_DATA_INIT;
+
+    vdpau_set_display_type(driver_data, VA_DISPLAY_GLX);
 
     object_glx_surface_p obj_glx_surface = gl_surface;
     if (!obj_glx_surface)

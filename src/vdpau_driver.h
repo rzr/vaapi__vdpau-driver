@@ -37,6 +37,12 @@
 #ifndef VA_STATUS_ERROR_UNIMPLEMENTED
 #define VA_STATUS_ERROR_UNIMPLEMENTED   0x00000014
 #endif
+#ifndef VA_DISPLAY_X11
+#define VA_DISPLAY_X11                  1
+#endif
+#ifndef VA_DISPLAY_GLX
+#define VA_DISPLAY_GLX                  2
+#endif
 
 #define VDPAU_DRIVER_DATA_INIT                           \
         struct vdpau_driver_data *driver_data =          \
@@ -90,6 +96,7 @@ typedef enum {
 typedef struct vdpau_driver_data vdpau_driver_data_t;
 struct vdpau_driver_data {
     VADriverContextP            va_context;
+    unsigned int                va_display_type;
     struct object_heap          config_heap;
     struct object_heap          context_heap;
     struct object_heap          surface_heap;
@@ -117,6 +124,10 @@ typedef struct object_buffer   *object_buffer_p;
 typedef struct object_output   *object_output_p;
 typedef struct object_image    *object_image_p;
 typedef struct object_mixer    *object_mixer_p;
+
+// Set display type
+int vdpau_set_display_type(vdpau_driver_data_t *driver_data, unsigned int type)
+    attribute_hidden;
 
 // Return TRUE if underlying VDPAU implementation is NVIDIA
 VdpBool

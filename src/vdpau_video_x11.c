@@ -620,6 +620,8 @@ vdpau_PutSurface(
 {
     VDPAU_DRIVER_DATA_INIT;
 
+    vdpau_set_display_type(driver_data, VA_DISPLAY_X11);
+
     /* XXX: no clip rects supported */
     if (cliprects || number_cliprects > 0)
         return VA_STATUS_ERROR_INVALID_PARAMETER;

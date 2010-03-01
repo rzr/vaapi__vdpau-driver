@@ -49,6 +49,16 @@ typedef struct VADriverVTableGLX *VADriverVTableGLXP;
 typedef struct VADriverVTable    *VADriverVTableGLXP;
 #endif
 
+// Set display type
+int vdpau_set_display_type(vdpau_driver_data_t *driver_data, unsigned int type)
+{
+    if (driver_data->va_display_type == 0) {
+        driver_data->va_display_type = type;
+        return 1;
+    }
+    return driver_data->va_display_type == type;
+}
+
 // Return TRUE if underlying VDPAU implementation is NVIDIA
 VdpBool
 vdpau_is_nvidia(vdpau_driver_data_t *driver_data, int *major, int *minor)
