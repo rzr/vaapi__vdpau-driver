@@ -1,9 +1,21 @@
 /*
- *  uqueue.c - Queue utilities
+ *  uqueue.c - Queues
  *
- *  xvba-video (C) 2009-2010 Splitted-Desktop Systems
+ *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *
- *  @LICENSE@ Proprietary Software
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #include "sysdeps.h"
@@ -65,34 +77,3 @@ void *queue_pop(UQueue *queue)
     list_free_1(list);
     return data;
 }
-
-#ifdef TEST_QUEUE
-#define UINT_TO_POINTER(i) ((void *)(uintptr_t)(i))
-#define POINTER_TO_UINT(p) ((uintptr_t)(void *)(p))
-
-int main(void)
-{
-    UQueue *queue = queue_new();
-
-    if (!queue_push(queue, UINT_TO_POINTER(1)))
-        abort();
-    if (!queue_push(queue, UINT_TO_POINTER(2)))
-        abort();
-    if (queue_is_empty(queue))
-        abort();
-
-    if (POINTER_TO_UINT(queue_pop(queue)) != 1)
-        abort();
-    if (POINTER_TO_UINT(queue_pop(queue)) != 2)
-        abort();
-    if (!queue_is_empty(queue))
-        abort();
-
-    if (!queue_push(queue, UINT_TO_POINTER(3)))
-        abort();
-    if (POINTER_TO_UINT(queue_pop(queue)) != 3)
-        abort();
-
-    queue_free(queue);
-}
-#endif

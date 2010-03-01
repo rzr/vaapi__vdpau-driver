@@ -1,9 +1,21 @@
 /*
- *  ulist.c - List utilities
+ *  ulist.c - Lists
  *
- *  xvba-video (C) 2009-2010 Splitted-Desktop Systems
+ *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *
- *  @LICENSE@ Proprietary Software
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #include "sysdeps.h"
@@ -97,48 +109,3 @@ UList *list_lookup_full(UList *list, const void *data, UListCompareFunc compare)
     }
     return NULL;
 }
-
-#ifdef TEST_LIST
-#define UINT_TO_POINTER(i) ((void *)(uintptr_t)(i))
-#define POINTER_TO_UINT(p) ((uintptr_t)(void *)(p))
-
-int main(void)
-{
-    UList *temp, *list = NULL;
-
-    list = list_append(list, UINT_TO_POINTER(1));
-
-    temp = list_append(list, UINT_TO_POINTER(2));
-    if (temp != list)
-        abort();
-
-    temp = list_append(list, UINT_TO_POINTER(3));
-    if (temp != list)
-        abort();
-
-    list = list_prepend(list, UINT_TO_POINTER(0));
-    if (list == temp)
-        abort();
-
-    if (list_size(list) != 4)
-        abort();
-
-    if (list_first(list_last(list)) != list)
-        abort();
-
-    if (POINTER_TO_UINT(list_last(list)->data) != 3)
-        abort();
-
-    if (POINTER_TO_UINT(list_first(temp)->data) != 0)
-        abort();
-
-    temp = list_lookup(list, UINT_TO_POINTER(2));
-    if (!temp)
-        abort();
-    if (list_size(temp) != 2)
-        abort();
-
-    list_free(list);
-    return 0;
-}
-#endif
