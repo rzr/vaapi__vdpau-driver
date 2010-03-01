@@ -21,6 +21,9 @@ source_h = \
 	object_heap.h	\
 	sysdeps.h	\
 	utils.h		\
+	uasyncqueue.h	\
+	ulist.h		\
+	uqueue.h	\
 	vdpau_buffer.h	\
 	vdpau_decode.h	\
 	vdpau_driver.h	\
@@ -38,6 +41,9 @@ source_c = \
 	object_heap.c	\
 	put_bits.h	\
 	utils.c		\
+	uasyncqueue.c	\
+	ulist.c		\
+	uqueue.c	\
 	vdpau_buffer.c	\
 	vdpau_decode.c	\
 	vdpau_driver.c	\

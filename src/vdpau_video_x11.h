@@ -22,6 +22,8 @@
 #define VDPAU_VIDEO_X11_H
 
 #include "vdpau_driver.h"
+#include <pthread.h>
+#include "uasyncqueue.h"
 
 typedef struct object_output object_output_t;
 struct object_output {
@@ -38,6 +40,9 @@ struct object_output {
     unsigned int                current_output_surface;
     unsigned int                queued_surfaces;
     unsigned int                fields;
+    UAsyncQueue                *render_comm;
+    pthread_t                   render_thread;
+    unsigned int                render_thread_ok;
 };
 
 // Destroy output surface
