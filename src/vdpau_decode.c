@@ -1299,6 +1299,13 @@ vdpau_RenderPicture(
         case VASliceDataBufferType:
             schedule_destroy_va_buffer(driver_data, obj_buffer);
             break;
+        case VAPictureParameterBufferType:
+            /* Preserve VAPictureParameterBufferMPEG4 */
+            if (obj_context->vdp_codec == VDP_CODEC_MPEG4) {
+                schedule_destroy_va_buffer(driver_data, obj_buffer);
+                break;
+            }
+            /* fall-through */
         default:
             destroy_va_buffer(driver_data, obj_buffer);
             break;
