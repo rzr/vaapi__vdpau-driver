@@ -89,7 +89,7 @@ typedef enum {
 
 typedef struct vdpau_driver_data vdpau_driver_data_t;
 struct vdpau_driver_data {
-    void                       *va_context;
+    VADriverContextP            va_context;
     struct object_heap          config_heap;
     struct object_heap          context_heap;
     struct object_heap          surface_heap;

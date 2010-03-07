@@ -1,5 +1,9 @@
-vdpau-video NEWS -- summary of changes.  2010-03-01
+vdpau-video NEWS -- summary of changes.  2010-03-08
 Copyright (C) 2009-2010 Splitted-Desktop Systems
+
+Version 0.6.5 - 08.Mar.2010
+* Fix internal functions linkage. i.e. don't export internals
+* Fix another VOP header reconstruction bug for MPEG-4 decoding
 
 Version 0.6.4 - 01.Mar.2010
 * Fix rendering of multiple surfaces per window
