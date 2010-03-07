@@ -123,16 +123,18 @@ output_surface_create(
     if (!obj_output)
         return NULL;
 
-    obj_output->refcount                = 1;
-    obj_output->drawable                = drawable;
-    obj_output->width                   = width;
-    obj_output->height                  = height;
-    obj_output->max_width               = 0;
-    obj_output->max_height              = 0;
-    obj_output->vdp_flip_queue          = VDP_INVALID_HANDLE;
-    obj_output->vdp_flip_target         = VDP_INVALID_HANDLE;
-    obj_output->current_output_surface  = 0;
-    obj_output->fields                  = 0;
+    obj_output->refcount                 = 1;
+    obj_output->drawable                 = drawable;
+    obj_output->width                    = width;
+    obj_output->height                   = height;
+    obj_output->max_width                = 0;
+    obj_output->max_height               = 0;
+    obj_output->vdp_flip_queue           = VDP_INVALID_HANDLE;
+    obj_output->vdp_flip_target          = VDP_INVALID_HANDLE;
+    obj_output->current_output_surface   = 0;
+    obj_output->displayed_output_surface = 0;
+    obj_output->queued_surfaces          = 0;
+    obj_output->fields                   = 0;
 
     unsigned int i;
     for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++)
@@ -320,7 +322,7 @@ render_surface(
 
     VdpOutputSurface vdp_background = VDP_INVALID_HANDLE;
     if (obj_output->queued_surfaces > 0)
-        vdp_background = obj_output->vdp_output_surfaces[(obj_output->queued_surfaces - 1) % VDPAU_MAX_OUTPUT_SURFACES];
+        vdp_background = obj_output->vdp_output_surfaces[obj_output->displayed_output_surface];
 
     VdpStatus vdp_status = video_mixer_render(
         driver_data,
@@ -490,10 +492,11 @@ queue_surface(
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(driver_data, vdp_status);
 
-    obj_surface->va_surface_status     = VASurfaceDisplaying;
-    obj_output->current_output_surface =
+    obj_surface->va_surface_status       = VASurfaceDisplaying;
+    obj_output->displayed_output_surface = obj_output->current_output_surface;
+    obj_output->current_output_surface   =
         (++obj_output->queued_surfaces) % VDPAU_MAX_OUTPUT_SURFACES;
-    obj_output->fields                 = 0;
+    obj_output->fields                   = 0;
     return VA_STATUS_SUCCESS;
 }
 

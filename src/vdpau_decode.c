@@ -485,7 +485,7 @@ translate_VASliceDataBuffer(
                      (pic_param->vop_fields.bits.vop_coding_type == VOP_P_TYPE ? 1 : 0) +
                      3 +                                /* intra_dc_vlc_thr     */
                      (pic_param->vol_fields.bits.interlaced ? 2 : 0) +
-                     pic_param->quant_precision +       /* vop_quant            */
+                     5 +                                /* vop_quant            */
                      (pic_param->vop_fields.bits.vop_coding_type != VOP_I_TYPE ? 3 : 0) +
                      (pic_param->vop_fields.bits.vop_coding_type == VOP_B_TYPE ? 3 : 0));
         if ((nbits = slice_param->macroblock_offset - (nbits % 8)) < 0)
@@ -510,7 +510,7 @@ translate_VASliceDataBuffer(
             put_bits(&pb, 1, pic_param->vop_fields.bits.top_field_first);
             put_bits(&pb, 1, pic_param->vop_fields.bits.alternate_vertical_scan_flag);
         }
-        put_bits(&pb, pic_param->quant_precision, slice_param->quant_scale);
+        put_bits(&pb, 5, slice_param->quant_scale);
         if (pic_param->vop_fields.bits.vop_coding_type != VOP_I_TYPE)
             put_bits(&pb, 3, pic_param->vop_fcode_forward);
         if (pic_param->vop_fields.bits.vop_coding_type == VOP_B_TYPE)
@@ -521,7 +521,8 @@ translate_VASliceDataBuffer(
         if ((put_bits_count(&pb) % 8) != slice_param->macroblock_offset)
             return 0;
         const int r = 8 - (put_bits_count(&pb) % 8);
-        put_bits(&pb, r, slice_data[0] & ((1U << r) - 1));
+        if (r > 0)
+            put_bits(&pb, r, slice_data[0] & ((1U << r) - 1));
         flush_put_bits(&pb);
 
         ASSERT((put_bits_count(&pb) % 8) == 0);

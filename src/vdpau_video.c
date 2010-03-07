@@ -648,7 +648,7 @@ query_surface_status(
                 return VA_STATUS_ERROR_INVALID_SURFACE;
 
             VdpOutputSurface vdp_output_surface;
-            vdp_output_surface = obj_output->vdp_output_surfaces[(obj_output->current_output_surface + VDPAU_MAX_OUTPUT_SURFACES - 1) % VDPAU_MAX_OUTPUT_SURFACES];
+            vdp_output_surface = obj_output->vdp_output_surfaces[obj_output->displayed_output_surface];
             if (vdp_output_surface == VDP_INVALID_HANDLE)
                 continue;
 
