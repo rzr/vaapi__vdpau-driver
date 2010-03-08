@@ -29,6 +29,7 @@
 #include "vdpau_video_x11.h"
 #if USE_GLX
 #include "vdpau_video_glx.h"
+#include <va/va_backend_glx.h>
 #endif
 
 #define DEBUG 1
@@ -41,7 +42,23 @@
      (VA_CHECK_VERSION(major, minor, micro) && VA_SDS_VERSION >= (sds)))
 
 // Check for VA/GLX changes from libVA API >= 0.31.0-sds2
-#if VA_CHECK_VERSION_SDS(0,31,0,2)
+#if VA_CHECK_VERSION_SDS(0,31,0,6)
+#define VA_DRIVER_VTABLE_GLX(ctx) get_vtable_glx(ctx)
+typedef struct VADriverVTableGLX *VADriverVTableGLXP;
+
+static VADriverVTableGLXP get_vtable_glx(VADriverContextP ctx)
+{
+    VADriverVTableGLXP vtable_glx = ctx->vtable.glx;
+
+    if (!vtable_glx) {
+        vtable_glx = calloc(1, sizeof(*vtable_glx));
+        if (!vtable_glx)
+            return NULL;
+        ctx->vtable.glx = vtable_glx;
+    }
+    return vtable_glx;
+}
+#elif VA_CHECK_VERSION_SDS(0,31,0,2)
 #define VA_DRIVER_VTABLE_GLX(ctx) (&(ctx)->vtable.glx)
 typedef struct VADriverVTableGLX *VADriverVTableGLXP;
 #else
@@ -181,6 +198,11 @@ static VAStatus vdpau_Terminate(VADriverContextP ctx)
     DESTROY_HEAP(mixer,       destroy_mixer_cb);
 #if USE_GLX
     DESTROY_HEAP(glx_surface, NULL);
+
+#if VA_CHECK_VERSION_SDS(0,31,0,6)
+    free(ctx->vtable.glx);
+    ctx->vtable.glx = NULL;
+#endif
 #endif
 
     free(driver_data->gl_data);
@@ -322,6 +344,8 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
 
 #if USE_GLX
     VADriverVTableGLXP const glx_vtable     = VA_DRIVER_VTABLE_GLX(ctx);
+    if (!glx_vtable)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
     glx_vtable->vaCreateSurfaceGLX          = vdpau_CreateSurfaceGLX;
     glx_vtable->vaDestroySurfaceGLX         = vdpau_DestroySurfaceGLX;
 #if !VA_CHECK_VERSION_SDS(0,31,0,5) /* 0.31.0-sds5 dropped 'bind' API */
