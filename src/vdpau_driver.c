@@ -205,6 +205,11 @@ static VAStatus vdpau_Terminate(VADriverContextP ctx)
 #endif
 #endif
 
+    if (driver_data->vdp_device != VDP_INVALID_HANDLE) {
+        vdpau_device_destroy(driver_data, driver_data->vdp_device);
+        driver_data->vdp_device = VDP_INVALID_HANDLE;
+    }
+
     free(driver_data->gl_data);
     vdpau_gate_exit(driver_data);
 
@@ -220,9 +225,13 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     VDPAU_DRIVER_DATA_INIT;
 
     VdpStatus vdp_status;
-    vdp_status = vdp_device_create_x11(ctx->x11_dpy, ctx->x11_screen,
-                                       &driver_data->vdp_device,
-                                       &driver_data->vdp_get_proc_address);
+    driver_data->vdp_device = VDP_INVALID_HANDLE;
+    vdp_status = vdp_device_create_x11(
+        ctx->x11_dpy,
+        ctx->x11_screen,
+        &driver_data->vdp_device,
+        &driver_data->vdp_get_proc_address
+    );
     ASSERT(vdp_status == VDP_STATUS_OK);
     if (vdp_status != VDP_STATUS_OK)
         return VA_STATUS_ERROR_UNKNOWN;

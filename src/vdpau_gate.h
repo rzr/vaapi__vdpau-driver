@@ -107,6 +107,13 @@ vdpau_generate_csc_matrix(
     VdpCSCMatrix       *csc_matrix
 ) attribute_hidden;
 
+// VdpDeviceDestroy
+VdpStatus
+vdpau_device_destroy(
+    vdpau_driver_data_p driver_data,
+    VdpDevice           device
+) attribute_hidden;
+
 // VdpVideoSurfaceCreate
 VdpStatus
 vdpau_video_surface_create(
