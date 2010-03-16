@@ -183,16 +183,22 @@ vdpau_CreateImage(
     out_image->buf      = VA_INVALID_ID;
 
     VAImageID image_id = object_heap_allocate(&driver_data->image_heap);
-    if (image_id == VA_INVALID_ID)
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    if (image_id == VA_INVALID_ID) {
+        va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
+        goto error;
+    }
 
     object_image_p obj_image = VDPAU_IMAGE(image_id);
-    if (!obj_image)
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    if (!obj_image) {
+        va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
+        goto error;
+    }
 
     const vdpau_image_format_map_t *m = get_format(format);
-    if (!m)
-        return VA_STATUS_ERROR_UNKNOWN; /* VA_STATUS_ERROR_UNSUPPORTED_FORMAT */
+    if (!m) {
+        va_status = VA_STATUS_ERROR_UNKNOWN; /* VA_STATUS_ERROR_UNSUPPORTED_FORMAT */
+        goto error;
+    }
 
     VAImage * const image = &obj_image->image;
     image->image_id       = image_id;
