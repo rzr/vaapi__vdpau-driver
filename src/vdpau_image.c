@@ -50,6 +50,7 @@ static const vdpau_image_format_map_t vdpau_image_formats_map[] = {
       NPE, EB, { C0, C1, C2, C3 } }
     DEF_YUV(YCBCR, NV12,        ('N','V','1','2'), LSB, 12),
     DEF_YUV(YCBCR, YV12,        ('Y','V','1','2'), LSB, 12),
+    DEF_YUV(YCBCR, YV12,        ('I','4','2','0'), LSB, 12), // swap U/V planes
     DEF_YUV(YCBCR, UYVY,        ('U','Y','V','Y'), LSB, 16),
     DEF_YUV(YCBCR, YUYV,        ('Y','U','Y','V'), LSB, 16),
     DEF_YUV(YCBCR, V8U8Y8A8,    ('A','Y','U','V'), LSB, 32),
@@ -183,16 +184,22 @@ vdpau_CreateImage(
     out_image->buf      = VA_INVALID_ID;
 
     VAImageID image_id = object_heap_allocate(&driver_data->image_heap);
-    if (image_id == VA_INVALID_ID)
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    if (image_id == VA_INVALID_ID) {
+        va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
+        goto error;
+    }
 
     object_image_p obj_image = VDPAU_IMAGE(image_id);
-    if (!obj_image)
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    if (!obj_image) {
+        va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
+        goto error;
+    }
 
     const vdpau_image_format_map_t *m = get_format(format);
-    if (!m)
-        return VA_STATUS_ERROR_UNKNOWN; /* VA_STATUS_ERROR_UNSUPPORTED_FORMAT */
+    if (!m) {
+        va_status = VA_STATUS_ERROR_UNKNOWN; /* VA_STATUS_ERROR_UNSUPPORTED_FORMAT */
+        goto error;
+    }
 
     VAImage * const image = &obj_image->image;
     image->image_id       = image_id;
@@ -213,6 +220,7 @@ vdpau_CreateImage(
         image->data_size  = size + 2 * size2;
         break;
     case VA_FOURCC('Y','V','1','2'):
+    case VA_FOURCC('I','4','2','0'):
         image->num_planes = 3;
         image->pitches[0] = width;
         image->offsets[0] = 0;
@@ -251,11 +259,26 @@ vdpau_CreateImage(
         goto error;
     }
 
+    /* Allocate more bytes to align image data base on 16-byte boundaries */
+    /* XXX: align other planes too? */
+    static const int ALIGN = 16;
+
     va_status = vdpau_CreateBuffer(ctx, 0, VAImageBufferType,
-                                   image->data_size, 1, NULL,
+                                   image->data_size + ALIGN, 1, NULL,
                                    &image->buf);
     if (va_status != VA_STATUS_SUCCESS)
         goto error;
+
+    object_buffer_p obj_buffer = VDPAU_BUFFER(image->buf);
+    if (!obj_buffer)
+        goto error;
+
+    int align = ((uintptr_t)obj_buffer->buffer_data) % ALIGN;
+    if (align) {
+        align = ALIGN - align;
+        for (i = 0; i < image->num_planes; i++)
+            image->offsets[i] += align;
+    }
 
     obj_image->vdp_rgba_output_surface = VDP_INVALID_HANDLE;
     obj_image->vdp_format_type  = m->vdp_format_type;
@@ -383,9 +406,21 @@ get_image(
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    for (i = 0; i < image->num_planes; i++) {
-        src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
-        src_stride[i] = image->pitches[i];
+    switch (image->format.fourcc) {
+    case VA_FOURCC('I','4','2','0'):
+        src[0] = (uint8_t *)obj_buffer->buffer_data + image->offsets[0];
+        src_stride[0] = image->pitches[0];
+        src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
+        src_stride[1] = image->pitches[2];
+        src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
+        src_stride[2] = image->pitches[1];
+        break;
+    default:
+        for (i = 0; i < image->num_planes; i++) {
+            src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+            src_stride[i] = image->pitches[i];
+        }
+        break;
     }
 
     switch (obj_image->vdp_format_type) {
@@ -526,9 +561,21 @@ put_image(
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    for (i = 0; i < image->num_planes; i++) {
-        src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
-        src_stride[i] = image->pitches[i];
+    switch (image->format.fourcc) {
+    case VA_FOURCC('I','4','2','0'):
+        src[0] = (uint8_t *)obj_buffer->buffer_data + image->offsets[0];
+        src_stride[0] = image->pitches[0];
+        src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
+        src_stride[1] = image->pitches[2];
+        src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
+        src_stride[2] = image->pitches[1];
+        break;
+    default:
+        for (i = 0; i < image->num_planes; i++) {
+            src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+            src_stride[i] = image->pitches[i];
+        }
+        break;
     }
 
     /* XXX: only support YCbCr surfaces for now */

@@ -157,6 +157,16 @@ vdpau_generate_csc_matrix(
                         csc_matrix);
 }
 
+// VdpDeviceDestroy
+VdpStatus
+vdpau_device_destroy(
+    vdpau_driver_data_t *driver_data,
+    VdpDevice            device
+)
+{
+    return VDPAU_INVOKE(device_destroy, device);
+}
+
 // VdpVideoSurfaceCreate
 VdpStatus
 vdpau_video_surface_create(
