@@ -259,11 +259,26 @@ vdpau_CreateImage(
         goto error;
     }
 
+    /* Allocate more bytes to align image data base on 16-byte boundaries */
+    /* XXX: align other planes too? */
+    static const int ALIGN = 16;
+
     va_status = vdpau_CreateBuffer(ctx, 0, VAImageBufferType,
-                                   image->data_size, 1, NULL,
+                                   image->data_size + ALIGN, 1, NULL,
                                    &image->buf);
     if (va_status != VA_STATUS_SUCCESS)
         goto error;
+
+    object_buffer_p obj_buffer = VDPAU_BUFFER(image->buf);
+    if (!obj_buffer)
+        goto error;
+
+    int align = ((uintptr_t)obj_buffer->buffer_data) % ALIGN;
+    if (align) {
+        align = ALIGN - align;
+        for (i = 0; i < image->num_planes; i++)
+            image->offsets[i] += align;
+    }
 
     obj_image->vdp_rgba_output_surface = VDP_INVALID_HANDLE;
     obj_image->vdp_format_type  = m->vdp_format_type;
