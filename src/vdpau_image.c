@@ -50,6 +50,7 @@ static const vdpau_image_format_map_t vdpau_image_formats_map[] = {
       NPE, EB, { C0, C1, C2, C3 } }
     DEF_YUV(YCBCR, NV12,        ('N','V','1','2'), LSB, 12),
     DEF_YUV(YCBCR, YV12,        ('Y','V','1','2'), LSB, 12),
+    DEF_YUV(YCBCR, YV12,        ('I','4','2','0'), LSB, 12), // swap U/V planes
     DEF_YUV(YCBCR, UYVY,        ('U','Y','V','Y'), LSB, 16),
     DEF_YUV(YCBCR, YUYV,        ('Y','U','Y','V'), LSB, 16),
     DEF_YUV(YCBCR, V8U8Y8A8,    ('A','Y','U','V'), LSB, 32),
@@ -219,6 +220,7 @@ vdpau_CreateImage(
         image->data_size  = size + 2 * size2;
         break;
     case VA_FOURCC('Y','V','1','2'):
+    case VA_FOURCC('I','4','2','0'):
         image->num_planes = 3;
         image->pitches[0] = width;
         image->offsets[0] = 0;
@@ -389,9 +391,21 @@ get_image(
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    for (i = 0; i < image->num_planes; i++) {
-        src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
-        src_stride[i] = image->pitches[i];
+    switch (image->format.fourcc) {
+    case VA_FOURCC('I','4','2','0'):
+        src[0] = (uint8_t *)obj_buffer->buffer_data + image->offsets[0];
+        src_stride[0] = image->pitches[0];
+        src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
+        src_stride[1] = image->pitches[2];
+        src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
+        src_stride[2] = image->pitches[1];
+        break;
+    default:
+        for (i = 0; i < image->num_planes; i++) {
+            src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+            src_stride[i] = image->pitches[i];
+        }
+        break;
     }
 
     switch (obj_image->vdp_format_type) {
@@ -532,9 +546,21 @@ put_image(
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    for (i = 0; i < image->num_planes; i++) {
-        src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
-        src_stride[i] = image->pitches[i];
+    switch (image->format.fourcc) {
+    case VA_FOURCC('I','4','2','0'):
+        src[0] = (uint8_t *)obj_buffer->buffer_data + image->offsets[0];
+        src_stride[0] = image->pitches[0];
+        src[1] = (uint8_t *)obj_buffer->buffer_data + image->offsets[2];
+        src_stride[1] = image->pitches[2];
+        src[2] = (uint8_t *)obj_buffer->buffer_data + image->offsets[1];
+        src_stride[2] = image->pitches[1];
+        break;
+    default:
+        for (i = 0; i < image->num_planes; i++) {
+            src[i] = (uint8_t *)obj_buffer->buffer_data + image->offsets[i];
+            src_stride[i] = image->pitches[i];
+        }
+        break;
     }
 
     /* XXX: only support YCbCr surfaces for now */
