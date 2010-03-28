@@ -629,9 +629,15 @@ fbo_enter(
     opengl_data_t * const gl_data = get_gl_data(driver_data);
     const unsigned int width  = obj_glx_surface->width;
     const unsigned int height = obj_glx_surface->height;
+    const unsigned int attribs = (GL_VIEWPORT_BIT|
+                                  GL_CURRENT_BIT|
+                                  GL_ENABLE_BIT|
+                                  GL_TEXTURE_BIT|
+                                  GL_COLOR_BUFFER_BIT);
 
+    gl_get_param(GL_FRAMEBUFFER_BINDING, &obj_glx_surface->old_fbo);
     gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_glx_surface->fbo);
-    glPushAttrib(GL_VIEWPORT_BIT);
+    glPushAttrib(attribs);
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
@@ -647,7 +653,10 @@ fbo_enter(
 
 // Restore original OpenGL matrices
 static void
-fbo_leave(vdpau_driver_data_t *driver_data)
+fbo_leave(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface
+)
 {
     opengl_data_t * const gl_data = get_gl_data(driver_data);
 
@@ -656,7 +665,7 @@ fbo_leave(vdpau_driver_data_t *driver_data)
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
-    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_glx_surface->old_fbo);
 }
 
 // Destroy VA/GLX surface
@@ -982,14 +991,14 @@ vdpau_CopySurfaceGLX(
     /* Render to FBO */
     fbo_enter(driver_data, obj_glx_surface);
     va_status = vdpau_BeginRenderSurfaceGLX(ctx, gl_surface);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-    render_pixmap(driver_data, obj_glx_surface);
-    va_status = vdpau_EndRenderSurfaceGLX(ctx, gl_surface);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-    fbo_leave(driver_data);
+    if (va_status == VA_STATUS_SUCCESS) {
+        render_pixmap(driver_data, obj_glx_surface);
+        va_status = vdpau_EndRenderSurfaceGLX(ctx, gl_surface);
+    }
+    fbo_leave(driver_data, obj_glx_surface);
     unbind_texture(&ts);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
 
     va_status = vdpau_DeassociateSurfaceGLX(ctx, gl_surface);
     if (va_status != VA_STATUS_SUCCESS)
