@@ -42,6 +42,7 @@
      (VA_CHECK_VERSION(major, minor, micro) && VA_SDS_VERSION >= (sds)))
 
 // Check for VA/GLX changes from libVA API >= 0.31.0-sds2
+#if USE_GLX
 #if VA_CHECK_VERSION_SDS(0,31,0,6)
 #define VA_DRIVER_VTABLE_GLX(ctx) get_vtable_glx(ctx)
 typedef struct VADriverVTableGLX *VADriverVTableGLXP;
@@ -64,6 +65,7 @@ typedef struct VADriverVTableGLX *VADriverVTableGLXP;
 #else
 #define VA_DRIVER_VTABLE_GLX(ctx) (&(ctx)->vtable)
 typedef struct VADriverVTable    *VADriverVTableGLXP;
+#endif
 #endif
 
 // Return TRUE if underlying VDPAU implementation is NVIDIA

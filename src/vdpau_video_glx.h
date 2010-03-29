@@ -40,6 +40,7 @@ struct object_glx_surface {
     int                 is_bound;
     Pixmap              pixmap;
     GLXPixmap           glx_pixmap;
+    GLuint              old_fbo;
     GLuint              fbo;
     GLuint              fbo_buffer;
     GLuint              fbo_texture;

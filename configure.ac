@@ -1,7 +1,7 @@
 # vdpau_video package version number
 m4_define([vdpau_video_major_version], [0])
 m4_define([vdpau_video_minor_version], [6])
-m4_define([vdpau_video_micro_version], [6])
+m4_define([vdpau_video_micro_version], [7])
 m4_define([vdpau_video_version],
           [vdpau_video_major_version.vdpau_video_minor_version.vdpau_video_micro_version])
 
@@ -168,6 +168,12 @@ VA_MAJOR_VERSION=`echo "$VA_VERSION" | cut -d'.' -f1`
 VA_MINOR_VERSION=`echo "$VA_VERSION" | cut -d'.' -f2`
 VA_MICRO_VERSION=`echo "$VA_VERSION" | cut -d'.' -f3`
 VA_SDS_VERSION=`$PKG_CONFIG libva --variable sdsversion`
+
+VA_VERSION_STR="$VA_VERSION"
+if test -n "$VA_SDS_VERSION"; then
+    VA_VERSION_STR="$VA_VERSION_STR-sds$VA_SDS_VERSION"
+fi
+
 va_full_version_int=`expr ${VA_MAJOR_VERSION:-0} "*" 1000000 + \
                           ${VA_MINOR_VERSION:-0} "*" 10000   + \
                           ${VA_MICRO_VERSION:-0} "*" 100     + \
@@ -244,6 +250,13 @@ AC_CACHE_CHECK([for VDPAU/MPEG-4 support],
 ])
 AC_DEFINE_UNQUOTED(HAVE_VDPAU_MPEG4, [$HAVE_VDPAU_MPEG4], [VDPAU/MPEG-4 support])
 
+dnl Check for VDPAU version (poor man's check, no pkgconfig joy)
+VDPAU_VERSION=`cat << EOF | $CC -E - | grep ^vdpau_version | cut -d' ' -f2
+#include <vdpau/vdpau.h>
+vdpau_version VDPAU_VERSION
+EOF
+`
+
 AC_DEFINE_UNQUOTED(USE_GLX, $USE_GLX, [Defined to 1 if GLX is enabled])
 AM_CONDITIONAL(USE_GLX, test $USE_GLX -eq 1)
 
@@ -260,3 +273,14 @@ AC_OUTPUT([
 	Makefile
 	src/Makefile
 ])
+
+dnl Print summary
+echo
+echo $PACKAGE configuration summary:
+echo
+echo VA-API version ................... : $VA_VERSION_STR
+echo VA-API drivers path .............. : $LIBVA_DRIVERS_PATH
+echo VDPAU version .................... : $VDPAU_VERSION
+echo VDPAU/MPEG-4 support ............. : $(test $HAVE_VDPAU_MPEG4  -eq 1 && echo yes || echo no)
+echo GLX support ...................... : $(test $USE_GLX  -eq 1 && echo yes || echo no)
+echo

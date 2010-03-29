@@ -1,5 +1,9 @@
-vdpau-video NEWS -- summary of changes.  2010-03-18
+vdpau-video NEWS -- summary of changes.  2010-04-DD
 Copyright (C) 2009-2010 Splitted-Desktop Systems
+
+Version 0.6.7 - DD.Apr.2010
+* Fix build without GLX support
+* Fix vaCopySurfaceGLX() to preserve FBO bindings
 
 Version 0.6.6 - 18.Mar.2010
 * Add I420 image format

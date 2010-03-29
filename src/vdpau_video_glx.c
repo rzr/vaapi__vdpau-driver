@@ -36,6 +36,10 @@ typedef void (*PFNGLXBINDTEXIMAGEEXTPROC)(Display *, GLXDrawable, int, const int
 typedef void (*PFNGLXRELEASETEXIMAGEEXTPROC)(Display *, GLXDrawable, int);
 #endif
 
+#ifndef GL_FRAMEBUFFER_BINDING
+#define GL_FRAMEBUFFER_BINDING GL_FRAMEBUFFER_BINDING_EXT
+#endif
+
 
 // OpenGL VTable
 typedef enum {
@@ -629,9 +633,15 @@ fbo_enter(
     opengl_data_t * const gl_data = get_gl_data(driver_data);
     const unsigned int width  = obj_glx_surface->width;
     const unsigned int height = obj_glx_surface->height;
+    const unsigned int attribs = (GL_VIEWPORT_BIT|
+                                  GL_CURRENT_BIT|
+                                  GL_ENABLE_BIT|
+                                  GL_TEXTURE_BIT|
+                                  GL_COLOR_BUFFER_BIT);
 
+    gl_get_param(GL_FRAMEBUFFER_BINDING, &obj_glx_surface->old_fbo);
     gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_glx_surface->fbo);
-    glPushAttrib(GL_VIEWPORT_BIT);
+    glPushAttrib(attribs);
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
@@ -647,7 +657,10 @@ fbo_enter(
 
 // Restore original OpenGL matrices
 static void
-fbo_leave(vdpau_driver_data_t *driver_data)
+fbo_leave(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface
+)
 {
     opengl_data_t * const gl_data = get_gl_data(driver_data);
 
@@ -656,7 +669,7 @@ fbo_leave(vdpau_driver_data_t *driver_data)
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
-    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_glx_surface->old_fbo);
 }
 
 // Destroy VA/GLX surface
@@ -671,6 +684,20 @@ destroy_surface(vdpau_driver_data_t *driver_data, VASurfaceID surface)
 
     object_heap_free(&driver_data->glx_surface_heap,
                      (object_base_p)obj_glx_surface);
+}
+
+// Check internal texture format is supported
+static int
+is_supported_internal_format(GLenum format)
+{
+    /* XXX: we don't support other textures than RGBA */
+    switch (format) {
+    case 4:
+    case GL_RGBA:
+    case GL_RGBA8:
+        return 1;
+    }
+    return 0;
 }
 
 // Create VA/GLX surface
@@ -700,10 +727,9 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
     obj_glx_surface->fbo_buffer         = 0;
     obj_glx_surface->fbo_texture        = 0;
 
-    /* XXX: we don't support other textures than RGBA */
     if (gl_get_texture_param(GL_TEXTURE_INTERNAL_FORMAT, &internal_format) < 0)
         goto end;
-    if (internal_format != GL_RGBA)
+    if (!is_supported_internal_format(internal_format))
         goto end;
 
     /* Check texture dimensions */
@@ -966,14 +992,14 @@ vdpau_CopySurfaceGLX(
     /* Render to FBO */
     fbo_enter(driver_data, obj_glx_surface);
     va_status = vdpau_BeginRenderSurfaceGLX(ctx, gl_surface);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-    render_pixmap(driver_data, obj_glx_surface);
-    va_status = vdpau_EndRenderSurfaceGLX(ctx, gl_surface);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-    fbo_leave(driver_data);
+    if (va_status == VA_STATUS_SUCCESS) {
+        render_pixmap(driver_data, obj_glx_surface);
+        va_status = vdpau_EndRenderSurfaceGLX(ctx, gl_surface);
+    }
+    fbo_leave(driver_data, obj_glx_surface);
     unbind_texture(&ts);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
 
     va_status = vdpau_DeassociateSurfaceGLX(ctx, gl_surface);
     if (va_status != VA_STATUS_SUCCESS)
