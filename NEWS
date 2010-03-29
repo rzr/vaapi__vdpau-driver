@@ -2,11 +2,14 @@ vdpau-video NEWS -- summary of changes.  2010-03-DD
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
 Version 0.7.0 - DD.Mar.2010
+* Optimize rendering of multiple surfaces per window
+
+Version 0.6.6 - 18.Mar.2010
 * Add I420 image format
 * Allocate image data on 16-byte boundaries
 * Fix vaCreateImage() to cleanup data on error
 * Fix vaTerminate() to destroy the VDPAU device
-* Optimize rendering of multiple surfaces per window
+* Add support for VA-API 0.31.0-sds6
 
 Version 0.6.5 - 08.Mar.2010
 * Fix display queue initialization
