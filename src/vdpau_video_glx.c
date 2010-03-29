@@ -686,6 +686,20 @@ destroy_surface(vdpau_driver_data_t *driver_data, VASurfaceID surface)
                      (object_base_p)obj_glx_surface);
 }
 
+// Check internal texture format is supported
+static int
+is_supported_internal_format(GLenum format)
+{
+    /* XXX: we don't support other textures than RGBA */
+    switch (format) {
+    case 4:
+    case GL_RGBA:
+    case GL_RGBA8:
+        return 1;
+    }
+    return 0;
+}
+
 // Create VA/GLX surface
 static VASurfaceID
 create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
@@ -713,10 +727,9 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
     obj_glx_surface->fbo_buffer         = 0;
     obj_glx_surface->fbo_texture        = 0;
 
-    /* XXX: we don't support other textures than RGBA */
     if (gl_get_texture_param(GL_TEXTURE_INTERNAL_FORMAT, &internal_format) < 0)
         goto end;
-    if (internal_format != GL_RGBA)
+    if (!is_supported_internal_format(internal_format))
         goto end;
 
     /* Check texture dimensions */
