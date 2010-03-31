@@ -704,10 +704,14 @@ is_supported_internal_format(GLenum format)
 static VASurfaceID
 create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
 {
-    VASurfaceID surface;
+    VASurfaceID surface = VA_INVALID_SURFACE;
     object_glx_surface_p obj_glx_surface;
+    opengl_texture_state_t ts;
     unsigned int internal_format, border_width, width, height;
     int is_error = 1;
+
+    if (bind_texture(&ts, target, texture) < 0)
+        goto end;
 
     surface = object_heap_allocate(&driver_data->glx_surface_heap);
     if (surface == VA_INVALID_SURFACE)
@@ -717,6 +721,7 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
     if (!obj_glx_surface)
         goto end;
 
+    obj_glx_surface->gl_context         = NULL;
     obj_glx_surface->target             = target;
     obj_glx_surface->texture            = texture;
     obj_glx_surface->va_surface         = VA_INVALID_SURFACE;
@@ -754,11 +759,105 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
 
     is_error = 0;
 end:
+    unbind_texture(&ts);
     if (is_error && surface != VA_INVALID_SURFACE) {
         destroy_surface(driver_data, surface);
         surface = VA_INVALID_SURFACE;
     }
     return surface;
+}
+
+struct _GLContextState {
+    Display            *display;
+    Window              window;
+    GLXContext          context;
+};
+
+static void
+gl_destroy_context(GLContextState *cs)
+{
+    if (!cs)
+        return;
+
+    if (cs->display && cs->context) {
+        glXDestroyContext(cs->display, cs->context);
+        cs->display = NULL;
+        cs->context = NULL;
+    }
+    free(cs);
+}
+
+static GLContextState *
+gl_create_context(Display *dpy, int screen, GLContextState *parent)
+{
+    GLContextState *cs;
+    GLXFBConfig *fb_configs = NULL;
+    int n_fb_configs;
+
+    static GLint fb_config_attrs[] = {
+        GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+        GLX_RENDER_TYPE,   GLX_RGBA_BIT,
+        GLX_DOUBLEBUFFER,  True,
+        GLX_RED_SIZE,      1,
+        GLX_GREEN_SIZE,    1, 
+        GLX_BLUE_SIZE,     1,
+        None
+    };
+
+    cs = malloc(sizeof(*cs));
+    if (!cs)
+        goto error;
+
+    cs->display = dpy;
+    cs->window  = parent ? parent->window : None;
+    cs->context = NULL;
+
+    fb_configs = glXChooseFBConfig(dpy, screen, fb_config_attrs, &n_fb_configs);
+    if (!fb_configs)
+        goto error;
+
+    cs->context = glXCreateNewContext(
+        dpy,
+        fb_configs[0],
+        GLX_RGBA_TYPE,
+        parent ? parent->context : NULL,
+        True
+    );
+    if (cs->context)
+        goto end;
+
+error:
+    gl_destroy_context(cs);
+    cs = NULL;
+end:
+    if (fb_configs)
+        XFree(fb_configs);
+    return cs;
+}
+
+static void
+gl_get_current_context(GLContextState *cs)
+{
+    cs->display = glXGetCurrentDisplay();
+    cs->window  = glXGetCurrentDrawable();
+    cs->context = glXGetCurrentContext();
+}
+
+static int
+gl_set_current_context(GLContextState *new_cs, GLContextState *old_cs)
+{
+    if (old_cs) {
+        if (old_cs == new_cs)
+            return 1;
+        gl_get_current_context(old_cs);
+        if (old_cs->display == new_cs->display &&
+            old_cs->window  == new_cs->window  &&
+            old_cs->context == new_cs->context)
+            return 1;
+    }
+    return glXMakeCurrent(new_cs->display,
+                          new_cs->window,
+                          new_cs->context);
 }
 
 // vaCreateSurfaceGLX
@@ -788,18 +887,23 @@ vdpau_CreateSurfaceGLX(
     if (!glIsTexture(texture))
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
-    /* Make sure binding succeeds, if texture was not already bound */
-    opengl_texture_state_t ts;
-    if (bind_texture(&ts, target, texture) < 0)
+    GLContextState old_cs, *new_cs;
+    gl_get_current_context(&old_cs);
+    new_cs = gl_create_context(ctx->x11_dpy, ctx->x11_screen, &old_cs);
+    if (!new_cs)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    if (!gl_set_current_context(new_cs, NULL))
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
     VASurfaceID surface = create_surface(driver_data, target, texture);
     if (surface == VA_INVALID_SURFACE)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
-    *gl_surface = VDPAU_GLX_SURFACE(surface);
+    object_glx_surface_p obj_glx_surface = VDPAU_GLX_SURFACE(surface);
+    *gl_surface = obj_glx_surface;
+    obj_glx_surface->gl_context = new_cs;
 
-    unbind_texture(&ts);
+    gl_set_current_context(&old_cs, NULL);
     return VA_STATUS_SUCCESS;
 }
 
@@ -818,7 +922,14 @@ vdpau_DestroySurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
+    GLContextState old_cs, *new_cs = obj_glx_surface->gl_context;
+    if (!gl_set_current_context(new_cs, &old_cs))
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     destroy_surface(driver_data, obj_glx_surface->base.id);
+
+    gl_destroy_context(new_cs);
+    gl_set_current_context(&old_cs, NULL);
     return VA_STATUS_SUCCESS;
 }
 
@@ -892,6 +1003,10 @@ vdpau_AssociateSurfaceGLX(
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
+    GLContextState old_cs;
+    if (!gl_set_current_context(obj_glx_surface->gl_context, &old_cs))
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     VAStatus va_status;
     va_status = associate_glx_surface(
         driver_data,
@@ -899,6 +1014,8 @@ vdpau_AssociateSurfaceGLX(
         obj_surface,
         flags
     );
+
+    gl_set_current_context(&old_cs, NULL);
     return va_status;
 }
 
@@ -930,8 +1047,14 @@ vdpau_DeassociateSurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
+    GLContextState old_cs;
+    if (!gl_set_current_context(obj_glx_surface->gl_context, &old_cs))
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     VAStatus va_status;
     va_status = deassociate_glx_surface(driver_data, obj_glx_surface);
+
+    gl_set_current_context(&old_cs, NULL);
     return va_status;
 }
 
@@ -963,8 +1086,14 @@ vdpau_SyncSurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
+    GLContextState old_cs;
+    if (!gl_set_current_context(obj_glx_surface->gl_context, &old_cs))
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     VAStatus va_status;
     va_status = sync_glx_surface(driver_data, obj_glx_surface);
+
+    gl_set_current_context(&old_cs, NULL);
     return va_status;
 }
 
@@ -999,8 +1128,14 @@ vdpau_BeginRenderSurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
+    GLContextState old_cs;
+    if (!gl_set_current_context(obj_glx_surface->gl_context, &old_cs))
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     VAStatus va_status;
     va_status = begin_render_glx_surface(driver_data, obj_glx_surface);
+
+    gl_set_current_context(&old_cs, NULL);
     return va_status;
 }
 
@@ -1031,8 +1166,14 @@ vdpau_EndRenderSurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
+    GLContextState old_cs;
+    if (!gl_set_current_context(obj_glx_surface->gl_context, &old_cs))
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     VAStatus va_status;
     va_status = end_render_glx_surface(driver_data, obj_glx_surface);
+
+    gl_set_current_context(&old_cs, NULL);
     return va_status;
 }
 
@@ -1111,6 +1252,10 @@ vdpau_CopySurfaceGLX(
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
+    GLContextState old_cs;
+    if (!gl_set_current_context(obj_glx_surface->gl_context, &old_cs))
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
     VAStatus va_status;
     va_status = copy_glx_surface(
         driver_data,
@@ -1118,5 +1263,7 @@ vdpau_CopySurfaceGLX(
         obj_surface,
         flags
     );
+
+    gl_set_current_context(&old_cs, NULL);
     return va_status;
 }
