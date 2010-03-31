@@ -3,6 +3,9 @@ Copyright (C) 2009-2010 Splitted-Desktop Systems
 
 Version 0.7.0 - DD.Mar.2010
 * Optimize rendering of multiple surfaces per window
+* Fix build without GLX support
+* Fix VA/GLX to preserve caller's GL context
+* Fix vaCopySurfaceGLX() to handle GL_RGBA8 textures
 
 Version 0.6.6 - 18.Mar.2010
 * Add I420 image format
