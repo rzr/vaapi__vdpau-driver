@@ -822,7 +822,56 @@ vdpau_DestroySurfaceGLX(
     return VA_STATUS_SUCCESS;
 }
 
+// Forward declarations
+static VAStatus
+deassociate_glx_surface(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface
+);
+
 // vaAssociateSurfaceGLX
+static VAStatus
+associate_glx_surface(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface,
+    object_surface_p     obj_surface,
+    unsigned int         flags
+)
+{
+    /* XXX: optimise case where we are associating the same VA surface
+       as before an no changed occurred to it */
+    VAStatus va_status;
+    va_status = deassociate_glx_surface(driver_data, obj_glx_surface);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    /* Render to Pixmap */
+    VARectangle src_rect, dst_rect;
+    src_rect.x      = 0;
+    src_rect.y      = 0;
+    src_rect.width  = obj_surface->width;
+    src_rect.height = obj_surface->height;
+    dst_rect.x      = 0;
+    dst_rect.y      = 0;
+    dst_rect.width  = obj_glx_surface->width;
+    dst_rect.height = obj_glx_surface->height;
+    va_status = put_surface(
+        driver_data,
+        obj_surface->base.id,
+        obj_glx_surface->pixmap,
+        obj_glx_surface->width,
+        obj_glx_surface->height,
+        &src_rect,
+        &dst_rect,
+        flags
+    );
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    obj_glx_surface->va_surface = obj_surface->base.id;
+    return VA_STATUS_SUCCESS;
+}
+
 VAStatus
 vdpau_AssociateSurfaceGLX(
     VADriverContextP ctx,
@@ -843,36 +892,30 @@ vdpau_AssociateSurfaceGLX(
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    /* XXX: optimise case where we are associating the same VA surface
-       as before an no changed occurred to it */
     VAStatus va_status;
-    va_status = vdpau_DeassociateSurfaceGLX(ctx, gl_surface);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-
-    /* Render to Pixmap */
-    VARectangle src_rect, dst_rect;
-    src_rect.x      = 0;
-    src_rect.y      = 0;
-    src_rect.width  = obj_surface->width;
-    src_rect.height = obj_surface->height;
-    dst_rect.x      = 0;
-    dst_rect.y      = 0;
-    dst_rect.width  = obj_glx_surface->width;
-    dst_rect.height = obj_glx_surface->height;
-    va_status = put_surface(driver_data, surface,
-                            obj_glx_surface->pixmap,
-                            obj_glx_surface->width,
-                            obj_glx_surface->height,
-                            &src_rect, &dst_rect, flags);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-
-    obj_glx_surface->va_surface = surface;
-    return VA_STATUS_SUCCESS;
+    va_status = associate_glx_surface(
+        driver_data,
+        obj_glx_surface,
+        obj_surface,
+        flags
+    );
+    return va_status;
 }
 
 // vaDeassociateSurfaceGLX
+static VAStatus
+deassociate_glx_surface(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface
+)
+{
+    if (unbind_pixmap(driver_data, obj_glx_surface) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    obj_glx_surface->va_surface = VA_INVALID_SURFACE;
+    return VA_STATUS_SUCCESS;
+}
+
 VAStatus
 vdpau_DeassociateSurfaceGLX(
     VADriverContextP ctx,
@@ -887,14 +930,25 @@ vdpau_DeassociateSurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    if (unbind_pixmap(driver_data, obj_glx_surface) < 0)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-
-    obj_glx_surface->va_surface = VA_INVALID_SURFACE;
-    return VA_STATUS_SUCCESS;
+    VAStatus va_status;
+    va_status = deassociate_glx_surface(driver_data, obj_glx_surface);
+    return va_status;
 }
 
 // vaSyncSurfaceGLX
+static inline VAStatus
+sync_glx_surface(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface
+)
+{
+    object_surface_p obj_surface = VDPAU_SURFACE(obj_glx_surface->va_surface);
+    if (!obj_surface)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    return sync_surface(driver_data, obj_surface);
+}
+
 VAStatus
 vdpau_SyncSurfaceGLX(
     VADriverContextP ctx,
@@ -909,14 +963,28 @@ vdpau_SyncSurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    object_surface_p obj_surface = VDPAU_SURFACE(obj_glx_surface->va_surface);
-    if (!obj_surface)
-        return VA_STATUS_ERROR_INVALID_SURFACE;
-
-    return sync_surface(driver_data, obj_surface);
+    VAStatus va_status;
+    va_status = sync_glx_surface(driver_data, obj_glx_surface);
+    return va_status;
 }
 
 // vaBeginRenderSurfaceGLX
+static inline VAStatus
+begin_render_glx_surface(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface
+)
+{
+    VAStatus va_status = sync_glx_surface(driver_data, obj_glx_surface);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    if (bind_pixmap(driver_data, obj_glx_surface) < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    return VA_STATUS_SUCCESS;
+}
+
 VAStatus
 vdpau_BeginRenderSurfaceGLX(
     VADriverContextP ctx,
@@ -931,17 +999,24 @@ vdpau_BeginRenderSurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    VAStatus va_status = vdpau_SyncSurfaceGLX(ctx, gl_surface);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
+    VAStatus va_status;
+    va_status = begin_render_glx_surface(driver_data, obj_glx_surface);
+    return va_status;
+}
 
-    if (bind_pixmap(driver_data, obj_glx_surface) < 0)
+// vaEndRenderSurfaceGLX
+static inline VAStatus
+end_render_glx_surface(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface
+)
+{
+    if (unbind_pixmap(driver_data, obj_glx_surface) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
     return VA_STATUS_SUCCESS;
 }
 
-// vaEndRenderSurfaceGLX
 VAStatus
 vdpau_EndRenderSurfaceGLX(
     VADriverContextP ctx,
@@ -956,13 +1031,66 @@ vdpau_EndRenderSurfaceGLX(
     if (!obj_glx_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    if (unbind_pixmap(driver_data, obj_glx_surface) < 0)
+    VAStatus va_status;
+    va_status = end_render_glx_surface(driver_data, obj_glx_surface);
+    return va_status;
+}
+
+// vaCopySurfaceGLX
+static VAStatus
+copy_glx_surface(
+    vdpau_driver_data_t *driver_data,
+    object_glx_surface_p obj_glx_surface,
+    object_surface_p     obj_surface,
+    unsigned int         flags
+)
+{
+    /* Create framebuffer surface */
+    if (obj_glx_surface->fbo == 0 ||
+        obj_glx_surface->fbo_buffer == 0 ||
+        obj_glx_surface->fbo_texture == 0) {
+        if (create_fbo_surface(driver_data, obj_glx_surface) < 0)
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    }
+    ASSERT(obj_glx_surface->fbo > 0);
+    ASSERT(obj_glx_surface->fbo_buffer > 0);
+    ASSERT(obj_glx_surface->fbo_texture > 0);
+
+    /* Associate VA surface */
+    VAStatus va_status;
+    va_status = associate_glx_surface(
+        driver_data,
+        obj_glx_surface,
+        obj_surface,
+        flags
+    );
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    /* Make sure binding succeeds, if texture was not already bound */
+    opengl_texture_state_t ts;
+    if (bind_texture(&ts, obj_glx_surface->target, obj_glx_surface->texture) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    /* Render to FBO */
+    fbo_enter(driver_data, obj_glx_surface);
+    va_status = begin_render_glx_surface(driver_data, obj_glx_surface);
+    if (va_status == VA_STATUS_SUCCESS) {
+        render_pixmap(driver_data, obj_glx_surface);
+        va_status = end_render_glx_surface(driver_data, obj_glx_surface);
+    }
+    fbo_leave(driver_data, obj_glx_surface);
+    unbind_texture(&ts);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    va_status = deassociate_glx_surface(driver_data, obj_glx_surface);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
 
     return VA_STATUS_SUCCESS;
 }
 
-// vaCopySurfaceGLX
 VAStatus
 vdpau_CopySurfaceGLX(
     VADriverContextP ctx,
@@ -983,43 +1111,12 @@ vdpau_CopySurfaceGLX(
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
-    /* Create framebuffer surface */
-    if (obj_glx_surface->fbo == 0 ||
-        obj_glx_surface->fbo_buffer == 0 ||
-        obj_glx_surface->fbo_texture == 0) {
-        if (create_fbo_surface(driver_data, obj_glx_surface) < 0)
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    }
-    ASSERT(obj_glx_surface->fbo > 0);
-    ASSERT(obj_glx_surface->fbo_buffer > 0);
-    ASSERT(obj_glx_surface->fbo_texture > 0);
-
-    /* Associate VA surface */
     VAStatus va_status;
-    va_status = vdpau_AssociateSurfaceGLX(ctx, gl_surface, surface, flags);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-
-    /* Make sure binding succeeds, if texture was not already bound */
-    opengl_texture_state_t ts;
-    if (bind_texture(&ts, obj_glx_surface->target, obj_glx_surface->texture) < 0)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-
-    /* Render to FBO */
-    fbo_enter(driver_data, obj_glx_surface);
-    va_status = vdpau_BeginRenderSurfaceGLX(ctx, gl_surface);
-    if (va_status == VA_STATUS_SUCCESS) {
-        render_pixmap(driver_data, obj_glx_surface);
-        va_status = vdpau_EndRenderSurfaceGLX(ctx, gl_surface);
-    }
-    fbo_leave(driver_data, obj_glx_surface);
-    unbind_texture(&ts);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-
-    va_status = vdpau_DeassociateSurfaceGLX(ctx, gl_surface);
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
-
-    return VA_STATUS_SUCCESS;
+    va_status = copy_glx_surface(
+        driver_data,
+        obj_glx_surface,
+        obj_surface,
+        flags
+    );
+    return va_status;
 }
