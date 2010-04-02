@@ -27,11 +27,13 @@
 #include <GL/glx.h>
 
 typedef struct opengl_data         opengl_data_t;
+typedef struct _GLContextState     GLContextState;
 typedef struct object_glx_surface  object_glx_surface_t;
 typedef struct object_glx_surface *object_glx_surface_p;
 
 struct object_glx_surface {
     struct object_base  base;
+    GLContextState     *gl_context;
     GLenum              target;
     GLuint              texture;
     VASurfaceID         va_surface;
