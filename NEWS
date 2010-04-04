@@ -1,7 +1,7 @@
-vdpau-video NEWS -- summary of changes.  2010-04-DD
+vdpau-video NEWS -- summary of changes.  2010-04-04
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
-Version 0.6.7 - DD.Apr.2010
+Version 0.6.7 - 04.Apr.2010
 * Fix build without GLX support
 * Fix VA/GLX to preserve caller's GL context
 * Fix vaCopySurfaceGLX() to handle GL_RGBA8 textures
