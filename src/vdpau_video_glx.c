@@ -772,15 +772,16 @@ gl_create_context(Display *dpy, int screen, GLContextState *parent)
 {
     GLContextState *cs;
     GLXFBConfig *fbconfigs = NULL;
-    int n_fbconfigs;
+    int fbconfig_id, val, n, n_fbconfigs;
+    Status status;
 
     static GLint fbconfig_attrs[] = {
         GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
         GLX_RENDER_TYPE,   GLX_RGBA_BIT,
         GLX_DOUBLEBUFFER,  True,
-        GLX_RED_SIZE,      1,
-        GLX_GREEN_SIZE,    1, 
-        GLX_BLUE_SIZE,     1,
+        GLX_RED_SIZE,      8,
+        GLX_GREEN_SIZE,    8, 
+        GLX_BLUE_SIZE,     8,
         None
     };
 
@@ -792,13 +793,41 @@ gl_create_context(Display *dpy, int screen, GLContextState *parent)
     cs->window  = parent ? parent->window : None;
     cs->context = NULL;
 
-    fbconfigs = glXChooseFBConfig(dpy, screen, fbconfig_attrs, &n_fbconfigs);
-    if (!fbconfigs)
-        goto error;
+    if (parent) {
+        status = glXQueryContext(
+            parent->display,
+            parent->context,
+            GLX_FBCONFIG_ID, &fbconfig_id
+        );
+        if (status != Success)
+            goto error;
+
+        fbconfigs = glXGetFBConfigs(dpy, screen, &n_fbconfigs);
+        if (!fbconfigs)
+            goto error;
+
+        for (n = 0; n < n_fbconfigs; n++) {
+            status = glXGetFBConfigAttrib(
+                dpy,
+                fbconfigs[n],
+                GLX_FBCONFIG_ID, &val
+            );
+            if (status == Success && val == fbconfig_id)
+                break;
+        }
+        if (n == n_fbconfigs)
+            goto error;
+    }
+    else {
+        fbconfigs = glXChooseFBConfig(dpy, screen, fbconfig_attrs, &n_fbconfigs);
+        if (!fbconfigs)
+            goto error;
+        n = 0;
+    }
 
     cs->context = glXCreateNewContext(
         dpy,
-        fbconfigs[0],
+        fbconfigs[n],
         GLX_RGBA_TYPE,
         parent ? parent->context : NULL,
         True
