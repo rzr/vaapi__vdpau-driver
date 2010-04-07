@@ -771,10 +771,10 @@ static GLContextState *
 gl_create_context(Display *dpy, int screen, GLContextState *parent)
 {
     GLContextState *cs;
-    GLXFBConfig *fb_configs = NULL;
-    int n_fb_configs;
+    GLXFBConfig *fbconfigs = NULL;
+    int n_fbconfigs;
 
-    static GLint fb_config_attrs[] = {
+    static GLint fbconfig_attrs[] = {
         GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
         GLX_RENDER_TYPE,   GLX_RGBA_BIT,
         GLX_DOUBLEBUFFER,  True,
@@ -792,13 +792,13 @@ gl_create_context(Display *dpy, int screen, GLContextState *parent)
     cs->window  = parent ? parent->window : None;
     cs->context = NULL;
 
-    fb_configs = glXChooseFBConfig(dpy, screen, fb_config_attrs, &n_fb_configs);
-    if (!fb_configs)
+    fbconfigs = glXChooseFBConfig(dpy, screen, fbconfig_attrs, &n_fbconfigs);
+    if (!fbconfigs)
         goto error;
 
     cs->context = glXCreateNewContext(
         dpy,
-        fb_configs[0],
+        fbconfigs[0],
         GLX_RGBA_TYPE,
         parent ? parent->context : NULL,
         True
@@ -810,8 +810,8 @@ error:
     gl_destroy_context(cs);
     cs = NULL;
 end:
-    if (fb_configs)
-        XFree(fb_configs);
+    if (fbconfigs)
+        XFree(fbconfigs);
     return cs;
 }
 
