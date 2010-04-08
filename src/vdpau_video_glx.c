@@ -806,6 +806,7 @@ gl_create_context(Display *dpy, int screen, GLContextState *parent)
         if (!fbconfigs)
             goto error;
 
+        /* Find out a GLXFBConfig compatible with the parent context */
         for (n = 0; n < n_fbconfigs; n++) {
             status = glXGetFBConfigAttrib(
                 dpy,
@@ -822,6 +823,8 @@ gl_create_context(Display *dpy, int screen, GLContextState *parent)
         fbconfigs = glXChooseFBConfig(dpy, screen, fbconfig_attrs, &n_fbconfigs);
         if (!fbconfigs)
             goto error;
+
+        /* Select the first one */
         n = 0;
     }
 
