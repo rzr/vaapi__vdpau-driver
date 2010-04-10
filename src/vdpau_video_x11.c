@@ -69,7 +69,11 @@ output_surface_ensure_size(
     if (!obj_output)
         return -1;
 
-    if (width > obj_output->max_width || height > obj_output->max_height) {
+    obj_output->size_changed = (
+        width  > obj_output->max_width ||
+        height > obj_output->max_height
+    );
+    if (obj_output->size_changed) {
         const unsigned int max_waste = 1U << 8;
         obj_output->max_width        = (width  + max_waste - 1) & -max_waste;
         obj_output->max_height       = (height + max_waste - 1) & -max_waste;
@@ -135,6 +139,7 @@ output_surface_create(
     obj_output->displayed_output_surface = 0;
     obj_output->queued_surfaces          = 0;
     obj_output->fields                   = 0;
+    obj_output->size_changed             = 0;
 
     unsigned int i;
     for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++)
@@ -321,7 +326,7 @@ render_surface(
     ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
 
     VdpOutputSurface vdp_background = VDP_INVALID_HANDLE;
-    if (obj_output->queued_surfaces > 0)
+    if (obj_output->queued_surfaces > 0 && !obj_output->size_changed)
         vdp_background = obj_output->vdp_output_surfaces[obj_output->displayed_output_surface];
 
     VdpStatus vdp_status = video_mixer_render(
