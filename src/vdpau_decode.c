@@ -671,8 +671,20 @@ translate_VAPictureParameterBufferMPEG4(
                                &pic_info->backward_reference))
         return 0;
 
-    memset(pic_info->trd, 0, sizeof(pic_info->trd));
-    memset(pic_info->trb, 0, sizeof(pic_info->trb));
+    if (pic_param->vol_fields.bits.interlaced) {
+        vdpau_information_message("unsupported MPEG-4 video with interlaced "
+                                  "content, please report this video\n");
+        pic_info->trd[0] = 2*pic_param->TRD; /* XXX: + d(0) */
+        pic_info->trb[0] = 2*pic_param->TRB; /* XXX: + d(0) */
+        pic_info->trd[1] = 2*pic_param->TRD; /* XXX: + d(1) */
+        pic_info->trb[1] = 2*pic_param->TRB; /* XXX: + d(1) */
+    }
+    else {
+        pic_info->trd[0] = pic_param->TRD;
+        pic_info->trb[0] = pic_param->TRB;
+        pic_info->trd[1] = 0;
+        pic_info->trb[1] = 0;
+    }
 
     pic_info->vop_time_increment_resolution     = pic_param->vop_time_increment_resolution;
     pic_info->vop_coding_type                   = pic_param->vop_fields.bits.vop_coding_type;

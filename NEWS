@@ -1,8 +1,15 @@
-vdpau-video NEWS -- summary of changes.  2010-03-DD
+vdpau-video NEWS -- summary of changes.  2010-04-DD
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
 Version 0.7.0 - DD.Mar.2010
 * Optimize rendering of multiple surfaces per window
+
+Version 0.6.8 - DD.Apr.2010
+* Fix OpenGL rendering for XBMC
+* Fix rendering when the window size changed
+* Fix MPEG-4 decoding of video clips with B-frames
+
+Version 0.6.7 - 04.Apr.2010
 * Fix build without GLX support
 * Fix VA/GLX to preserve caller's GL context
 * Fix vaCopySurfaceGLX() to handle GL_RGBA8 textures

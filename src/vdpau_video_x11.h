@@ -44,6 +44,7 @@ struct object_output {
     UAsyncQueue                *render_comm;
     pthread_t                   render_thread;
     unsigned int                render_thread_ok;
+    unsigned int                size_changed : 1; /* size changed since previous vaPutSurface() */
 };
 
 // Destroy output surface

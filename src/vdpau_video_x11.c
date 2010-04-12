@@ -150,7 +150,11 @@ output_surface_ensure_size(
     if (!obj_output)
         return -1;
 
-    if (width > obj_output->max_width || height > obj_output->max_height) {
+    obj_output->size_changed = (
+        width  > obj_output->max_width ||
+        height > obj_output->max_height
+    );
+    if (obj_output->size_changed) {
         const unsigned int max_waste = 1U << 8;
         obj_output->max_width        = (width  + max_waste - 1) & -max_waste;
         obj_output->max_height       = (height + max_waste - 1) & -max_waste;
@@ -219,6 +223,7 @@ output_surface_create(
     obj_output->render_comm              = NULL;
     obj_output->render_thread            = 0;
     obj_output->render_thread_ok         = 0;
+    obj_output->size_changed             = 0;
 
     if (use_putsurface_fast() && driver_data->va_display_type == VA_DISPLAY_X11) {
         obj_output->render_comm = async_queue_new();
@@ -432,10 +437,12 @@ render_surface(
     ensure_bounds(&dst_rect, obj_output->width, obj_output->height);
 
     VdpOutputSurface vdp_background = VDP_INVALID_HANDLE;
-    if (obj_output->render_thread_ok)
-        vdp_background = obj_output->vdp_output_surfaces[obj_output->current_output_surface];
-    else if (obj_output->queued_surfaces > 0)
-        vdp_background = obj_output->vdp_output_surfaces[obj_output->displayed_output_surface];
+    if (!obj_output->size_changed) {
+        if (obj_output->render_thread_ok)
+            vdp_background = obj_output->vdp_output_surfaces[obj_output->current_output_surface];
+        else if (obj_output->queued_surfaces > 0)
+            vdp_background = obj_output->vdp_output_surfaces[obj_output->displayed_output_surface];
+    }
 
     VdpStatus vdp_status = video_mixer_render(
         driver_data,
