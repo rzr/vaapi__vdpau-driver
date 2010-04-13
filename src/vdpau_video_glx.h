@@ -41,11 +41,9 @@ struct object_glx_surface {
     unsigned int        height;
     int                 is_bound;
     Pixmap              pixmap;
+    GLuint              pix_texture;
     GLXPixmap           glx_pixmap;
-    GLuint              old_fbo;
     GLuint              fbo;
-    GLuint              fbo_buffer;
-    GLuint              fbo_texture;
 };
 
 // vaCreateSurfaceGLX

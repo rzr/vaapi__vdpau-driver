@@ -446,14 +446,21 @@ create_tfp_surface(
     *attrib++ = GL_NONE;
 
     x11_trap_errors();
-    glx_pixmap = glXCreatePixmap(ctx->x11_dpy,
-                                 fbconfig[0],
-                                 pixmap,
-                                 pixmap_attribs);
+    glx_pixmap = glXCreatePixmap(
+        ctx->x11_dpy,
+        fbconfig[0],
+        pixmap,
+        pixmap_attribs
+    );
     free(fbconfig);
     if (x11_untrap_errors() != 0)
         return -1;
     obj_glx_surface->glx_pixmap = glx_pixmap;
+
+    glGenTextures(1, &obj_glx_surface->pix_texture);
+    glBindTexture(GL_TEXTURE_2D, obj_glx_surface->pix_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     return 0;
 }
 
@@ -490,9 +497,15 @@ bind_pixmap(
     if (obj_glx_surface->is_bound)
         return 0;
 
+    glBindTexture(GL_TEXTURE_2D, obj_glx_surface->pix_texture);
+
     x11_trap_errors();
-    gl_data->glx_bind_tex_image(ctx->x11_dpy, obj_glx_surface->glx_pixmap,
-                                GLX_FRONT_LEFT_EXT, NULL);
+    gl_data->glx_bind_tex_image(
+        ctx->x11_dpy,
+        obj_glx_surface->glx_pixmap,
+        GLX_FRONT_LEFT_EXT,
+        NULL
+    );
     XSync(ctx->x11_dpy, False);
     if (x11_untrap_errors() != 0) {
         vdpau_error_message("failed to bind pixmap\n");
@@ -517,13 +530,18 @@ unbind_pixmap(
         return 0;
 
     x11_trap_errors();
-    gl_data->glx_release_tex_image(ctx->x11_dpy, obj_glx_surface->glx_pixmap,
-                                   GLX_FRONT_LEFT_EXT);
+    gl_data->glx_release_tex_image(
+        ctx->x11_dpy,
+        obj_glx_surface->glx_pixmap,
+        GLX_FRONT_LEFT_EXT
+    );
     XSync(ctx->x11_dpy, False);
     if (x11_untrap_errors() != 0) {
         vdpau_error_message("failed to release pixmap\n");
         return -1;
     }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     obj_glx_surface->is_bound = 0;
     return 0;
@@ -560,41 +578,25 @@ create_fbo_surface(
     object_glx_surface_p obj_glx_surface
 )
 {
-    opengl_data_t * const gl_data        = get_gl_data(driver_data);
-    const GLenum          texture        = obj_glx_surface->texture;
-    const unsigned int    texture_width  = obj_glx_surface->width;
-    const unsigned int    texture_height = obj_glx_surface->height;
-    GLuint fbo, fbo_buffer, fbo_texture;
+    opengl_data_t * const gl_data = get_gl_data(driver_data);
+    GLuint fbo;
     GLenum status;
-
-    glGenTextures(1, &fbo_texture);
-    glBindTexture(GL_TEXTURE_2D, fbo_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture_width, texture_height, 0,
-                 GL_BGRA, GL_UNSIGNED_BYTE, NULL);
 
     gl_data->gl_gen_framebuffers(1, &fbo);
     gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, fbo);
-    gl_data->gl_gen_renderbuffers(1, &fbo_buffer);
-    gl_data->gl_bind_renderbuffer(GL_RENDERBUFFER_EXT, fbo_buffer);
-
-    glBindTexture(GL_TEXTURE_2D, texture);
-    gl_data->gl_framebuffer_texture_2d(GL_FRAMEBUFFER_EXT,
-                                       GL_COLOR_ATTACHMENT0_EXT,
-                                       GL_TEXTURE_2D, texture, 0);
+    gl_data->gl_framebuffer_texture_2d(
+        GL_FRAMEBUFFER_EXT,
+        GL_COLOR_ATTACHMENT0_EXT,
+        GL_TEXTURE_2D, obj_glx_surface->texture,
+        0
+    );
 
     status = gl_data->gl_check_framebuffer_status(GL_DRAW_FRAMEBUFFER_EXT);
     gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
     if (status != GL_FRAMEBUFFER_COMPLETE_EXT)
         return -1;
 
-    obj_glx_surface->fbo         = fbo;
-    obj_glx_surface->fbo_buffer  = fbo_buffer;
-    obj_glx_surface->fbo_texture = fbo_texture;
+    obj_glx_surface->fbo = fbo;
     return 0;
 }
 
@@ -606,16 +608,6 @@ destroy_fbo_surface(
 )
 {
     opengl_data_t * const gl_data = get_gl_data(driver_data);
-
-    if (obj_glx_surface->fbo_texture) {
-        glDeleteTextures(1, &obj_glx_surface->fbo_texture);
-        obj_glx_surface->fbo_texture = 0;
-    }
-
-    if (obj_glx_surface->fbo_buffer) {
-        gl_data->gl_delete_renderbuffers(1, &obj_glx_surface->fbo_buffer);
-        obj_glx_surface->fbo_buffer = 0;
-    }
 
     if (obj_glx_surface->fbo) {
         gl_data->gl_delete_framebuffers(1, &obj_glx_surface->fbo);
@@ -633,15 +625,8 @@ fbo_enter(
     opengl_data_t * const gl_data = get_gl_data(driver_data);
     const unsigned int width  = obj_glx_surface->width;
     const unsigned int height = obj_glx_surface->height;
-    const unsigned int attribs = (GL_VIEWPORT_BIT|
-                                  GL_CURRENT_BIT|
-                                  GL_ENABLE_BIT|
-                                  GL_TEXTURE_BIT|
-                                  GL_COLOR_BUFFER_BIT);
 
-    gl_get_param(GL_FRAMEBUFFER_BINDING, &obj_glx_surface->old_fbo);
     gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_glx_surface->fbo);
-    glPushAttrib(attribs);
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
@@ -651,8 +636,6 @@ fbo_enter(
     glViewport(0, 0, width, height);
     glTranslatef(-1.0f, -1.0f, 0.0f);
     glScalef(2.0f / width, 2.0f / height, 1.0f);
-
-    glBindTexture(GL_TEXTURE_2D, obj_glx_surface->fbo_texture);
 }
 
 // Restore original OpenGL matrices
@@ -664,12 +647,11 @@ fbo_leave(
 {
     opengl_data_t * const gl_data = get_gl_data(driver_data);
 
-    glPopAttrib();
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
-    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, obj_glx_surface->old_fbo);
+    gl_data->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, 0);
 }
 
 // Destroy VA/GLX surface
@@ -729,8 +711,6 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
     obj_glx_surface->pixmap             = None;
     obj_glx_surface->glx_pixmap         = None;
     obj_glx_surface->fbo                = 0;
-    obj_glx_surface->fbo_buffer         = 0;
-    obj_glx_surface->fbo_texture        = 0;
 
     if (gl_get_texture_param(GL_TEXTURE_INTERNAL_FORMAT, &internal_format) < 0)
         goto end;
@@ -878,6 +858,12 @@ gl_get_current_context(GLContextState *cs)
 static int
 gl_set_current_context(GLContextState *new_cs, GLContextState *old_cs)
 {
+    /* If display is NULL, this could be that new_cs was retrieved from
+       gl_get_current_context() with none set previously. If that case,
+       the other fields are also NULL and we don't return an error */
+    if (!new_cs->display)
+        return !new_cs->window && !new_cs->context;
+
     if (old_cs) {
         if (old_cs == new_cs)
             return 1;
@@ -887,9 +873,7 @@ gl_set_current_context(GLContextState *new_cs, GLContextState *old_cs)
             old_cs->context == new_cs->context)
             return 1;
     }
-    return glXMakeCurrent(new_cs->display,
-                          new_cs->window,
-                          new_cs->context);
+    return glXMakeCurrent(new_cs->display, new_cs->window, new_cs->context);
 }
 
 // vaCreateSurfaceGLX
@@ -1219,15 +1203,11 @@ copy_glx_surface(
 )
 {
     /* Create framebuffer surface */
-    if (obj_glx_surface->fbo == 0 ||
-        obj_glx_surface->fbo_buffer == 0 ||
-        obj_glx_surface->fbo_texture == 0) {
+    if (obj_glx_surface->fbo == 0) {
         if (create_fbo_surface(driver_data, obj_glx_surface) < 0)
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
     ASSERT(obj_glx_surface->fbo > 0);
-    ASSERT(obj_glx_surface->fbo_buffer > 0);
-    ASSERT(obj_glx_surface->fbo_texture > 0);
 
     /* Associate VA surface */
     VAStatus va_status;
