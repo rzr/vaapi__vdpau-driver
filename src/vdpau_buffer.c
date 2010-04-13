@@ -47,7 +47,6 @@ create_va_buffer(
         return NULL;
 
     obj_buffer = VDPAU_BUFFER(buffer_id);
-    ASSERT(obj_buffer);
     if (!obj_buffer)
         return NULL;
 
@@ -91,14 +90,15 @@ schedule_destroy_va_buffer(
 )
 {
     object_context_p obj_context = VDPAU_CONTEXT(obj_buffer->va_context);
-    ASSERT(obj_context);
     if (!obj_context)
         return;
 
-    realloc_buffer(&obj_context->dead_buffers,
-                   &obj_context->dead_buffers_count_max,
-                   16 + obj_context->dead_buffers_count,
-                   sizeof(*obj_context->dead_buffers));
+    realloc_buffer(
+        &obj_context->dead_buffers,
+        &obj_context->dead_buffers_count_max,
+        16 + obj_context->dead_buffers_count,
+        sizeof(*obj_context->dead_buffers)
+    );
 
     ASSERT(obj_context->dead_buffers);
     obj_context->dead_buffers[obj_context->dead_buffers_count] = obj_buffer->base.id;
@@ -179,8 +179,7 @@ vdpau_BufferSetNumElements(
     VDPAU_DRIVER_DATA_INIT;
 
     object_buffer_p obj_buffer = VDPAU_BUFFER(buf_id);
-    ASSERT(obj_buffer);
-    if (obj_buffer == NULL)
+    if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
     if (num_elements < 0 || num_elements > obj_buffer->max_num_elements)
@@ -201,8 +200,7 @@ vdpau_MapBuffer(
     VDPAU_DRIVER_DATA_INIT;
 
     object_buffer_p obj_buffer = VDPAU_BUFFER(buf_id);
-    ASSERT(obj_buffer);
-    if (obj_buffer == NULL)
+    if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
     if (pbuf)
@@ -225,7 +223,6 @@ vdpau_UnmapBuffer(
     VDPAU_DRIVER_DATA_INIT;
 
     object_buffer_p obj_buffer = VDPAU_BUFFER(buf_id);
-    ASSERT(obj_buffer);
     if (!obj_buffer)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 

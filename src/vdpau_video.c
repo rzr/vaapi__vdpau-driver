@@ -42,7 +42,6 @@ static VdpChromaType get_VdpChromaType(int format)
     case VA_RT_FORMAT_YUV422: return VDP_CHROMA_TYPE_422;
     case VA_RT_FORMAT_YUV444: return VDP_CHROMA_TYPE_444;
     }
-    ASSERT(format);
     return (VdpChromaType)-1;
 }
 
@@ -144,8 +143,7 @@ VAStatus vdpau_DestroyConfig(VADriverContextP ctx, VAConfigID config_id)
     VDPAU_DRIVER_DATA_INIT;
 
     object_config_p obj_config = VDPAU_CONFIG(config_id);
-    ASSERT(obj_config);
-    if (obj_config == NULL)
+    if (!obj_config)
         return VA_STATUS_ERROR_INVALID_CONFIG;
 
     object_heap_free(&driver_data->config_heap, (object_base_p)obj_config);
@@ -253,8 +251,7 @@ vdpau_QueryConfigAttributes(
     int i;
 
     obj_config = VDPAU_CONFIG(config_id);
-    ASSERT(obj_config);
-    if (obj_config == NULL)
+    if (!obj_config)
         return VA_STATUS_ERROR_INVALID_CONFIG;
 
     if (profile)
@@ -353,6 +350,8 @@ vdpau_DestroySurfaces(
     for (i = num_surfaces - 1; i >= 0; i--) {
         object_surface_p obj_surface = VDPAU_SURFACE(surface_list[i]);
         ASSERT(obj_surface);
+        if (!obj_surface)
+            continue;
 
         if (obj_surface->vdp_surface != VDP_INVALID_HANDLE) {
             vdpau_video_surface_destroy(driver_data, obj_surface->vdp_surface);
@@ -379,6 +378,7 @@ vdpau_DestroySurfaces(
 
             for (j = 0, n = 0; j < n_assocs; j++) {
                 SubpictureAssociationP const assoc = obj_surface->assocs[0];
+                ASSERT(assoc);
                 if (!assoc)
                     continue;
                 obj_subpicture = VDPAU_SUBPICTURE(assoc->subpicture);
@@ -478,8 +478,7 @@ VAStatus vdpau_DestroyContext(VADriverContextP ctx, VAContextID context)
     int i;
 
     object_context_p obj_context = VDPAU_CONTEXT(context);
-    ASSERT(obj_context);
-    if (obj_context == NULL)
+    if (!obj_context)
         return VA_STATUS_ERROR_INVALID_CONTEXT;
 
     if (obj_context->gen_slice_data) {
@@ -575,7 +574,6 @@ vdpau_CreateContext(
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     object_context_p obj_context = VDPAU_CONTEXT(context_id);
-    ASSERT(obj_context);
     if (!obj_context)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     if (context)
@@ -643,7 +641,6 @@ query_surface_status(
         unsigned int i, num_output_surfaces_displaying = 0;
         for (i = 0; i < obj_surface->output_surfaces_count; i++) {
             object_output_p obj_output = obj_surface->output_surfaces[i];
-            ASSERT(obj_output);
             if (!obj_output)
                 return VA_STATUS_ERROR_INVALID_SURFACE;
 
@@ -689,8 +686,7 @@ vdpau_QuerySurfaceStatus(
     VDPAU_DRIVER_DATA_INIT;
 
     object_surface_p obj_surface = VDPAU_SURFACE(render_target);
-    ASSERT(obj_surface);
-    if (obj_surface == NULL)
+    if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     return query_surface_status(driver_data, obj_surface, status);
@@ -731,7 +727,6 @@ vdpau_SyncSurface2(
     VDPAU_DRIVER_DATA_INIT;
 
     object_surface_p obj_surface = VDPAU_SURFACE(render_target);
-    ASSERT(obj_surface);
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
@@ -756,7 +751,6 @@ vdpau_SyncSurface3(
     VDPAU_DRIVER_DATA_INIT;
 
     object_surface_p obj_surface = VDPAU_SURFACE(render_target);
-    ASSERT(obj_surface);
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 

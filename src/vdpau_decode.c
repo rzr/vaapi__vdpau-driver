@@ -78,7 +78,6 @@ VdpCodec get_VdpCodec(VdpDecoderProfile profile)
     case VDP_DECODER_PROFILE_VC1_ADVANCED:
         return VDP_CODEC_VC1;
     }
-    ASSERT(profile);
     return 0;
 }
 
@@ -100,7 +99,6 @@ VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
     case VAProfileVC1Advanced:  return VDP_DECODER_PROFILE_VC1_ADVANCED;
     default:                    break;
     }
-    ASSERT(profile);
     return (VdpDecoderProfile)-1;
 }
 
@@ -219,13 +217,15 @@ alloc_VdpBitstreamBuffer(object_context_p obj_context)
 {
     VdpBitstreamBuffer *vdp_bitstream_buffers;
 
-    vdp_bitstream_buffers =
-        realloc_buffer(&obj_context->vdp_bitstream_buffers,
-                       &obj_context->vdp_bitstream_buffers_count_max,
-                       1 + obj_context->vdp_bitstream_buffers_count,
-                       sizeof(*obj_context->vdp_bitstream_buffers));
+    vdp_bitstream_buffers = realloc_buffer(
+        &obj_context->vdp_bitstream_buffers,
+        &obj_context->vdp_bitstream_buffers_count_max,
+        1 + obj_context->vdp_bitstream_buffers_count,
+        sizeof(*obj_context->vdp_bitstream_buffers)
+    );
+    if (!vdp_bitstream_buffers)
+        return NULL;
 
-    ASSERT(vdp_bitstream_buffers);
     return &vdp_bitstream_buffers[obj_context->vdp_bitstream_buffers_count++];
 }
 
@@ -239,7 +239,8 @@ append_VdpBitstreamBuffer(
 {
     VdpBitstreamBuffer *bitstream_buffer;
 
-    if ((bitstream_buffer = alloc_VdpBitstreamBuffer(obj_context)) == NULL)
+    bitstream_buffer = alloc_VdpBitstreamBuffer(obj_context);
+    if (!bitstream_buffer)
         return -1;
 
     bitstream_buffer->struct_version  = VDP_BITSTREAM_BUFFER_VERSION;
@@ -364,7 +365,6 @@ translate_VASurfaceID(
     }
 
     obj_surface = VDPAU_SURFACE(va_surface);
-    ASSERT(obj_surface);
     if (!obj_surface)
         return 0;
 
@@ -884,7 +884,7 @@ translate_VAPictureParameterBufferVC1(
     case 2: picture_type = 3; break; /* B */
     case 3: picture_type = 4; break; /* BI */
     case 4: picture_type = 1; break; /* P "skipped" */
-    default: ASSERT(!pic_param->picture_fields.bits.picture_type); return 0;
+    default: return 0;
     }
 
     pic_info->picture_type      = picture_type;
@@ -1004,7 +1004,6 @@ sync_VAPictureH264(
         return 1;
 
     object_surface_p obj_surface = VDPAU_SURFACE(va_pic->picture_id);
-    ASSERT(obj_surface);
     if (!obj_surface)
         return 0;
     return translate_VAPictureH264(driver_data, va_pic, &obj_surface->vdp_ref_frame.h264);
@@ -1070,8 +1069,7 @@ sync_reference_frames(
     /* Fill in VDPAU referenceFrames[] array */
     for (i = 0; i < obj_context->ref_frames_count; i++) {
         object_surface_p obj_surface = VDPAU_SURFACE(obj_context->ref_frames[i]);
-        ASSERT(obj_surface);
-        if (obj_surface == NULL)
+        if (!obj_surface)
             return 0;
         pinfo->referenceFrames[i] = obj_surface->vdp_ref_frame.h264;
     }
@@ -1231,13 +1229,11 @@ vdpau_BeginPicture(
     VDPAU_DRIVER_DATA_INIT;
 
     object_context_p obj_context = VDPAU_CONTEXT(context);
-    ASSERT(obj_context);
-    if (obj_context == NULL)
+    if (!obj_context)
         return VA_STATUS_ERROR_INVALID_CONTEXT;
 
     object_surface_p obj_surface = VDPAU_SURFACE(render_target);
-    ASSERT(obj_surface);
-    if (obj_surface == NULL)
+    if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     obj_surface->va_surface_status           = VASurfaceRendering;
@@ -1262,8 +1258,7 @@ vdpau_BeginPicture(
         obj_context->vdp_picture_info.vc1.slice_count = 0;
         break;
     default:
-        assert(0);
-        break;
+        return VA_STATUS_ERROR_UNKNOWN;
     }
     return VA_STATUS_SUCCESS;
 }
@@ -1281,27 +1276,23 @@ vdpau_RenderPicture(
     int i;
 
     object_context_p obj_context = VDPAU_CONTEXT(context);
-    ASSERT(obj_context);
-    if (obj_context == NULL)
+    if (!obj_context)
         return VA_STATUS_ERROR_INVALID_CONTEXT;
 
     object_surface_p obj_surface = VDPAU_SURFACE(obj_context->current_render_target);
-    ASSERT(obj_surface);
-    if (obj_surface == NULL)
+    if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     /* Verify that we got valid buffer references */
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = VDPAU_BUFFER(buffers[i]);
-        ASSERT(obj_buffer);
-        if (obj_buffer == NULL)
+        if (!obj_buffer)
             return VA_STATUS_ERROR_INVALID_BUFFER;
     }
 
     /* Translate buffers */
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = VDPAU_BUFFER(buffers[i]);
-        ASSERT(obj_buffer);
         if (!translate_buffer(driver_data, obj_context, obj_buffer))
             return VA_STATUS_ERROR_UNSUPPORTED_BUFFERTYPE;
         /* Release any buffer that is not VASliceDataBuffer */
@@ -1338,15 +1329,13 @@ vdpau_EndPicture(
     unsigned int i;
 
     object_context_p obj_context = VDPAU_CONTEXT(context);
-    ASSERT(obj_context);
-    if (obj_context == NULL)
+    if (!obj_context)
         return VA_STATUS_ERROR_INVALID_CONTEXT;
 
     update_reference_frames(driver_data, obj_context);
 
     object_surface_p obj_surface = VDPAU_SURFACE(obj_context->current_render_target);
-    ASSERT(obj_surface);
-    if (obj_surface == NULL)
+    if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
     if (trace_enabled()) {

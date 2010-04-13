@@ -44,7 +44,8 @@ struct object_output {
     UAsyncQueue                *render_comm;
     pthread_t                   render_thread;
     unsigned int                render_thread_ok;
-    unsigned int                size_changed : 1; /* size changed since previous vaPutSurface() */
+    unsigned int                is_window    : 1; /* drawable is a window */
+    unsigned int                size_changed : 1; /* size changed since previous vaPutSurface() and user noticed the change */
 };
 
 // Destroy output surface

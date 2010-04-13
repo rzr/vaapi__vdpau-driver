@@ -138,6 +138,70 @@ static void *render_thread(void *arg)
     return NULL;
 }
 
+// Checks whether drawable is a window
+static int is_window(Display *dpy, Drawable drawable)
+{
+    XWindowAttributes wattr;
+
+    x11_trap_errors();
+    XGetWindowAttributes(dpy, drawable, &wattr);
+    return x11_untrap_errors() == 0;
+}
+
+// Checks whether a ConfigureNotify event is in the queue
+typedef struct {
+    Window       window;
+    unsigned int width;
+    unsigned int height;
+    unsigned int match;
+} ConfigureNotifyEventPendingArgs;
+
+static Bool
+configure_notify_event_pending_cb(Display *dpy, XEvent *xev, XPointer arg)
+{
+    ConfigureNotifyEventPendingArgs * const args =
+        (ConfigureNotifyEventPendingArgs *)arg;
+
+    if (xev->type == ConfigureNotify &&
+        xev->xconfigure.window == args->window &&
+        xev->xconfigure.width  == args->width  &&
+        xev->xconfigure.height == args->height)
+        args->match = 1;
+
+    /* XXX: this is a hack to traverse the whole queue because we
+       can't use XPeekIfEvent() since it could block */
+    return False;
+}
+
+static int
+configure_notify_event_pending(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output,
+    unsigned int         width,
+    unsigned int         height
+)
+{
+    VADriverContextP const ctx = driver_data->va_context;
+
+    if (!obj_output->is_window)
+        return 0;
+
+    XEvent xev;
+    ConfigureNotifyEventPendingArgs args;
+    args.window = obj_output->drawable;
+    args.width  = width;
+    args.height = height;
+    args.match  = 0;
+
+    /* XXX: don't use XPeekIfEvent() because it might block */
+    XCheckIfEvent(
+        ctx->x11_dpy,
+        &xev,
+        configure_notify_event_pending_cb, (XPointer)&args
+    );
+    return args.match;
+}
+
 // Ensure output surface size matches drawable size
 static int
 output_surface_ensure_size(
@@ -150,11 +214,7 @@ output_surface_ensure_size(
     if (!obj_output)
         return -1;
 
-    obj_output->size_changed = (
-        width  > obj_output->max_width ||
-        height > obj_output->max_height
-    );
-    if (obj_output->size_changed) {
+    if (width > obj_output->max_width || height > obj_output->max_height) {
         const unsigned int max_waste = 1U << 8;
         obj_output->max_width        = (width  + max_waste - 1) & -max_waste;
         obj_output->max_height       = (height + max_waste - 1) & -max_waste;
@@ -170,8 +230,15 @@ output_surface_ensure_size(
             }
         }
     }
-    obj_output->width  = width;
-    obj_output->height = height;
+
+    obj_output->size_changed = (
+        (obj_output->width != width || obj_output->height != height) &&
+        !configure_notify_event_pending(driver_data, obj_output, width, height)
+    );
+    if (obj_output->size_changed) {
+        obj_output->width  = width;
+        obj_output->height = height;
+    }
 
     if (obj_output->vdp_output_surfaces[obj_output->current_output_surface] == VDP_INVALID_HANDLE) {
         VdpStatus vdp_status;
@@ -198,13 +265,13 @@ output_surface_create(
     unsigned int         height
 )
 {
-    VdpStatus vdp_status;
+    VADriverContextP const ctx = driver_data->va_context;
+
     VASurfaceID surface = object_heap_allocate(&driver_data->output_heap);
     if (surface == VA_INVALID_ID)
         return NULL;
 
     object_output_p obj_output = VDPAU_OUTPUT(surface);
-    ASSERT(obj_output);
     if (!obj_output)
         return NULL;
 
@@ -223,6 +290,7 @@ output_surface_create(
     obj_output->render_comm              = NULL;
     obj_output->render_thread            = 0;
     obj_output->render_thread_ok         = 0;
+    obj_output->is_window                = is_window(ctx->x11_dpy, drawable);
     obj_output->size_changed             = 0;
 
     if (use_putsurface_fast() && driver_data->va_display_type == VA_DISPLAY_X11) {
@@ -245,6 +313,7 @@ output_surface_create(
         obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
 
     if (drawable != None) {
+        VdpStatus vdp_status;
         vdp_status = vdpau_presentation_queue_target_create_x11(
             driver_data,
             driver_data->vdp_device,
@@ -652,7 +721,6 @@ put_surface(
     VAStatus va_status;
 
     object_surface_p obj_surface = VDPAU_SURFACE(surface);
-    ASSERT(obj_surface);
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
@@ -664,7 +732,6 @@ put_surface(
         drawable_width,
         drawable_height
     );
-    ASSERT(obj_output);
     if (!obj_output)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
