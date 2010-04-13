@@ -2,6 +2,7 @@ vdpau-video NEWS -- summary of changes.  2010-04-DD
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
 Version 0.6.8 - DD.Apr.2010
+* Drop superfluous asserts
 * Fix OpenGL rendering for XBMC
 * Fix rendering when the window size changed
 * Fix MPEG-4 decoding of video clips with B-frames

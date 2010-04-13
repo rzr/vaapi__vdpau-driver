@@ -123,7 +123,6 @@ output_surface_create(
         return NULL;
 
     object_output_p obj_output = VDPAU_OUTPUT(surface);
-    ASSERT(obj_output);
     if (!obj_output)
         return NULL;
 
@@ -522,7 +521,6 @@ put_surface(
     VAStatus va_status;
 
     object_surface_p obj_surface = VDPAU_SURFACE(surface);
-    ASSERT(obj_surface);
     if (!obj_surface)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 
@@ -534,7 +532,6 @@ put_surface(
         drawable_width,
         drawable_height
     );
-    ASSERT(obj_output);
     if (!obj_output)
         return VA_STATUS_ERROR_INVALID_SURFACE;
 

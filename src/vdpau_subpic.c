@@ -397,7 +397,6 @@ create_subpicture(
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     object_subpicture_p obj_subpicture = VDPAU_SUBPICTURE(*subpicture);
-    ASSERT(obj_subpicture);
     if (!obj_subpicture)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
@@ -465,7 +464,6 @@ destroy_subpicture(
             if (!assoc)
                 continue;
             obj_surface = VDPAU_SURFACE(assoc->surface);
-            ASSERT(obj_surface);
             if (!obj_surface)
                 continue;
             status = subpicture_deassociate_1(obj_subpicture, obj_surface);
