@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2010-04-13
+vdpau-video NEWS -- summary of changes.  2010-04-DD
 Copyright (C) 2009-2010 Splitted-Desktop Systems
+
+Version 0.6.9 - DD.Apr.2010
+* Fix deinterlacing
 
 Version 0.6.8 - 13.Apr.2010
 * Drop superfluous asserts

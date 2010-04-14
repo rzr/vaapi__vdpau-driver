@@ -35,6 +35,14 @@ video_mixer_check_params(
             obj_mixer->vdp_chroma_type == obj_surface->vdp_chroma_type);
 }
 
+static inline void
+video_mixer_init_deint_surfaces(object_mixer_p obj_mixer)
+{
+    unsigned int i;
+    for (i = 0; i < VDPAU_MAX_VIDEO_MIXER_DEINT_SURFACES; i++)
+        obj_mixer->deint_surfaces[i] = VDP_INVALID_HANDLE;
+}
+
 object_mixer_p
 video_mixer_create(
     vdpau_driver_data_t *driver_data,
@@ -74,8 +82,7 @@ video_mixer_create(
     obj_mixer->param_values[n++] = &obj_mixer->vdp_chroma_type;
     obj_mixer->n_params          = n;
 
-    for (n = 0; n < 3; n++)
-        obj_mixer->deint_surfaces[n] = VDP_INVALID_HANDLE;
+    video_mixer_init_deint_surfaces(obj_mixer);
 
     VdpStatus status;
     status = vdpau_video_mixer_create(
@@ -269,10 +276,14 @@ video_mixer_update_background_color(
 }
 
 static inline void
-video_mixer_push_deint_surface(object_mixer_p obj_mixer, object_surface_p obj_surface)
+video_mixer_push_deint_surface(
+    object_mixer_p   obj_mixer,
+    object_surface_p obj_surface
+)
 {
-    obj_mixer->deint_surfaces[2] = obj_mixer->deint_surfaces[1];
-    obj_mixer->deint_surfaces[1] = obj_mixer->deint_surfaces[0];
+    unsigned int i;
+    for (i = VDPAU_MAX_VIDEO_MIXER_DEINT_SURFACES - 1; i >= 1; i--)
+        obj_mixer->deint_surfaces[i] = obj_mixer->deint_surfaces[i - 1];
     obj_mixer->deint_surfaces[0] = obj_surface->vdp_surface;
 }
 
@@ -310,17 +321,19 @@ video_mixer_render(
     if (vdp_status != VDP_STATUS_OK)
         return vdp_status;
 
-    unsigned int field_flags = flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD);
-    if (!field_flags || obj_mixer->deint_surfaces[0] == VDP_INVALID_HANDLE)
-        video_mixer_push_deint_surface(obj_mixer, obj_surface);
-
     VdpVideoMixerPictureStructure field;
-    if (field_flags & VA_TOP_FIELD)
+    switch (flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD)) {
+    case VA_TOP_FIELD:
         field = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_TOP_FIELD;
-    else if (field_flags & VA_BOTTOM_FIELD)
+        break;
+    case VA_BOTTOM_FIELD:
         field = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_BOTTOM_FIELD;
-    else
+        break;
+    default:
         field = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME;
+        break;
+    }
+    video_mixer_push_deint_surface(obj_mixer, obj_surface);
 
     if (flags & VA_CLEAR_DRAWABLE)
         vdp_background = VDP_INVALID_HANDLE;
@@ -330,9 +343,9 @@ video_mixer_render(
         obj_mixer->vdp_video_mixer,
         vdp_background, NULL,
         field,
-        2, &obj_mixer->deint_surfaces[1],
+        VDPAU_MAX_VIDEO_MIXER_DEINT_SURFACES - 1, &obj_mixer->deint_surfaces[1],
         obj_mixer->deint_surfaces[0],
-        1, &obj_surface->vdp_surface,
+        0, NULL,
         vdp_src_rect,
         vdp_output_surface,
         NULL,
