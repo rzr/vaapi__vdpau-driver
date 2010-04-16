@@ -98,8 +98,13 @@ vdpau_GetConfigAttributes(
     int                 num_attribs
 )
 {
-    int i;
+    VDPAU_DRIVER_DATA_INIT;
 
+    VAStatus va_status = check_decoder(driver_data, profile, entrypoint);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    int i;
     for (i = 0; i < num_attribs; i++) {
         switch (attrib_list[i].type) {
         case VAConfigAttribRTFormat:
@@ -110,7 +115,6 @@ vdpau_GetConfigAttributes(
             break;
         }
     }
-
     return VA_STATUS_SUCCESS;
 }
 
@@ -169,43 +173,7 @@ vdpau_CreateConfig(
     int i;
 
     /* Validate profile and entrypoint */
-    switch (profile) {
-    case VAProfileMPEG2Simple:
-    case VAProfileMPEG2Main:
-        if (entrypoint == VAEntrypointVLD)
-            va_status = VA_STATUS_SUCCESS;
-        else
-            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        break;
-    case VAProfileMPEG4Simple:
-    case VAProfileMPEG4AdvancedSimple:
-    case VAProfileMPEG4Main:
-        if (entrypoint == VAEntrypointVLD)
-            va_status = VA_STATUS_SUCCESS;
-        else
-            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        break;
-    case VAProfileH264Baseline:
-    case VAProfileH264Main:
-    case VAProfileH264High:
-        if (entrypoint == VAEntrypointVLD)
-            va_status = VA_STATUS_SUCCESS;
-        else
-            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        break;
-    case VAProfileVC1Simple:
-    case VAProfileVC1Main:
-    case VAProfileVC1Advanced:
-        if (entrypoint == VAEntrypointVLD)
-            va_status = VA_STATUS_SUCCESS;
-        else
-            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        break;
-    default:
-        va_status = VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
-        break;
-    }
-
+    va_status = check_decoder(driver_data, profile, entrypoint);
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
