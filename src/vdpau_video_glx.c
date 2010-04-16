@@ -793,7 +793,7 @@ gl_create_context(Display *dpy, int screen, GLContextState *parent)
     cs->window  = parent ? parent->window : None;
     cs->context = NULL;
 
-    if (parent) {
+    if (parent && parent->context) {
         status = glXQueryContext(
             parent->display,
             parent->context,
