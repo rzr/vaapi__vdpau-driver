@@ -23,6 +23,8 @@
 
 #include "vdpau_driver.h"
 
+#define VDPAU_MAX_VIDEO_MIXER_DEINT_SURFACES 3
+
 typedef struct object_mixer object_mixer_t;
 struct object_mixer {
     struct object_base          base;
@@ -38,7 +40,7 @@ struct object_mixer {
     VdpProcamp                  vdp_procamp;
     uint64_t                    vdp_procamp_mtime;
     uint64_t                    vdp_bgcolor_mtime;
-    VdpVideoSurface             deint_surfaces[3];
+    VdpVideoSurface             deint_surfaces[VDPAU_MAX_VIDEO_MIXER_DEINT_SURFACES];
 };
 
 object_mixer_p

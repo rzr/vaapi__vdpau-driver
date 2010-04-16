@@ -65,7 +65,6 @@ struct object_context {
     VdpCodec                     vdp_codec;
     VdpDecoderProfile            vdp_profile;
     VdpDecoder                   vdp_decoder;
-    VdpVideoSurface             *vdp_video_surfaces;
     uint8_t                     *gen_slice_data;
     unsigned int                 gen_slice_data_size;
     unsigned int                 gen_slice_data_size_max;

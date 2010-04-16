@@ -412,6 +412,21 @@ output_surface_unref(
         output_surface_destroy(driver_data, obj_output);
 }
 
+// Looks up output surface
+object_output_p
+output_surface_lookup(object_surface_p obj_surface, Drawable drawable)
+{
+    unsigned int i;
+
+    if (obj_surface) {
+        for (i = 0; i < obj_surface->output_surfaces_count; i++) {
+            if (obj_surface->output_surfaces[i]->drawable == drawable)
+                return obj_surface->output_surfaces[i];
+        }
+    }
+    return NULL;
+}
+
 // Ensure an output surface is created for the specified surface and drawable
 static object_output_p
 output_surface_ensure(
@@ -424,18 +439,12 @@ output_surface_ensure(
 {
     object_output_p obj_output = NULL;
     int new_obj_output = 0;
-    unsigned int i;
 
     if (!obj_surface)
         return NULL;
 
     /* Check for a output surface matching Drawable */
-    for (i = 0; i < obj_surface->output_surfaces_count; i++) {
-        if (obj_surface->output_surfaces[i]->drawable == drawable) {
-            obj_output = obj_surface->output_surfaces[i];
-            break;
-        }
-    }
+    obj_output = output_surface_lookup(obj_surface, drawable);
 
     /* ... that might have been created for another video surface */
     if (!obj_output) {
@@ -663,7 +672,8 @@ render_subpictures(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus
+// Queue surface for display
+VAStatus
 flip_surface(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output

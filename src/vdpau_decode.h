@@ -39,6 +39,14 @@ VdpCodec get_VdpCodec(VdpDecoderProfile profile)
 VdpDecoderProfile get_VdpDecoderProfile(VAProfile profile)
     attribute_hidden;
 
+// Checks decoder for profile/entrypoint is available
+VAStatus
+check_decoder(
+    vdpau_driver_data_t *driver_data,
+    VAProfile            profile,
+    VAEntrypoint         entrypoint
+) attribute_hidden;
+
 // vaQueryConfigProfiles
 VAStatus
 vdpau_QueryConfigProfiles(

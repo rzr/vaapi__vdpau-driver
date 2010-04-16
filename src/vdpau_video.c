@@ -98,8 +98,13 @@ vdpau_GetConfigAttributes(
     int                 num_attribs
 )
 {
-    int i;
+    VDPAU_DRIVER_DATA_INIT;
 
+    VAStatus va_status = check_decoder(driver_data, profile, entrypoint);
+    if (va_status != VA_STATUS_SUCCESS)
+        return va_status;
+
+    int i;
     for (i = 0; i < num_attribs; i++) {
         switch (attrib_list[i].type) {
         case VAConfigAttribRTFormat:
@@ -110,7 +115,6 @@ vdpau_GetConfigAttributes(
             break;
         }
     }
-
     return VA_STATUS_SUCCESS;
 }
 
@@ -169,43 +173,7 @@ vdpau_CreateConfig(
     int i;
 
     /* Validate profile and entrypoint */
-    switch (profile) {
-    case VAProfileMPEG2Simple:
-    case VAProfileMPEG2Main:
-        if (entrypoint == VAEntrypointVLD)
-            va_status = VA_STATUS_SUCCESS;
-        else
-            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        break;
-    case VAProfileMPEG4Simple:
-    case VAProfileMPEG4AdvancedSimple:
-    case VAProfileMPEG4Main:
-        if (entrypoint == VAEntrypointVLD)
-            va_status = VA_STATUS_SUCCESS;
-        else
-            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        break;
-    case VAProfileH264Baseline:
-    case VAProfileH264Main:
-    case VAProfileH264High:
-        if (entrypoint == VAEntrypointVLD)
-            va_status = VA_STATUS_SUCCESS;
-        else
-            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        break;
-    case VAProfileVC1Simple:
-    case VAProfileVC1Main:
-    case VAProfileVC1Advanced:
-        if (entrypoint == VAEntrypointVLD)
-            va_status = VA_STATUS_SUCCESS;
-        else
-            va_status = VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        break;
-    default:
-        va_status = VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
-        break;
-    }
-
+    va_status = check_decoder(driver_data, profile, entrypoint);
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
@@ -495,18 +463,6 @@ VAStatus vdpau_DestroyContext(VADriverContextP ctx, VAContextID context)
         obj_context->vdp_bitstream_buffers_count_max = 0;
     }
 
-    if (obj_context->vdp_video_surfaces) {
-        for (i = 0; i < obj_context->num_render_targets; i++) {
-            VdpVideoSurface surface = obj_context->vdp_video_surfaces[i];
-            if (surface != VDP_INVALID_HANDLE) {
-                vdpau_video_surface_destroy(driver_data, surface);
-                obj_context->vdp_video_surfaces[i] = VDP_INVALID_HANDLE;
-            }
-        }
-        free(obj_context->vdp_video_surfaces);
-        obj_context->vdp_video_surfaces = NULL;
-    }
-
     if (obj_context->vdp_decoder != VDP_INVALID_HANDLE) {
         vdpau_decoder_destroy(driver_data, obj_context->vdp_decoder);
         obj_context->vdp_decoder = VDP_INVALID_HANDLE;
@@ -518,6 +474,12 @@ VAStatus vdpau_DestroyContext(VADriverContextP ctx, VAContextID context)
     }
 
     if (obj_context->render_targets) {
+        for (i = 0; i < obj_context->num_render_targets; i++) {
+            object_surface_p obj_surface;
+            obj_surface = VDPAU_SURFACE(obj_context->render_targets[i]);
+            if (obj_surface)
+                obj_surface->va_context = VA_INVALID_ID;
+        }
         free(obj_context->render_targets);
         obj_context->render_targets = NULL;
     }
@@ -595,8 +557,6 @@ vdpau_CreateContext(
     obj_context->vdp_codec              = get_VdpCodec(vdp_profile);
     obj_context->vdp_profile            = vdp_profile;
     obj_context->vdp_decoder            = VDP_INVALID_HANDLE;
-    obj_context->vdp_video_surfaces     = (VdpVideoSurface *)
-        calloc(num_render_targets, sizeof(VdpVideoSurface));
     obj_context->gen_slice_data = NULL;
     obj_context->gen_slice_data_size = 0;
     obj_context->gen_slice_data_size_max = 0;
@@ -607,7 +567,7 @@ vdpau_CreateContext(
     for (i = 0; i < ARRAY_ELEMS(obj_context->ref_frames); i++)
         obj_context->ref_frames[i]      = VA_INVALID_SURFACE;
 
-    if (obj_context->render_targets == NULL || obj_context->vdp_video_surfaces == NULL) {
+    if (!obj_context->render_targets) {
         vdpau_DestroyContext(ctx, context_id);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -619,7 +579,6 @@ vdpau_CreateContext(
             return VA_STATUS_ERROR_INVALID_SURFACE;
         }
         obj_context->render_targets[i] = render_targets[i];
-        obj_context->vdp_video_surfaces[i] = obj_surface->vdp_surface;
         /* XXX: assume we can only associate a surface to a single context */
         ASSERT(obj_surface->va_context == VA_INVALID_ID);
         obj_surface->va_context = context_id;

@@ -990,10 +990,25 @@ associate_glx_surface(
         obj_glx_surface->height,
         &src_rect,
         &dst_rect,
-        flags
+        flags | VA_CLEAR_DRAWABLE
     );
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
+
+    /* Force rendering of fields now */
+    if ((flags ^ (VA_TOP_FIELD|VA_BOTTOM_FIELD)) != 0) {
+        object_output_p obj_output;
+        obj_output = output_surface_lookup(
+            obj_surface,
+            obj_glx_surface->pixmap
+        );
+        ASSERT(obj_output);
+        if (obj_output && obj_output->fields) {
+            va_status = queue_surface(driver_data, obj_surface, obj_output);
+            if (va_status != VA_STATUS_SUCCESS)
+                return va_status;
+        }
+    }
 
     obj_glx_surface->va_surface = obj_surface->base.id;
     return VA_STATUS_SUCCESS;

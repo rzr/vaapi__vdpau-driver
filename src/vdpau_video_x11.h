@@ -70,6 +70,11 @@ output_surface_unref(
     object_output_p      obj_output
 ) attribute_hidden;
 
+// Looks up output surface
+object_output_p
+output_surface_lookup(object_surface_p obj_surface, Drawable drawable)
+    attribute_hidden;
+
 // Render surface to a Drawable
 VAStatus
 put_surface(
@@ -81,6 +86,14 @@ put_surface(
     const VARectangle   *source_rect,
     const VARectangle   *target_rect,
     unsigned int         flags
+) attribute_hidden;
+
+// Queue surface for display
+VAStatus
+queue_surface(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    object_output_p      obj_output
 ) attribute_hidden;
 
 // vaPutSurface

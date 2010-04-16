@@ -113,15 +113,38 @@ is_supported_profile(
     VdpStatus vdp_status;
     uint32_t max_level, max_references, max_width, max_height;
 
-    vdp_status = vdpau_decoder_query_capabilities(driver_data,
-                                                  driver_data->vdp_device,
-                                                  profile,
-                                                  &is_supported,
-                                                  &max_level,
-                                                  &max_references,
-                                                  &max_width,
-                                                  &max_height);
+    if (profile == (VdpDecoderProfile)-1)
+        return VDP_FALSE;
+
+    vdp_status = vdpau_decoder_query_capabilities(
+        driver_data,
+        driver_data->vdp_device,
+        profile,
+        &is_supported,
+        &max_level,
+        &max_references,
+        &max_width,
+        &max_height
+    );
     return vdp_status == VDP_STATUS_OK && is_supported;
+}
+
+// Checks decoder for profile/entrypoint is available
+VAStatus
+check_decoder(
+    vdpau_driver_data_t *driver_data,
+    VAProfile            profile,
+    VAEntrypoint         entrypoint
+)
+{
+    if (!is_supported_profile(driver_data, get_VdpDecoderProfile(profile)))
+        return VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
+
+    /* VDPAU only supports VLD */
+    if (entrypoint != VAEntrypointVLD)
+        return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
+
+    return VA_STATUS_SUCCESS;
 }
 
 // Computes value for VdpDecoderCreate()::max_references parameter

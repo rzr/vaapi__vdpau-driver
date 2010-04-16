@@ -4,6 +4,11 @@ Copyright (C) 2009-2010 Splitted-Desktop Systems
 Version 0.7.0 - DD.Apr.2010
 * Optimize rendering of multiple surfaces per window
 
+Version 0.6.9 - DD.Apr.2010
+* Fix deinterlacing
+* Fix VA context destruction
+* Fix vaCreateConfig() to validate profile
+
 Version 0.6.8 - 13.Apr.2010
 * Drop superfluous asserts
 * Fix OpenGL rendering for XBMC
