@@ -309,6 +309,7 @@ output_surface_lookup(object_surface_p obj_surface, Drawable drawable)
 
     if (obj_surface) {
         for (i = 0; i < obj_surface->output_surfaces_count; i++) {
+            ASSERT(obj_surface->output_surfaces[i]);
             if (obj_surface->output_surfaces[i]->drawable == drawable)
                 return obj_surface->output_surfaces[i];
         }
@@ -353,6 +354,8 @@ output_surface_ensure(
     /* Fallback: create a new output surface */
     if (!obj_output) {
         obj_output = output_surface_create(driver_data, drawable, width, height);
+        if (!obj_output)
+            return NULL;
         new_obj_output = 1;
     }
 
