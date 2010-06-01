@@ -227,10 +227,16 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     VDPAU_DRIVER_DATA_INIT;
 
     VdpStatus vdp_status;
+#if VA_CHECK_VERSION(0,31,1)
+    driver_data->x11_dpy    = ctx->native_dpy;
+#else
+    driver_data->x11_dpy    = ctx->x11_dpy;
+#endif
+    driver_data->x11_screen = ctx->x11_screen;
     driver_data->vdp_device = VDP_INVALID_HANDLE;
     vdp_status = vdp_device_create_x11(
-        ctx->x11_dpy,
-        ctx->x11_screen,
+        driver_data->x11_dpy,
+        driver_data->x11_screen,
         &driver_data->vdp_device,
         &driver_data->vdp_get_proc_address
     );
@@ -344,6 +350,7 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     ctx->vtable.vaQueryDisplayAttributes    = vdpau_QueryDisplayAttributes;
     ctx->vtable.vaGetDisplayAttributes      = vdpau_GetDisplayAttributes;
     ctx->vtable.vaSetDisplayAttributes      = vdpau_SetDisplayAttributes;
+#if !VA_CHECK_VERSION(0,31,1)
 #if VA_CHECK_VERSION(0,30,0)
     ctx->vtable.vaCreateSurfaceFromCIFrame  = vdpau_CreateSurfaceFromCIFrame;
     ctx->vtable.vaCreateSurfaceFromV4L2Buf  = vdpau_CreateSurfaceFromV4L2Buf;
@@ -351,6 +358,7 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
 #else
     ctx->vtable.vaSetSubpicturePalette      = vdpau_SetSubpicturePalette;
     ctx->vtable.vaDbgCopySurfaceToBuffer    = vdpau_DbgCopySurfaceToBuffer;
+#endif
 #endif
 
 #if USE_GLX
