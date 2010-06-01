@@ -213,7 +213,7 @@ static int check_extensions(vdpau_driver_data_t *driver_data)
     const char *glx_extensions;
 
     gl_extensions  = (const char *)glGetString(GL_EXTENSIONS);
-    glx_extensions = glXQueryExtensionsString(ctx->x11_dpy, ctx->x11_screen);
+    glx_extensions = glXQueryExtensionsString(driver_data->x11_dpy, driver_data->x11_screen);
 
     if (!find_string("GL_ARB_texture_non_power_of_two", gl_extensions, " "))
         return -1;
@@ -381,16 +381,16 @@ create_tfp_surface(
     int                    n_fbconfig_attribs, x, y, status;
     unsigned int           border_width, depth, dummy;
 
-    root_window = RootWindow(ctx->x11_dpy, ctx->x11_screen);
-    XGetWindowAttributes(ctx->x11_dpy, root_window, &wattr);
-    pixmap = XCreatePixmap(ctx->x11_dpy, root_window,
+    root_window = RootWindow(driver_data->x11_dpy, driver_data->x11_screen);
+    XGetWindowAttributes(driver_data->x11_dpy, root_window, &wattr);
+    pixmap = XCreatePixmap(driver_data->x11_dpy, root_window,
                            width, height, wattr.depth);
     if (!pixmap)
         return -1;
     obj_glx_surface->pixmap = pixmap;
 
     x11_trap_errors();
-    status = XGetGeometry(ctx->x11_dpy,
+    status = XGetGeometry(driver_data->x11_dpy,
                           (Drawable)pixmap,
                           &root_window,
                           &x,
@@ -427,7 +427,7 @@ create_tfp_surface(
     }
     *attrib++ = GL_NONE;
 
-    fbconfig = glXChooseFBConfig(ctx->x11_dpy, ctx->x11_screen, fbconfig_attribs, &n_fbconfig_attribs);
+    fbconfig = glXChooseFBConfig(driver_data->x11_dpy, driver_data->x11_screen, fbconfig_attribs, &n_fbconfig_attribs);
     if (fbconfig == NULL)
         return -1;
 
@@ -447,7 +447,7 @@ create_tfp_surface(
 
     x11_trap_errors();
     glx_pixmap = glXCreatePixmap(
-        ctx->x11_dpy,
+        driver_data->x11_dpy,
         fbconfig[0],
         pixmap,
         pixmap_attribs
@@ -474,12 +474,12 @@ destroy_tfp_surface(
     VADriverContextP const ctx = driver_data->va_context;
 
     if (obj_glx_surface->glx_pixmap) {
-        glXDestroyPixmap(ctx->x11_dpy, obj_glx_surface->glx_pixmap);
+        glXDestroyPixmap(driver_data->x11_dpy, obj_glx_surface->glx_pixmap);
         obj_glx_surface->glx_pixmap = None;
     }
 
     if (obj_glx_surface->pixmap) {
-        XFreePixmap(ctx->x11_dpy, obj_glx_surface->pixmap);
+        XFreePixmap(driver_data->x11_dpy, obj_glx_surface->pixmap);
         obj_glx_surface->pixmap = None;
     }
 }
@@ -501,12 +501,12 @@ bind_pixmap(
 
     x11_trap_errors();
     gl_data->glx_bind_tex_image(
-        ctx->x11_dpy,
+        driver_data->x11_dpy,
         obj_glx_surface->glx_pixmap,
         GLX_FRONT_LEFT_EXT,
         NULL
     );
-    XSync(ctx->x11_dpy, False);
+    XSync(driver_data->x11_dpy, False);
     if (x11_untrap_errors() != 0) {
         vdpau_error_message("failed to bind pixmap\n");
         return -1;
@@ -531,11 +531,11 @@ unbind_pixmap(
 
     x11_trap_errors();
     gl_data->glx_release_tex_image(
-        ctx->x11_dpy,
+        driver_data->x11_dpy,
         obj_glx_surface->glx_pixmap,
         GLX_FRONT_LEFT_EXT
     );
-    XSync(ctx->x11_dpy, False);
+    XSync(driver_data->x11_dpy, False);
     if (x11_untrap_errors() != 0) {
         vdpau_error_message("failed to release pixmap\n");
         return -1;
@@ -903,7 +903,7 @@ vdpau_CreateSurfaceGLX(
 
     GLContextState old_cs, *new_cs;
     gl_get_current_context(&old_cs);
-    new_cs = gl_create_context(ctx->x11_dpy, ctx->x11_screen, &old_cs);
+    new_cs = gl_create_context(driver_data->x11_dpy, driver_data->x11_screen, &old_cs);
     if (!new_cs)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     if (!gl_set_current_context(new_cs, NULL))

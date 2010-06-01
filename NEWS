@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2010-04-17
+vdpau-video NEWS -- summary of changes.  2010-06-DD
 Copyright (C) 2009-2010 Splitted-Desktop Systems
+
+Version 0.6.10 - DD.Jun.2010
+* Add support for VA-API 0.31.1-sds1
 
 Version 0.6.9 - 17.Apr.2010
 * Fix deinterlacing

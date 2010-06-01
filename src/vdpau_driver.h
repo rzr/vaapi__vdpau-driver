@@ -100,6 +100,8 @@ struct vdpau_driver_data {
     struct object_heap          subpicture_heap;
     struct object_heap          mixer_heap;
     struct opengl_data         *gl_data;
+    Display                    *x11_dpy;
+    int                         x11_screen;
     VdpDevice                   vdp_device;
     VdpGetProcAddress          *vdp_get_proc_address;
     vdpau_vtable_t              vdp_vtable;

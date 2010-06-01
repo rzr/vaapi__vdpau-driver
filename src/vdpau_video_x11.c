@@ -114,7 +114,7 @@ configure_notify_event_pending(
 
     /* XXX: don't use XPeekIfEvent() because it might block */
     XCheckIfEvent(
-        ctx->x11_dpy,
+        driver_data->x11_dpy,
         &xev,
         configure_notify_event_pending_cb, (XPointer)&args
     );
@@ -206,7 +206,7 @@ output_surface_create(
     obj_output->displayed_output_surface = 0;
     obj_output->queued_surfaces          = 0;
     obj_output->fields                   = 0;
-    obj_output->is_window                = is_window(ctx->x11_dpy, drawable);
+    obj_output->is_window                = is_window(driver_data->x11_dpy, drawable);
     obj_output->size_changed             = 0;
 
     unsigned int i;
@@ -713,7 +713,7 @@ vdpau_PutSurface(
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
     unsigned int w, h;
-    if (get_drawable_size(ctx->x11_dpy, draw, &w, &h) < 0)
+    if (get_drawable_size(driver_data->x11_dpy, draw, &w, &h) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
     VARectangle src_rect, dst_rect;
