@@ -699,7 +699,7 @@ flip_surface(
     return VA_STATUS_SUCCESS;
 }
 
-static inline VAStatus
+VAStatus
 queue_surface(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
