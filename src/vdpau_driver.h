@@ -38,6 +38,12 @@
 #define VA_STATUS_ERROR_UNIMPLEMENTED   0x00000014
 #endif
 
+#if VA_CHECK_VERSION(0,31,1)
+typedef void *VADrawable;
+#else
+typedef Drawable VADrawable;
+#endif
+
 #define VDPAU_DRIVER_DATA_INIT                           \
         struct vdpau_driver_data *driver_data =          \
             (struct vdpau_driver_data *)ctx->pDriverData
