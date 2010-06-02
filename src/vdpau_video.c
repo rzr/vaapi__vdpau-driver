@@ -941,3 +941,43 @@ vdpau_CopySurfaceToBuffer(
     return VA_STATUS_ERROR_UNKNOWN;
 }
 #endif
+
+#if VA_CHECK_VERSION(0,31,1)
+// vaLockSurface
+VAStatus
+vdpau_LockSurface(
+    VADriverContextP    ctx,
+    VASurfaceID         surface,
+    unsigned int       *fourcc,
+    unsigned int       *luma_stride,
+    unsigned int       *chroma_u_stride,
+    unsigned int       *chroma_v_stride,
+    unsigned int       *luma_offset,
+    unsigned int       *chroma_u_offset,
+    unsigned int       *chroma_v_offset,
+    unsigned int       *buffer_name,
+    void              **buffer
+)
+{
+    if (fourcc)          *fourcc          = VA_FOURCC('N','V','1','2');
+    if (luma_stride)     *luma_stride     = 0;
+    if (chroma_u_stride) *chroma_u_stride = 0;
+    if (chroma_v_stride) *chroma_v_stride = 0;
+    if (luma_offset)     *luma_offset     = 0;
+    if (chroma_u_offset) *chroma_u_offset = 0;
+    if (chroma_v_offset) *chroma_v_offset = 0;
+    if (buffer_name)     *buffer_name     = 0;
+    if (buffer)          *buffer          = NULL;
+    return VA_STATUS_SUCCESS;
+}
+
+// vaUnlockSurface
+VAStatus
+vdpau_UnlockSurface(
+    VADriverContextP    ctx,
+    VASurfaceID         surface
+)
+{
+    return VA_STATUS_SUCCESS;
+}
+#endif

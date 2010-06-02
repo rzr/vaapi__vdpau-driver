@@ -342,6 +342,8 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     ctx->vtable.vaSetDisplayAttributes      = vdpau_SetDisplayAttributes;
 #if VA_CHECK_VERSION(0,31,1)
     ctx->vtable.vaBufferInfo                = vdpau_BufferInfo;
+    ctx->vtable.vaLockSurface               = vdpau_LockSurface;
+    ctx->vtable.vaUnlockSurface             = vdpau_UnlockSurface;
 #else
 #if VA_CHECK_VERSION(0,30,0)
     ctx->vtable.vaCreateSurfaceFromCIFrame  = vdpau_CreateSurfaceFromCIFrame;
