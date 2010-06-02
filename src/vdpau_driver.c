@@ -340,7 +340,9 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     ctx->vtable.vaQueryDisplayAttributes    = vdpau_QueryDisplayAttributes;
     ctx->vtable.vaGetDisplayAttributes      = vdpau_GetDisplayAttributes;
     ctx->vtable.vaSetDisplayAttributes      = vdpau_SetDisplayAttributes;
-#if !VA_CHECK_VERSION(0,31,1)
+#if VA_CHECK_VERSION(0,31,1)
+    ctx->vtable.vaBufferInfo                = vdpau_BufferInfo;
+#else
 #if VA_CHECK_VERSION(0,30,0)
     ctx->vtable.vaCreateSurfaceFromCIFrame  = vdpau_CreateSurfaceFromCIFrame;
     ctx->vtable.vaCreateSurfaceFromV4L2Buf  = vdpau_CreateSurfaceFromV4L2Buf;

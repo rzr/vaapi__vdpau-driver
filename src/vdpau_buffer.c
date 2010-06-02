@@ -229,3 +229,29 @@ vdpau_UnmapBuffer(
     ++obj_buffer->mtime;
     return VA_STATUS_SUCCESS;
 }
+
+// vaBufferInfo
+VAStatus
+vdpau_BufferInfo(
+    VADriverContextP    ctx,
+    VAContextID         context,
+    VABufferID          buf_id,
+    VABufferType       *type,
+    unsigned int       *size,
+    unsigned int       *num_elements
+)
+{
+    VDPAU_DRIVER_DATA_INIT;
+
+    object_buffer_p obj_buffer = VDPAU_BUFFER(buf_id);
+    if (!obj_buffer)
+        return VA_STATUS_ERROR_INVALID_BUFFER;
+
+    if (type)
+        *type = obj_buffer->type;
+    if (size)
+        *size = obj_buffer->buffer_size / obj_buffer->num_elements;
+    if (num_elements)
+        *num_elements = obj_buffer->num_elements;
+    return VA_STATUS_SUCCESS;
+}
