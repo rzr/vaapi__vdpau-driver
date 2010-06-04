@@ -101,4 +101,15 @@ vdpau_UnmapBuffer(
     VABufferID          buf_id
 ) attribute_hidden;
 
+// vaBufferInfo
+VAStatus
+vdpau_BufferInfo(
+    VADriverContextP    ctx,
+    VAContextID         context,
+    VABufferID          buf_id,
+    VABufferType       *type,
+    unsigned int       *size,
+    unsigned int       *num_elements
+) attribute_hidden;
+
 #endif /* VDPAU_BUFFER_H */

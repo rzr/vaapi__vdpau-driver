@@ -822,7 +822,7 @@ VAStatus
 vdpau_PutSurface(
     VADriverContextP    ctx,
     VASurfaceID         surface,
-    Drawable            draw,
+    VADrawable          draw,
     short               srcx,
     short               srcy,
     unsigned short      srcw,
@@ -845,7 +845,8 @@ vdpau_PutSurface(
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
     unsigned int w, h;
-    if (get_drawable_size(driver_data->x11_dpy, draw, &w, &h) < 0)
+    const XID xid = (XID)(uintptr_t)draw;
+    if (get_drawable_size(driver_data->x11_dpy, xid, &w, &h) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
     VARectangle src_rect, dst_rect;
@@ -857,5 +858,5 @@ vdpau_PutSurface(
     dst_rect.y      = desty;
     dst_rect.width  = destw;
     dst_rect.height = desth;
-    return put_surface(driver_data, surface, draw, w, h, &src_rect, &dst_rect, flags);
+    return put_surface(driver_data, surface, xid, w, h, &src_rect, &dst_rect, flags);
 }

@@ -101,7 +101,7 @@ VAStatus
 vdpau_PutSurface(
     VADriverContextP    ctx,
     VASurfaceID         surface,
-    Drawable            draw,
+    VADrawable          draw,
     short               srcx,
     short               srcy,
     unsigned short      srcw,

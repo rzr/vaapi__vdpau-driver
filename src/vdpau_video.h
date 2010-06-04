@@ -300,4 +300,29 @@ vdpau_CopySurfaceToBuffer(
 ) attribute_hidden;
 #endif
 
+#if VA_CHECK_VERSION(0,31,1)
+// vaLockSurface
+VAStatus
+vdpau_LockSurface(
+    VADriverContextP    ctx,
+    VASurfaceID         surface,
+    unsigned int       *fourcc,
+    unsigned int       *luma_stride,
+    unsigned int       *chroma_u_stride,
+    unsigned int       *chroma_v_stride,
+    unsigned int       *luma_offset,
+    unsigned int       *chroma_u_offset,
+    unsigned int       *chroma_v_offset,
+    unsigned int       *buffer_name,
+    void              **buffer
+) attribute_hidden;
+
+// vaUnlockSurface
+VAStatus
+vdpau_UnlockSurface(
+    VADriverContextP    ctx,
+    VASurfaceID         surface
+) attribute_hidden;
+#endif
+
 #endif /* VDPAU_VIDEO_H */
