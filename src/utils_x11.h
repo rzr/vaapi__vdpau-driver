@@ -1,5 +1,5 @@
 /*
- *  utils.h - Utilities
+ *  utils_x11.h - X11 utilities
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *
@@ -18,30 +18,26 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef UTILS_X11_H
+#define UTILS_X11_H
 
-int getenv_int(const char *env, int *pval)
+#include "config.h"
+#include <X11/Xlib.h>
+
+void x11_trap_errors(void)
     attribute_hidden;
 
-int getenv_yesno(const char *env, int *pval)
+int x11_untrap_errors(void)
     attribute_hidden;
 
-uint64_t get_ticks_usec(void)
-    attribute_hidden;
-
-void delay_usec(unsigned int usec)
-    attribute_hidden;
-
-void *
-realloc_buffer(
-    void        **buffer_p,
-    unsigned int *max_elements_p,
-    unsigned int  num_elements,
-    unsigned int  element_size
+int
+x11_get_geometry(
+    Display      *dpy,
+    Drawable      drawable,
+    int          *px,
+    int          *py,
+    unsigned int *pwidth,
+    unsigned int *pheight
 ) attribute_hidden;
 
-int find_string(const char *name, const char *ext, const char *sep)
-    attribute_hidden;
-
-#endif /* UTILS_H */
+#endif /* UTILS_X11_H */

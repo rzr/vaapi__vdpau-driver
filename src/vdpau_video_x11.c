@@ -24,6 +24,7 @@
 #include "vdpau_subpic.h"
 #include "vdpau_mixer.h"
 #include "utils.h"
+#include "utils_x11.h"
 
 #define DEBUG 1
 #include "debug.h"
@@ -54,34 +55,6 @@ flip_surface(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output
 );
-
-// Returns X drawable dimensions
-static int
-get_drawable_size(
-    Display      *display,
-    Drawable      drawable,
-    unsigned int *pwidth,
-    unsigned int *pheight
-)
-{
-    Window rootwin;
-    int x, y;
-    unsigned int width, height, border_width, depth;
-
-    x11_trap_errors();
-    XGetGeometry(display, drawable, &rootwin,
-                 &x, &y, &width, &height, &border_width, &depth);
-    if (x11_untrap_errors() != 0)
-        return -1;
-
-    if (pwidth)
-        *pwidth = width;
-
-    if (pheight)
-        *pheight = height;
-
-    return 0;
-}
 
 // Renderer thread messenger
 #define MSG2PTR(v) ((void *)(uintptr_t)(v))
@@ -846,7 +819,7 @@ vdpau_PutSurface(
 
     unsigned int w, h;
     const XID xid = (XID)(uintptr_t)draw;
-    if (get_drawable_size(driver_data->x11_dpy, xid, &w, &h) < 0)
+    if (x11_get_geometry(driver_data->x11_dpy, xid, NULL, NULL, &w, &h) < 0)
         return VA_STATUS_ERROR_OPERATION_FAILED;
 
     VARectangle src_rect, dst_rect;

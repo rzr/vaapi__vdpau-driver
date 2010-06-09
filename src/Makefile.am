@@ -13,8 +13,8 @@ source_glx_h = vdpau_video_glx.h
 source_glx_c = vdpau_video_glx.c
 endif
 
-source_x11_h = vdpau_video_x11.h
-source_x11_c = vdpau_video_x11.c
+source_x11_h = vdpau_video_x11.h utils_x11.h
+source_x11_c = vdpau_video_x11.c utils_x11.c
 
 source_h = \
 	debug.h		\
