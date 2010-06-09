@@ -212,7 +212,6 @@ static VAStatus vdpau_Terminate(VADriverContextP ctx)
         driver_data->vdp_device = VDP_INVALID_HANDLE;
     }
 
-    free(driver_data->gl_data);
     vdpau_gate_exit(driver_data);
 
     free(ctx->pDriverData);

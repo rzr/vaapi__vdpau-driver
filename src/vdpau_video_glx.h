@@ -22,28 +22,21 @@
 #define VDPAU_VIDEO_GLX_H
 
 #include "vdpau_driver.h"
+#include "utils_glx.h"
 
-#include <GL/gl.h>
-#include <GL/glx.h>
-
-typedef struct opengl_data         opengl_data_t;
-typedef struct _GLContextState     GLContextState;
 typedef struct object_glx_surface  object_glx_surface_t;
 typedef struct object_glx_surface *object_glx_surface_p;
 
 struct object_glx_surface {
-    struct object_base  base;
-    GLContextState     *gl_context;
-    GLenum              target;
-    GLuint              texture;
-    VASurfaceID         va_surface;
-    unsigned int        width;
-    unsigned int        height;
-    int                 is_bound;
-    Pixmap              pixmap;
-    GLuint              pix_texture;
-    GLXPixmap           glx_pixmap;
-    GLuint              fbo;
+    struct object_base   base;
+    GLContextState      *gl_context;
+    GLenum               target;
+    GLuint               texture;
+    VASurfaceID          va_surface;
+    unsigned int         width;
+    unsigned int         height;
+    GLPixmapObject      *pixo;
+    GLFramebufferObject *fbo;
 };
 
 // vaCreateSurfaceGLX

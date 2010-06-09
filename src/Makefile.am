@@ -9,8 +9,8 @@ LDADD = \
 	-no-undefined -module -Wl,--no-undefined
 
 if USE_GLX
-source_glx_h = vdpau_video_glx.h
-source_glx_c = vdpau_video_glx.c
+source_glx_h = vdpau_video_glx.h utils_glx.h
+source_glx_c = vdpau_video_glx.c utils_glx.c
 endif
 
 source_x11_h = vdpau_video_x11.h utils_x11.h
