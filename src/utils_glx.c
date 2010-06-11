@@ -752,6 +752,54 @@ gl_init_vtable(void)
             return NULL;
         gl_vtable->has_multitexture = 1;
     }
+
+    /* GL_NV_vdpau_interop */
+    has_extension = (
+        find_string("GL_NV_vdpau_interop", gl_extensions, " ")
+    );
+    if (has_extension) {
+        gl_vtable->gl_vdpau_init = (PFNGLVDPAUINITNVPROC)
+            get_proc_address("glVDPAUInitNV");
+        if (!gl_vtable->gl_vdpau_init)
+            return NULL;
+        gl_vtable->gl_vdpau_fini = (PFNGLVDPAUFININVPROC)
+            get_proc_address("glVDPAUFiniNV");
+        if (!gl_vtable->gl_vdpau_fini)
+            return NULL;
+        gl_vtable->gl_vdpau_register_video_surface = (PFNGLVDPAUREGISTERVIDEOSURFACENVPROC)
+            get_proc_address("glVDPAURegisterVideoSurfaceNV");
+        if (!gl_vtable->gl_vdpau_register_video_surface)
+            return NULL;
+        gl_vtable->gl_vdpau_register_output_surface = (PFNGLVDPAUREGISTEROUTPUTSURFACENVPROC)
+            get_proc_address("glVDPAURegisterOutputSurfaceNV");
+        if (!gl_vtable->gl_vdpau_register_output_surface)
+            return NULL;
+        gl_vtable->gl_vdpau_is_surface = (PFNGLVDPAUISSURFACEPROC)
+            get_proc_address("glVDPAUIsSurfaceNV");
+        if (!gl_vtable->gl_vdpau_is_surface)
+            return NULL;
+        gl_vtable->gl_vdpau_unregister_surface = (PFNGLVDPAUUNREGISTERSURFACENVPROC)
+            get_proc_address("glVDPAUUnregisterSurfaceNV");
+        if (!gl_vtable->gl_vdpau_unregister_surface)
+            return NULL;
+        gl_vtable->gl_vdpau_get_surface_iv = (PFNGLVDPAUGETSURFACEIVPROC)
+            get_proc_address("glVDPAUGetSurfaceivNV");
+        if (!gl_vtable->gl_vdpau_get_surface_iv)
+            return NULL;
+        gl_vtable->gl_vdpau_surface_access = (PFNGLVDPAUSURFACEACCESSNVPROC)
+            get_proc_address("glVDPAUSurfaceAccessNV");
+        if (!gl_vtable->gl_vdpau_surface_access)
+            return NULL;
+        gl_vtable->gl_vdpau_map_surfaces = (PFNGLVDPAUMAPSURFACESNVPROC)
+            get_proc_address("glVDPAUMapSurfacesNV");
+        if (!gl_vtable->gl_vdpau_map_surfaces)
+            return NULL;
+        gl_vtable->gl_vdpau_unmap_surfaces = (PFNGLVDPAUUNMAPSURFACESNVPROC)
+            get_proc_address("glVDPAUUnmapSurfacesNV");
+        if (!gl_vtable->gl_vdpau_unmap_surfaces)
+            return NULL;
+        gl_vtable->has_vdpau_interop = 1;
+    }
     return gl_vtable;
 }
 
@@ -1161,5 +1209,171 @@ gl_unbind_framebuffer_object(GLFramebufferObject *fbo)
     gl_vtable->gl_bind_framebuffer(GL_FRAMEBUFFER_EXT, fbo->old_fbo);
 
     fbo->is_bound = 0;
+    return 1;
+}
+
+/* VDPAU/GL data */
+static pthread_mutex_t  gl_vdpau_mutex  = PTHREAD_MUTEX_INITIALIZER;
+static VdpDevice        gl_vdpau_device = VDP_INVALID_HANDLE;
+static unsigned int     gl_vdpau_refcount;
+
+/**
+ * gl_vdpau_init:
+ * @device: a #VdpDevice
+ * @get_proc_address: the #VdpGetProcAddress generated during
+ *   #VdpDevice creation
+ *
+ * Informs the GL which VDPAU device to interact with.
+ *
+ * Return value: 1 on success
+ */
+int
+gl_vdpau_init(VdpDevice device, VdpGetProcAddress get_proc_address)
+{
+    GLVTable * const gl_vtable = gl_get_vtable();
+
+    if (gl_vdpau_device != VDP_INVALID_HANDLE && gl_vdpau_device != device)
+        return 0;
+
+    pthread_mutex_lock(&gl_vdpau_mutex);
+    gl_vdpau_device = device;
+    if (gl_vdpau_refcount++ == 0)
+        gl_vtable->gl_vdpau_init((void *)(uintptr_t)device, get_proc_address);
+    pthread_mutex_unlock(&gl_vdpau_mutex);
+    return 1;
+}
+
+/**
+ * gl_vdpau_exit:
+ *
+ * Disposes the VDPAU/GL interact functionality.
+ */
+void
+gl_vdpau_exit(void)
+{
+    GLVTable * const gl_vtable = gl_get_vtable();
+
+    pthread_mutex_lock(&gl_vdpau_mutex);
+    if (--gl_vdpau_refcount == 0)
+        gl_vtable->gl_vdpau_fini();
+    pthread_mutex_unlock(&gl_vdpau_mutex);
+}
+
+/**
+ * gl_vdpau_create_output_surface:
+ * @surface: the VDPAU output surface to wrap
+ *
+ * Creates a VDPAU/GL surface from the specified @surface, which is a
+ * #VdpOutputSurface.
+ *
+ * Return value: the newly created #GLVdpSurface, or %NULL if an error
+ *   occurred
+ */
+GLVdpSurface *
+gl_vdpau_create_output_surface(VdpOutputSurface surface)
+{
+    GLVTable * const gl_vtable = gl_get_vtable();
+    GLVdpSurface *s;
+
+    if (!gl_vtable || !gl_vtable->has_vdpau_interop)
+        return NULL;
+
+    s = calloc(1, sizeof(*s));
+    if (!s)
+        return NULL;
+
+    s->target           = GL_TEXTURE_2D;
+    s->num_textures     = 1;
+    s->is_bound         = 0;
+
+    glGenTextures(1, &s->textures[0]);
+
+    s->surface = gl_vtable->gl_vdpau_register_output_surface(
+        (void *)(uintptr_t)surface,
+        s->target,
+        s->num_textures, s->textures
+    );
+    if (!s->surface)
+        goto error;
+
+    /* XXX: optimize for reading only */
+    gl_vtable->gl_vdpau_surface_access(s->surface, GL_READ_ONLY);
+    return s;
+
+error:
+    gl_vdpau_destroy_surface(s);
+    return NULL;
+}
+
+/**
+ * gl_vdpau_destroy_surface:
+ * @s: a #GLVdpSurface
+ *
+ * Destroys the @s object.
+ */
+void
+gl_vdpau_destroy_surface(GLVdpSurface *s)
+{
+    GLVTable * const gl_vtable = gl_get_vtable();
+    unsigned int i;
+
+    if (!s)
+        return;
+
+    gl_vdpau_unbind_surface(s);
+
+    if (s->surface) {
+        gl_vtable->gl_vdpau_unregister_surface(s->surface);
+        s->surface = 0;
+    }
+
+    if (s->num_textures > 0) {
+        glDeleteTextures(s->num_textures, s->textures);
+        for (i = 0; i < s->num_textures; i++)
+            s->textures[i] = 0;
+        s->num_textures = 0;
+    }
+    free(s);
+}
+
+/**
+ * gl_vdpau_bind_surface:
+ * @s: a #GLVdpSurface
+ *
+ * Binds surface @s.
+ *
+ * Return value: 1 on success
+ */
+int
+gl_vdpau_bind_surface(GLVdpSurface *s)
+{
+    GLVTable * const gl_vtable = gl_get_vtable();
+
+    if (s->is_bound)
+        return 1;
+
+    gl_vtable->gl_vdpau_map_surfaces(1, &s->surface);
+    s->is_bound = 1;
+    return 1;
+}
+
+/**
+ * gl_vdpau_unbind_surface:
+ * @s: a #GLVdpSurface
+ *
+ * Releases surface @s.
+ *
+ * Return value: 1 on success
+ */
+int
+gl_vdpau_unbind_surface(GLVdpSurface *s)
+{
+    GLVTable * const gl_vtable = gl_get_vtable();
+
+    if (!s->is_bound)
+        return 1;
+
+    gl_vtable->gl_vdpau_unmap_surfaces(1, &s->surface);
+    s->is_bound = 0;
     return 1;
 }

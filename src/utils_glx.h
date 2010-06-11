@@ -25,6 +25,20 @@
 #include <GL/glext.h>
 #include <GL/glx.h>
 #include <GL/glxext.h>
+#include <vdpau/vdpau.h>
+
+/* GL_NV_vdpau_interop */
+typedef GLintptr GLvdpauSurfaceNV;
+typedef void (*PFNGLVDPAUINITNVPROC)(const GLvoid *vdpDevice, const GLvoid *getProcAddress);
+typedef void (*PFNGLVDPAUFININVPROC)(void);
+typedef GLvdpauSurfaceNV (*PFNGLVDPAUREGISTERVIDEOSURFACENVPROC)(const GLvoid *vdpSurface, GLenum target, GLsizei numTextureNames, const GLuint *textureNames);
+typedef GLvdpauSurfaceNV (*PFNGLVDPAUREGISTEROUTPUTSURFACENVPROC)(const GLvoid *vdpSurface, GLenum target, GLsizei numTextureNames, const GLuint *textureNames);
+typedef GLboolean (*PFNGLVDPAUISSURFACEPROC)(GLvdpauSurfaceNV surface);
+typedef void (*PFNGLVDPAUUNREGISTERSURFACENVPROC)(GLvdpauSurfaceNV surface);
+typedef void (*PFNGLVDPAUGETSURFACEIVPROC)(GLvdpauSurfaceNV surface, GLenum pname, GLsizei bufSize, GLsizei *length, GLint *values);
+typedef void (*PFNGLVDPAUSURFACEACCESSNVPROC)(GLvdpauSurfaceNV surface, GLenum access);
+typedef void (*PFNGLVDPAUMAPSURFACESNVPROC)(GLsizei numSurfaces, const GLvdpauSurfaceNV *surfaces);
+typedef void (*PFNGLVDPAUUNMAPSURFACESNVPROC)(GLsizei numSurface, const GLvdpauSurfaceNV *surfaces);
 
 #if GLX_GLXEXT_VERSION < 18
 typedef void (*PFNGLXBINDTEXIMAGEEXTPROC)(Display *, GLXDrawable, int, const int *);
@@ -152,10 +166,21 @@ struct _GLVTable {
     PFNGLPROGRAMLOCALPARAMETER4FVARBPROC  gl_program_local_parameter_4fv;
     PFNGLACTIVETEXTUREPROC                gl_active_texture;
     PFNGLMULTITEXCOORD2FPROC              gl_multi_tex_coord_2f;
+    PFNGLVDPAUINITNVPROC                  gl_vdpau_init;
+    PFNGLVDPAUFININVPROC                  gl_vdpau_fini;
+    PFNGLVDPAUREGISTERVIDEOSURFACENVPROC  gl_vdpau_register_video_surface;
+    PFNGLVDPAUREGISTEROUTPUTSURFACENVPROC gl_vdpau_register_output_surface;
+    PFNGLVDPAUISSURFACEPROC               gl_vdpau_is_surface;
+    PFNGLVDPAUUNREGISTERSURFACENVPROC     gl_vdpau_unregister_surface;
+    PFNGLVDPAUGETSURFACEIVPROC            gl_vdpau_get_surface_iv;
+    PFNGLVDPAUSURFACEACCESSNVPROC         gl_vdpau_surface_access;
+    PFNGLVDPAUMAPSURFACESNVPROC           gl_vdpau_map_surfaces;
+    PFNGLVDPAUUNMAPSURFACESNVPROC         gl_vdpau_unmap_surfaces;
     unsigned int                          has_texture_from_pixmap : 1;
     unsigned int                          has_framebuffer_object  : 1;
     unsigned int                          has_fragment_program    : 1;
     unsigned int                          has_multitexture        : 1;
+    unsigned int                          has_vdpau_interop       : 1;
 };
 
 GLVTable *
@@ -218,6 +243,39 @@ gl_bind_framebuffer_object(GLFramebufferObject *fbo)
 
 int
 gl_unbind_framebuffer_object(GLFramebufferObject *fbo)
+    attribute_hidden;
+
+int
+gl_vdpau_init(VdpDevice device, VdpGetProcAddress get_proc_address)
+    attribute_hidden;
+
+void
+gl_vdpau_exit(void)
+    attribute_hidden;
+
+typedef struct _GLVdpSurface GLVdpSurface;
+struct _GLVdpSurface {
+    GLvdpauSurfaceNV    surface;
+    GLenum              target;
+    unsigned int        num_textures;
+    GLuint              textures[4];
+    unsigned int        is_bound        : 1;
+};
+
+GLVdpSurface *
+gl_vdpau_create_output_surface(VdpOutputSurface surface)
+    attribute_hidden;
+
+void
+gl_vdpau_destroy_surface(GLVdpSurface *s)
+    attribute_hidden;
+
+int
+gl_vdpau_bind_surface(GLVdpSurface *s)
+    attribute_hidden;
+
+int
+gl_vdpau_unbind_surface(GLVdpSurface *s)
     attribute_hidden;
 
 #endif /* UTILS_GLX_H */
