@@ -540,10 +540,12 @@ gl_unbind_texture(GLTextureState *ts)
 GLuint
 gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int height)
 {
+    GLenum internal_format;
     GLuint texture;
     GLTextureState ts;
     unsigned int bytes_per_component;
 
+    internal_format = format;
     switch (format) {
     case GL_LUMINANCE:
         bytes_per_component = 1;
@@ -553,6 +555,7 @@ gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int
         break;
     case GL_RGBA:
     case GL_BGRA:
+        internal_format = GL_RGBA;
         bytes_per_component = 4;
         break;
     default:
@@ -572,7 +575,7 @@ gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int
     glTexImage2D(
         target,
         0,
-        bytes_per_component,
+        internal_format,
         width, height,
         0,
         format,
