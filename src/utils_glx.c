@@ -887,7 +887,7 @@ gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
             return NULL;
         if (!glXQueryVersion(dpy, &glx_major, &glx_minor))
             return NULL;
-        if (glx_major < 0 || (glx_major == 1 && glx_minor < 3)) /* 1.3 */
+        if (glx_major < 1 || (glx_major == 1 && glx_minor < 3)) /* 1.3 */
             return NULL;
         gl_vtable->has_texture_from_pixmap = 1;
     }
