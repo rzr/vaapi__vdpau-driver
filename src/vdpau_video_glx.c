@@ -208,7 +208,6 @@ static inline opengl_data_t *get_gl_data(vdpau_driver_data_t *driver_data)
 // Check for OpenGL extensions (TFP, FBO)
 static int check_extensions(vdpau_driver_data_t *driver_data)
 {
-    VADriverContextP const ctx = driver_data->va_context;
     const char *gl_extensions;
     const char *glx_extensions;
 
@@ -369,7 +368,6 @@ create_tfp_surface(
     object_glx_surface_p obj_glx_surface
 )
 {
-    VADriverContextP const ctx        = driver_data->va_context;
     const unsigned int     width      = obj_glx_surface->width;
     const unsigned int     height     = obj_glx_surface->height;
     Pixmap                 pixmap     = None;
@@ -471,8 +469,6 @@ destroy_tfp_surface(
     object_glx_surface_p obj_glx_surface
 )
 {
-    VADriverContextP const ctx = driver_data->va_context;
-
     if (obj_glx_surface->glx_pixmap) {
         glXDestroyPixmap(driver_data->x11_dpy, obj_glx_surface->glx_pixmap);
         obj_glx_surface->glx_pixmap = None;
@@ -491,7 +487,6 @@ bind_pixmap(
     object_glx_surface_p obj_glx_surface
 )
 {
-    VADriverContextP const ctx = driver_data->va_context;
     opengl_data_t * const gl_data = get_gl_data(driver_data);
 
     if (obj_glx_surface->is_bound)
@@ -523,7 +518,6 @@ unbind_pixmap(
     object_glx_surface_p obj_glx_surface
 )
 {
-    VADriverContextP const ctx = driver_data->va_context;
     opengl_data_t * const gl_data = get_gl_data(driver_data);
 
     if (!obj_glx_surface->is_bound)
