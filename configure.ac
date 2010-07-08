@@ -93,6 +93,7 @@ if test "x$HAVE_PTHREADS" = "xyes"; then
 fi
 
 dnl Checks for libraries.
+AC_CHECK_LIB(m, tan)
 AC_CHECK_LIB(rt, timer_create)
 
 dnl Checks for library functions.
