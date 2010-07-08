@@ -154,8 +154,6 @@ configure_notify_event_pending(
     unsigned int         height
 )
 {
-    VADriverContextP const ctx = driver_data->va_context;
-
     if (!obj_output->is_window)
         return 0;
 
@@ -238,8 +236,6 @@ output_surface_create(
     unsigned int         height
 )
 {
-    VADriverContextP const ctx = driver_data->va_context;
-
     VASurfaceID surface = object_heap_allocate(&driver_data->output_heap);
     if (surface == VA_INVALID_ID)
         return NULL;
