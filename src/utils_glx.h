@@ -176,11 +176,12 @@ struct _GLVTable {
     PFNGLVDPAUSURFACEACCESSNVPROC         gl_vdpau_surface_access;
     PFNGLVDPAUMAPSURFACESNVPROC           gl_vdpau_map_surfaces;
     PFNGLVDPAUUNMAPSURFACESNVPROC         gl_vdpau_unmap_surfaces;
-    unsigned int                          has_texture_from_pixmap : 1;
-    unsigned int                          has_framebuffer_object  : 1;
-    unsigned int                          has_fragment_program    : 1;
-    unsigned int                          has_multitexture        : 1;
-    unsigned int                          has_vdpau_interop       : 1;
+    unsigned int                          has_texture_non_power_of_two  : 1;
+    unsigned int                          has_texture_from_pixmap       : 1;
+    unsigned int                          has_framebuffer_object        : 1;
+    unsigned int                          has_fragment_program          : 1;
+    unsigned int                          has_multitexture              : 1;
+    unsigned int                          has_vdpau_interop             : 1;
 };
 
 GLVTable *

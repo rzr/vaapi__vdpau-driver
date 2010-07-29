@@ -649,6 +649,13 @@ gl_init_vtable(void)
     const char *gl_extensions = (const char *)glGetString(GL_EXTENSIONS);
     int has_extension;
 
+    /* GL_ARB_texture_non_power_of_two */
+    has_extension = (
+        find_string("GL_ARB_texture_non_power_of_two", gl_extensions, " ")
+    );
+    if (has_extension)
+        gl_vtable->has_texture_non_power_of_two = 1;
+
     /* GLX_EXT_texture_from_pixmap */
     gl_vtable->glx_bind_tex_image = (PFNGLXBINDTEXIMAGEEXTPROC)
         get_proc_address("glXBindTexImageEXT");
