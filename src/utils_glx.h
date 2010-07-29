@@ -275,8 +275,13 @@ struct _GLVdpSurface {
     GLenum              target;
     unsigned int        num_textures;
     GLuint              textures[4];
+    GLBlendState        bs;
     unsigned int        is_bound        : 1;
 };
+
+GLVdpSurface *
+gl_vdpau_create_video_surface(VdpVideoSurface surface)
+    attribute_hidden;
 
 GLVdpSurface *
 gl_vdpau_create_output_surface(VdpOutputSurface surface)

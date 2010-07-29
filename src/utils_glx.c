@@ -31,6 +31,13 @@
 #define DEBUG 1
 #include "debug.h"
 
+/*
+ * VDPAU/GLX output surfaces have 0x00 for all alpha components, thus if
+ * blending is enabled with glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA),
+ * nothing will be rendered on-screen.
+ */
+#define VDPAU_GLX_OUTPUT_SURFACE_WORKAROUND 0
+
 /**
  * gl_get_error_string:
  * @error: an OpenGL error enumeration
@@ -1290,6 +1297,9 @@ gl_vdpau_init(VdpDevice device, VdpGetProcAddress get_proc_address)
 {
     GLVTable * const gl_vtable = gl_get_vtable();
 
+    if (!gl_vtable || !gl_vtable->has_vdpau_interop)
+        return 0;
+
     if (gl_vdpau_device != VDP_INVALID_HANDLE && gl_vdpau_device != device)
         return 0;
 
@@ -1311,10 +1321,71 @@ gl_vdpau_exit(void)
 {
     GLVTable * const gl_vtable = gl_get_vtable();
 
+    if (!gl_vtable || !gl_vtable->has_vdpau_interop)
+        return;
+
     pthread_mutex_lock(&gl_vdpau_mutex);
     if (--gl_vdpau_refcount == 0)
         gl_vtable->gl_vdpau_fini();
     pthread_mutex_unlock(&gl_vdpau_mutex);
+}
+
+/**
+ * gl_vdpau_create_video_surface:
+ * @surface: the VDPAU video surface to wrap
+ *
+ * Creates a VDPAU/GL surface from the specified @surface, which is a
+ * #VdpVideoSurface.
+ *
+ * Return value: the newly created #GLVdpSurface, or %NULL if an error
+ *   occurred
+ */
+GLVdpSurface *
+gl_vdpau_create_video_surface(VdpVideoSurface surface)
+{
+    GLVTable * const gl_vtable = gl_get_vtable();
+    GLVdpSurface *s;
+    unsigned int i;
+
+    if (!gl_vtable || !gl_vtable->has_vdpau_interop)
+        return NULL;
+
+    s = calloc(1, sizeof(*s));
+    if (!s)
+        return NULL;
+
+    s->target           = GL_TEXTURE_2D;
+    s->num_textures     = 4;
+    s->is_bound         = 0;
+
+    glGenTextures(s->num_textures, &s->textures[0]);
+
+    s->surface = gl_vtable->gl_vdpau_register_video_surface(
+        (void *)(uintptr_t)surface,
+        s->target,
+        s->num_textures, s->textures
+    );
+    if (!s->surface)
+        goto error;
+
+    for (i = 0; i < s->num_textures; i++) {
+        GLTextureState ts;
+        if (!gl_bind_texture(&ts, s->target, s->textures[i]))
+            goto error;
+        glTexParameteri(s->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(s->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(s->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(s->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        gl_unbind_texture(&ts);
+    }
+
+    /* XXX: optimize for reading only */
+    gl_vtable->gl_vdpau_surface_access(s->surface, GL_READ_ONLY);
+    return s;
+
+error:
+    gl_vdpau_destroy_surface(s);
+    return NULL;
 }
 
 /**
@@ -1332,6 +1403,7 @@ gl_vdpau_create_output_surface(VdpOutputSurface surface)
 {
     GLVTable * const gl_vtable = gl_get_vtable();
     GLVdpSurface *s;
+    GLTextureState ts;
 
     if (!gl_vtable || !gl_vtable->has_vdpau_interop)
         return NULL;
@@ -1353,6 +1425,11 @@ gl_vdpau_create_output_surface(VdpOutputSurface surface)
     );
     if (!s->surface)
         goto error;
+
+    gl_bind_texture(&ts, s->target, s->textures[0]);
+    glTexParameteri(s->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(s->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    gl_unbind_texture(&ts);
 
     /* XXX: optimize for reading only */
     gl_vtable->gl_vdpau_surface_access(s->surface, GL_READ_ONLY);
@@ -1410,6 +1487,13 @@ gl_vdpau_bind_surface(GLVdpSurface *s)
     if (s->is_bound)
         return 1;
 
+    if (VDPAU_GLX_OUTPUT_SURFACE_WORKAROUND && s->num_textures == 1) {
+        if (!gl_push_blend_state(&s->bs))
+            return 0;
+        if (s->bs.was_enabled)
+            glBlendFunc(GL_ONE, GL_ZERO);
+    }
+
     gl_vtable->gl_vdpau_map_surfaces(1, &s->surface);
     s->is_bound = 1;
     return 1;
@@ -1433,5 +1517,10 @@ gl_vdpau_unbind_surface(GLVdpSurface *s)
 
     gl_vtable->gl_vdpau_unmap_surfaces(1, &s->surface);
     s->is_bound = 0;
+
+    if (VDPAU_GLX_OUTPUT_SURFACE_WORKAROUND && s->num_textures == 1) {
+        if (!gl_pop_blend_state(&s->bs))
+            return 0;
+    }
     return 1;
 }
