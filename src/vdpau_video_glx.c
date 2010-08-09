@@ -386,6 +386,16 @@ associate_glx_surface(
         );
         if (va_status != VA_STATUS_SUCCESS)
             return va_status;
+
+        va_status = render_subpictures(
+            driver_data,
+            obj_surface,
+            obj_glx_surface->gl_output,
+            &src_rect,
+            &dst_rect
+        );
+        if (va_status != VA_STATUS_SUCCESS)
+            return va_status;
     }
 
     /* Render to Pixmap */
