@@ -342,6 +342,7 @@ associate_glx_surface(
             if (!obj_glx_surface->gl_output)
                 return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
+            /* XXX: use multiple output surfaces? */
             VdpStatus vdp_status;
             vdp_status = vdpau_output_surface_create(
                 driver_data,
@@ -376,6 +377,7 @@ associate_glx_surface(
         dst_rect.width  = obj_surface->width;
         dst_rect.height = obj_surface->height;
 
+        /* Render the video surface to the output surface */
         va_status = render_surface(
             driver_data,
             obj_surface,
@@ -387,6 +389,7 @@ associate_glx_surface(
         if (va_status != VA_STATUS_SUCCESS)
             return va_status;
 
+        /* Render subpictures to the output surface, applying scaling */
         va_status = render_subpictures(
             driver_data,
             obj_surface,
