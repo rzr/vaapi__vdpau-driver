@@ -228,7 +228,7 @@ output_surface_ensure_size(
 }
 
 // Create output surface
-static object_output_p
+object_output_p
 output_surface_create(
     vdpau_driver_data_t *driver_data,
     Drawable             drawable,
@@ -259,8 +259,11 @@ output_surface_create(
     obj_output->render_comm              = NULL;
     obj_output->render_thread            = 0;
     obj_output->render_thread_ok         = 0;
-    obj_output->is_window                = is_window(driver_data->x11_dpy, drawable);
+    obj_output->is_window                = 0;
     obj_output->size_changed             = 0;
+
+    if (drawable != None)
+        obj_output->is_window = is_window(driver_data->x11_dpy, drawable);
 
     if (use_putsurface_fast() && driver_data->va_display_type == VA_DISPLAY_X11) {
         obj_output->render_comm = async_queue_new();
@@ -462,7 +465,7 @@ ensure_bounds(VdpRect *rect, unsigned int width, unsigned int height)
 }
 
 // Render surface to the VDPAU output surface
-static VAStatus
+VAStatus
 render_surface(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
@@ -607,7 +610,7 @@ render_subpicture(
     return vdpau_get_VAStatus(driver_data, vdp_status);
 }
 
-static VAStatus
+VAStatus
 render_subpictures(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,

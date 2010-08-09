@@ -48,6 +48,15 @@ struct object_output {
     unsigned int                size_changed : 1; /* size changed since previous vaPutSurface() and user noticed the change */
 };
 
+// Create output surface
+object_output_p
+output_surface_create(
+    vdpau_driver_data_t *driver_data,
+    Drawable             drawable,
+    unsigned int         width,
+    unsigned int         height
+) attribute_hidden;
+
 // Destroy output surface
 void
 output_surface_destroy(
@@ -74,6 +83,27 @@ output_surface_unref(
 object_output_p
 output_surface_lookup(object_surface_p obj_surface, Drawable drawable)
     attribute_hidden;
+
+// Render surface to the VDPAU output surface
+VAStatus
+render_surface(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    object_output_p      obj_output,
+    const VARectangle   *source_rect,
+    const VARectangle   *target_rect,
+    unsigned int         flags
+) attribute_hidden;
+
+// Render subpictures to the VDPAU output surface
+VAStatus
+render_subpictures(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    object_output_p      obj_output,
+    const VARectangle   *source_rect,
+    const VARectangle   *target_rect
+) attribute_hidden;
 
 // Render surface to a Drawable
 VAStatus
