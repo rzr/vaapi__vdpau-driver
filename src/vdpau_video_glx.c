@@ -329,10 +329,6 @@ associate_glx_surface(
     src_rect.y      = 0;
     src_rect.width  = obj_surface->width;
     src_rect.height = obj_surface->height;
-    dst_rect.x      = 0;
-    dst_rect.y      = 0;
-    dst_rect.width  = obj_glx_surface->width;
-    dst_rect.height = obj_glx_surface->height;
 
     /* Render to VDPAU output surface */
     if (vdpau_gl_interop()) {
@@ -375,6 +371,11 @@ associate_glx_surface(
                 return vdpau_get_VAStatus(driver_data, vdp_status);
         }
 
+        dst_rect.x      = 0;
+        dst_rect.y      = 0;
+        dst_rect.width  = obj_surface->width;
+        dst_rect.height = obj_surface->height;
+
         va_status = render_surface(
             driver_data,
             obj_surface,
@@ -389,6 +390,11 @@ associate_glx_surface(
 
     /* Render to Pixmap */
     else {
+        dst_rect.x      = 0;
+        dst_rect.y      = 0;
+        dst_rect.width  = obj_glx_surface->width;
+        dst_rect.height = obj_glx_surface->height;
+
         va_status = put_surface(
             driver_data,
             obj_surface->base.id,
