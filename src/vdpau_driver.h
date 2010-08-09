@@ -143,7 +143,7 @@ vdpau_is_nvidia(vdpau_driver_data_t *driver_data, int *major, int *minor)
 
 // Translate VdpStatus to an appropriate VAStatus
 VAStatus
-vdpau_get_VAStatus(vdpau_driver_data_t *driver_data, VdpStatus vdp_status)
+vdpau_get_VAStatus(VdpStatus vdp_status)
     attribute_hidden;
 
 #endif /* VDPAU_DRIVER_H */

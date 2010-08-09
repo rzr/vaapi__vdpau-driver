@@ -83,6 +83,16 @@ int vdpau_gate_init(vdpau_driver_data_p driver_data)
 void vdpau_gate_exit(vdpau_driver_data_p driver_data)
     attribute_hidden;
 
+// Check VdpStatus
+int vdpau_check_status(
+    vdpau_driver_data_p driver_data,
+    VdpStatus           vdp_status,
+    const char         *msg
+) attribute_hidden;
+
+#define VDPAU_CHECK_STATUS(status, msg) \
+    vdpau_check_status(driver_data, status, msg)
+
 // VdpGetApiVersion
 VdpStatus
 vdpau_get_api_version(vdpau_driver_data_p driver_data, uint32_t *api_version)

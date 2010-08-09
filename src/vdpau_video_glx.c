@@ -352,8 +352,8 @@ associate_glx_surface(
                 obj_surface->height,
                 &obj_glx_surface->gl_output->vdp_output_surfaces[0]
             );
-            if (vdp_status != VDP_STATUS_OK)
-                return vdpau_get_VAStatus(driver_data, vdp_status);
+            if (!VDPAU_CHECK_STATUS(vdp_status, "VdpOutputSurfaceCreate()"))
+                return vdpau_get_VAStatus(vdp_status);
 
             obj_glx_surface->gl_surface = gl_vdpau_create_output_surface(
                 obj_glx_surface->gl_output->vdp_output_surfaces[0]
@@ -369,7 +369,7 @@ associate_glx_surface(
                 &bgcolor
             );
             if (vdp_status != VDP_STATUS_OK)
-                return vdpau_get_VAStatus(driver_data, vdp_status);
+                return vdpau_get_VAStatus(vdp_status);
         }
 
         dst_rect.x      = 0;

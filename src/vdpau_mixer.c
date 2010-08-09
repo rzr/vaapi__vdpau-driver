@@ -84,8 +84,8 @@ video_mixer_create(
 
     video_mixer_init_deint_surfaces(obj_mixer);
 
-    VdpStatus status;
-    status = vdpau_video_mixer_create(
+    VdpStatus vdp_status;
+    vdp_status = vdpau_video_mixer_create(
         driver_data,
         driver_data->vdp_device,
         0,
@@ -95,7 +95,7 @@ video_mixer_create(
         obj_mixer->param_values,
         &obj_mixer->vdp_video_mixer
     );
-    if (status != VDP_STATUS_OK) {
+    if (!VDPAU_CHECK_STATUS(vdp_status, "VdpVideoMixerCreate()")) {
         video_mixer_destroy(driver_data, obj_mixer);
         return NULL;
     }
@@ -220,7 +220,7 @@ video_mixer_update_csc_matrix(
             vdp_colorspace,
             &vdp_matrix
         );
-        if (vdp_status != VDP_STATUS_OK)
+        if (!VDPAU_CHECK_STATUS(vdp_status, "VdpGenerateCSCMatrix()"))
             return vdp_status;
 
         vdp_status = vdpau_video_mixer_set_attribute_values(
@@ -228,7 +228,7 @@ video_mixer_update_csc_matrix(
             obj_mixer->vdp_video_mixer,
             1, attrs, attr_values
         );
-        if (vdp_status != VDP_STATUS_OK)
+        if (!VDPAU_CHECK_STATUS(vdp_status, "VdpVideoMixerSetAttributeValues()"))
             return vdp_status;
 
         obj_mixer->vdp_colorspace    = vdp_colorspace;

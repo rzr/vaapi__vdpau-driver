@@ -451,7 +451,7 @@ get_image(
                 &obj_image->vdp_rgba_output_surface
             );
             if (vdp_status != VDP_STATUS_OK)
-                return vdpau_get_VAStatus(driver_data, vdp_status);
+                return vdpau_get_VAStatus(vdp_status);
         }
 
         VdpRect vdp_rect;
@@ -470,7 +470,7 @@ get_image(
             0
         );
         if (vdp_status != VDP_STATUS_OK)
-            return vdpau_get_VAStatus(driver_data, vdp_status);
+            return vdpau_get_VAStatus(vdp_status);
 
         vdp_status = vdpau_output_surface_get_bits_native(
             driver_data,
@@ -483,7 +483,7 @@ get_image(
     default:
         return VA_STATUS_ERROR_OPERATION_FAILED;
     }
-    return vdpau_get_VAStatus(driver_data, vdp_status);
+    return vdpau_get_VAStatus(vdp_status);
 }
 
 // vaGetImage
@@ -589,7 +589,7 @@ put_image(
         obj_image->vdp_format,
         src, src_stride
     );
-    return vdpau_get_VAStatus(driver_data, vdp_status);
+    return vdpau_get_VAStatus(vdp_status);
 }
 
 // vaPutImage

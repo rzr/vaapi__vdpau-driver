@@ -126,7 +126,8 @@ is_supported_profile(
         &max_width,
         &max_height
     );
-    return vdp_status == VDP_STATUS_OK && is_supported;
+    return (VDPAU_CHECK_STATUS(vdp_status, "VdpDecoderQueryCapabilities()") &&
+            is_supported);
 }
 
 // Checks decoder for profile/entrypoint is available
@@ -189,6 +190,8 @@ ensure_decoder_with_max_refs(
     int                  max_ref_frames
 )
 {
+    VdpStatus vdp_status;
+
     if (max_ref_frames < 0)
         max_ref_frames =
             get_max_ref_frames(obj_context->vdp_profile,
@@ -204,13 +207,17 @@ ensure_decoder_with_max_refs(
             obj_context->vdp_decoder = VDP_INVALID_HANDLE;
         }
 
-        return vdpau_decoder_create(driver_data,
-                                    driver_data->vdp_device,
-                                    obj_context->vdp_profile,
-                                    obj_context->picture_width,
-                                    obj_context->picture_height,
-                                    max_ref_frames,
-                                    &obj_context->vdp_decoder);
+        vdp_status = vdpau_decoder_create(
+            driver_data,
+            driver_data->vdp_device,
+            obj_context->vdp_profile,
+            obj_context->picture_width,
+            obj_context->picture_height,
+            max_ref_frames,
+            &obj_context->vdp_decoder
+        );
+        if (!VDPAU_CHECK_STATUS(vdp_status, "VdpDecoderCreate()"))
+            return vdp_status;
     }
     return VDP_STATUS_OK;
 }
@@ -1387,18 +1394,21 @@ vdpau_EndPicture(
 
     VAStatus va_status;
     VdpStatus vdp_status;
-    vdp_status = ensure_decoder_with_max_refs(driver_data,
-                                              obj_context,
-                                              get_num_ref_frames(obj_context));
-
+    vdp_status = ensure_decoder_with_max_refs(
+        driver_data,
+        obj_context,
+        get_num_ref_frames(obj_context)
+    );
     if (vdp_status == VDP_STATUS_OK)
-        vdp_status = vdpau_decoder_render(driver_data,
-                                          obj_context->vdp_decoder,
-                                          obj_surface->vdp_surface,
-                                          (VdpPictureInfo)&obj_context->vdp_picture_info,
-                                          obj_context->vdp_bitstream_buffers_count,
-                                          obj_context->vdp_bitstream_buffers);
-    va_status = vdpau_get_VAStatus(driver_data, vdp_status);
+        vdp_status = vdpau_decoder_render(
+            driver_data,
+            obj_context->vdp_decoder,
+            obj_surface->vdp_surface,
+            (VdpPictureInfo)&obj_context->vdp_picture_info,
+            obj_context->vdp_bitstream_buffers_count,
+            obj_context->vdp_bitstream_buffers
+        );
+    va_status = vdpau_get_VAStatus(vdp_status);
 
     /* XXX: assume we are done with rendering right away */
     obj_context->current_render_target = VA_INVALID_SURFACE;

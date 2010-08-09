@@ -378,7 +378,7 @@ commit_subpicture(
         break;
     }
     if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
+        return vdpau_get_VAStatus(vdp_status);
 
     obj_subpicture->last_commit = obj_buffer->mtime;
     return VA_STATUS_SUCCESS;
@@ -443,7 +443,7 @@ create_subpicture(
         vdp_status = VDP_STATUS_ERROR;
         break;
     }
-    return vdpau_get_VAStatus(driver_data, vdp_status);
+    return vdpau_get_VAStatus(vdp_status);
 }
 
 // Destroy subpicture

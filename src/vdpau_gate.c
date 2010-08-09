@@ -137,6 +137,23 @@ void vdpau_gate_exit(vdpau_driver_data_t *driver_data)
 {
 }
 
+// Check VdpStatus
+int vdpau_check_status(
+    vdpau_driver_data_p driver_data,
+    VdpStatus           vdp_status,
+    const char         *msg
+)
+{
+    if (vdp_status != VDP_STATUS_OK) {
+        const char *vdp_status_string;
+        vdp_status_string = vdpau_get_error_string(driver_data, vdp_status);
+        vdpau_information_message("%s: status %d: %s\n", msg, vdp_status,
+            vdp_status_string ? vdp_status_string : "<unknown error>");
+        return 0;
+    }
+    return 1;
+}
+
 #define VDPAU_INVOKE_(retval, func, ...)               \
     (driver_data && driver_data->vdp_vtable.vdp_##func \
      ? driver_data->vdp_vtable.vdp_##func(__VA_ARGS__) \

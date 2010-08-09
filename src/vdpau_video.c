@@ -63,21 +63,25 @@ get_max_surface_size(
     VdpStatus vdp_status;
     uint32_t max_level, max_references, max_width, max_height;
 
-    vdp_status = vdpau_decoder_query_capabilities(driver_data,
-                                                  driver_data->vdp_device,
-                                                  profile,
-                                                  &is_supported,
-                                                  &max_level,
-                                                  &max_references,
-                                                  &max_width,
-                                                  &max_height);
-
     if (pmax_width)
         *pmax_width = 0;
     if (pmax_height)
         *pmax_height = 0;
 
-    if (vdp_status != VDP_STATUS_OK || !is_supported)
+    vdp_status = vdpau_decoder_query_capabilities(
+        driver_data,
+        driver_data->vdp_device,
+        profile,
+        &is_supported,
+        &max_level,
+        &max_references,
+        &max_width,
+        &max_height
+    );
+    if (!VDPAU_CHECK_STATUS(vdp_status, "VdpDecoderQueryCapabilities()"))
+        return VDP_FALSE;
+
+    if (!is_supported)
         return VDP_FALSE;
 
     if (pmax_width)
@@ -403,7 +407,7 @@ vdpau_CreateSurfaces(
             width, height,
             &vdp_surface
         );
-        if (vdp_status != VDP_STATUS_OK) {
+        if (!VDPAU_CHECK_STATUS(vdp_status, "VdpVideoSurfaceCreate()")) {
             va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
             break;
         }
@@ -627,7 +631,7 @@ query_surface_status(
                 &vdp_queue_status,
                 &vdp_dummy_time
             );
-            va_status = vdpau_get_VAStatus(driver_data, vdp_status);
+            va_status = vdpau_get_VAStatus(vdp_status);
 
             if (vdp_queue_status != VDP_PRESENTATION_QUEUE_STATUS_VISIBLE)
                 ++num_output_surfaces_displaying;

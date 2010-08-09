@@ -95,10 +95,9 @@ vdpau_is_nvidia(vdpau_driver_data_t *driver_data, int *major, int *minor)
 
 // Translate VdpStatus to an appropriate VAStatus
 VAStatus
-vdpau_get_VAStatus(vdpau_driver_data_t *driver_data, VdpStatus vdp_status)
+vdpau_get_VAStatus(VdpStatus vdp_status)
 {
     VAStatus va_status;
-    const char *vdp_status_string;
 
     switch (vdp_status) {
     case VDP_STATUS_OK:
@@ -117,9 +116,6 @@ vdpau_get_VAStatus(vdpau_driver_data_t *driver_data, VdpStatus vdp_status)
         va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
         break;
     default:
-        vdp_status_string = vdpau_get_error_string(driver_data, vdp_status);
-        D(bug("WARNING: unknown VdpStatus %d: %s\n", vdp_status,
-              vdp_status_string ? vdp_status_string : "<unknown error>"));
         va_status = VA_STATUS_ERROR_UNKNOWN;
         break;
     }
@@ -250,7 +246,7 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     vdp_status = vdpau_get_api_version(driver_data, &api_version);
     ASSERT(vdp_status == VDP_STATUS_OK);
     if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
+        return vdpau_get_VAStatus(vdp_status);
     if (api_version != VDPAU_VERSION)
         return VA_STATUS_ERROR_UNKNOWN;
 
@@ -258,7 +254,7 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
     vdp_status = vdpau_get_information_string(driver_data, &impl_string);
     ASSERT(vdp_status == VDP_STATUS_OK);
     if (vdp_status != VDP_STATUS_OK)
-        return vdpau_get_VAStatus(driver_data, vdp_status);
+        return vdpau_get_VAStatus(vdp_status);
     if (impl_string) {
         /* XXX: set impl_type and impl_version if there is any useful info */
     }
