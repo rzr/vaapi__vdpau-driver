@@ -74,6 +74,13 @@ video_mixer_unref(
 ) attribute_hidden;
 
 VdpStatus
+video_mixer_set_background_color(
+    vdpau_driver_data_t *driver_data,
+    object_mixer_p       obj_mixer,
+    const VdpColor      *vdp_color
+) attribute_hidden;
+
+VdpStatus
 video_mixer_render(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,

@@ -237,6 +237,28 @@ video_mixer_update_csc_matrix(
     return VDP_STATUS_OK;
 }
 
+VdpStatus
+video_mixer_set_background_color(
+    vdpau_driver_data_t *driver_data,
+    object_mixer_p       obj_mixer,
+    const VdpColor      *vdp_color
+)
+{
+    VdpStatus vdp_status;
+    VdpVideoMixerAttribute attrs[1];
+    const void *attr_values[1];
+
+    attrs[0] = VDP_VIDEO_MIXER_ATTRIBUTE_BACKGROUND_COLOR;
+    attr_values[0] = vdp_color;
+
+    vdp_status = vdpau_video_mixer_set_attribute_values(
+        driver_data,
+        obj_mixer->vdp_video_mixer,
+        1, attrs, attr_values
+    );
+    return vdp_status;
+}
+
 static VdpStatus
 video_mixer_update_background_color(
     vdpau_driver_data_t *driver_data,
@@ -250,20 +272,18 @@ video_mixer_update_background_color(
             continue;
 
         if (obj_mixer->vdp_bgcolor_mtime < driver_data->va_display_attrs_mtime[i]) {
-            VdpStatus  vdp_status;
+            VdpStatus vdp_status;
             VdpColor vdp_color;
-            static const VdpVideoMixerAttribute attrs[1] = { VDP_VIDEO_MIXER_ATTRIBUTE_BACKGROUND_COLOR };
-            const void *attr_values[1] = { &vdp_color };
 
             vdp_color.red   = ((attr->value >> 16) & 0xff) / 255.0f;
             vdp_color.green = ((attr->value >> 8) & 0xff) / 255.0f;
             vdp_color.blue  = (attr->value & 0xff)/ 255.0f;
             vdp_color.alpha = 1.0f;
 
-            vdp_status = vdpau_video_mixer_set_attribute_values(
+            vdp_status = video_mixer_set_background_color(
                 driver_data,
-                obj_mixer->vdp_video_mixer,
-                1, attrs, attr_values
+                obj_mixer,
+                &vdp_color
             );
             if (vdp_status != VDP_STATUS_OK)
                 return vdp_status;
