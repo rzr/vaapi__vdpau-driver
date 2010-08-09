@@ -83,6 +83,10 @@ int vdpau_gate_init(vdpau_driver_data_t *driver_data)
                   video_mixer_destroy);
     VDP_INIT_PROC(VIDEO_MIXER_RENDER,
                   video_mixer_render);
+    VDP_INIT_PROC(VIDEO_MIXER_QUERY_FEATURE_SUPPORT,
+                  video_mixer_query_feature_support);
+    VDP_INIT_PROC(VIDEO_MIXER_QUERY_ATTRIBUTE_SUPPORT,
+                  video_mixer_query_attribute_support);
     VDP_INIT_PROC(VIDEO_MIXER_GET_ATTRIBUTE_VALUES,
                   video_mixer_get_attribute_values);
     VDP_INIT_PROC(VIDEO_MIXER_SET_ATTRIBUTE_VALUES,
@@ -518,6 +522,36 @@ vdpau_video_mixer_render(
                         destination_video_rect,
                         layer_count,
                         layers);
+}
+
+// VdpVideoMixerQueryFeatureSupport
+VdpStatus
+vdpau_video_mixer_query_feature_support(
+    vdpau_driver_data_p         driver_data,
+    VdpDevice                   device,
+    VdpVideoMixerFeature        feature,
+    VdpBool                    *is_supported
+)
+{
+    return VDPAU_INVOKE(video_mixer_query_feature_support,
+                        device,
+                        feature,
+                        is_supported);
+}
+
+// VdpVideoMixerQueryAttributeSupport
+VdpStatus
+vdpau_video_mixer_query_attribute_support(
+    vdpau_driver_data_p         driver_data,
+    VdpDevice                   device,
+    VdpVideoMixerAttribute      attribute,
+    VdpBool                    *is_supported
+)
+{
+    return VDPAU_INVOKE(video_mixer_query_attribute_support,
+                        device,
+                        attribute,
+                        is_supported);
 }
 
 // VdpVideoMixerGetAttributeValues
