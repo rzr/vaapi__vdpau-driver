@@ -20,6 +20,7 @@
 
 #define _GNU_SOURCE 1 /* RTLD_NEXT */
 #include "sysdeps.h"
+#include "vdpau_mixer.h"
 #include "vdpau_video.h"
 #include "vdpau_video_glx.h"
 #include "vdpau_video_x11.h"
@@ -32,6 +33,36 @@
 #define DEBUG 1
 #include "debug.h"
 
+
+/* Use VDPAU/GL interop:
+ * 1: VdpVideoSurface (TODO)
+ * 2: VdpOutputSurface
+ */
+#define VDPAU_GL_INTEROP 2
+
+static int get_vdpau_gl_interop_env(void)
+{
+    GLVTable * const gl_vtable = gl_get_vtable();
+    if (!gl_vtable || !gl_vtable->has_vdpau_interop)
+        return 0;
+
+    int vdpau_gl_interop;
+    if (getenv_int("VDPAU_VIDEO_GL_INTEROP", &vdpau_gl_interop) < 0)
+        vdpau_gl_interop = VDPAU_GL_INTEROP;
+    if (vdpau_gl_interop < 0)
+        vdpau_gl_interop = 0;
+    else if (vdpau_gl_interop > 2)
+        vdpau_gl_interop = 2;
+    return vdpau_gl_interop;
+}
+
+static inline int vdpau_gl_interop(void)
+{
+    static int g_vdpau_gl_interop = -1;
+    if (g_vdpau_gl_interop < 0)
+        g_vdpau_gl_interop = get_vdpau_gl_interop_env();
+    return g_vdpau_gl_interop;
+}
 
 // Ensure GLX TFP and FBO extensions are available
 static inline int ensure_extensions(void)
@@ -53,6 +84,10 @@ render_pixmap(
     const unsigned int w = obj_glx_surface->width;
     const unsigned int h = obj_glx_surface->height;
 
+    if (vdpau_gl_interop())
+        glBindTexture(obj_glx_surface->gl_surface->target,
+                      obj_glx_surface->gl_surface->textures[0]);
+
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     glBegin(GL_QUADS);
     {
@@ -69,6 +104,19 @@ static void
 destroy_surface(vdpau_driver_data_t *driver_data, VASurfaceID surface)
 {
     object_glx_surface_p obj_glx_surface = VDPAU_GLX_SURFACE(surface);
+
+    if (obj_glx_surface->gl_surface) {
+        gl_vdpau_destroy_surface(obj_glx_surface->gl_surface);
+        obj_glx_surface->gl_surface = NULL;
+    }
+
+    if (obj_glx_surface->gl_output) {
+        output_surface_destroy(driver_data, obj_glx_surface->gl_output);
+        obj_glx_surface->gl_output = NULL;
+    }
+
+    if (vdpau_gl_interop())
+        gl_vdpau_exit();
 
     if (obj_glx_surface->fbo) {
         gl_destroy_framebuffer_object(obj_glx_surface->fbo);
@@ -120,6 +168,8 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
         goto end;
 
     obj_glx_surface->gl_context = NULL;
+    obj_glx_surface->gl_surface = NULL;
+    obj_glx_surface->gl_output  = NULL;
     obj_glx_surface->target     = target;
     obj_glx_surface->texture    = texture;
     obj_glx_surface->va_surface = VA_INVALID_SURFACE;
@@ -147,14 +197,22 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
     obj_glx_surface->width  = width;
     obj_glx_surface->height = height;
 
-    /* Create Pixmaps for TFP */
-    obj_glx_surface->pixo = gl_create_pixmap_object(
-        driver_data->x11_dpy,
-        width, height
-    );
-    if (!obj_glx_surface->pixo)
-        goto end;
+    /* Initialize VDPAU/GL layer */
+    if (vdpau_gl_interop()) {
+        if (!gl_vdpau_init(driver_data->vdp_device,
+                           driver_data->vdp_get_proc_address))
+            goto end;
+    }
 
+    /* Create Pixmaps for TFP */
+    else {
+        obj_glx_surface->pixo = gl_create_pixmap_object(
+            driver_data->x11_dpy,
+            width, height
+        );
+        if (!obj_glx_surface->pixo)
+            goto end;
+    }
     is_error = 0;
 end:
     gl_unbind_texture(&ts);
@@ -199,6 +257,7 @@ vdpau_CreateSurfaceGLX(
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     if (!gl_set_current_context(new_cs, NULL))
         return VA_STATUS_ERROR_OPERATION_FAILED;
+    gl_init_context(new_cs);
 
     VASurfaceID surface = create_surface(driver_data, target, texture);
     if (surface == VA_INVALID_SURFACE)
@@ -265,7 +324,6 @@ associate_glx_surface(
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
-    /* Render to Pixmap */
     VARectangle src_rect, dst_rect;
     src_rect.x      = 0;
     src_rect.y      = 0;
@@ -275,31 +333,88 @@ associate_glx_surface(
     dst_rect.y      = 0;
     dst_rect.width  = obj_glx_surface->width;
     dst_rect.height = obj_glx_surface->height;
-    va_status = put_surface(
-        driver_data,
-        obj_surface->base.id,
-        obj_glx_surface->pixo->pixmap,
-        obj_glx_surface->width,
-        obj_glx_surface->height,
-        &src_rect,
-        &dst_rect,
-        flags | VA_CLEAR_DRAWABLE
-    );
-    if (va_status != VA_STATUS_SUCCESS)
-        return va_status;
 
-    /* Force rendering of fields now */
-    if ((flags ^ (VA_TOP_FIELD|VA_BOTTOM_FIELD)) != 0) {
-        object_output_p obj_output;
-        obj_output = output_surface_lookup(
+    /* Render to VDPAU output surface */
+    if (vdpau_gl_interop()) {
+        if (!obj_glx_surface->gl_output) {
+            obj_glx_surface->gl_output = output_surface_create(
+                driver_data,
+                None,
+                obj_surface->width,
+                obj_surface->height
+            );
+            if (!obj_glx_surface->gl_output)
+                return VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+            VdpStatus vdp_status;
+            vdp_status = vdpau_output_surface_create(
+                driver_data,
+                driver_data->vdp_device,
+                VDP_RGBA_FORMAT_B8G8R8A8,
+                obj_surface->width,
+                obj_surface->height,
+                &obj_glx_surface->gl_output->vdp_output_surfaces[0]
+            );
+            if (vdp_status != VDP_STATUS_OK)
+                return vdpau_get_VAStatus(driver_data, vdp_status);
+
+            obj_glx_surface->gl_surface = gl_vdpau_create_output_surface(
+                obj_glx_surface->gl_output->vdp_output_surfaces[0]
+            );
+            if (!obj_glx_surface->gl_surface)
+                return VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+            /* Make sure background color is black with alpha set to 0xff */
+            static const VdpColor bgcolor = { 0.0f, 0.0f, 0.0f, 1.0f };
+            vdp_status = video_mixer_set_background_color(
+                driver_data,
+                obj_surface->video_mixer,
+                &bgcolor
+            );
+            if (vdp_status != VDP_STATUS_OK)
+                return vdpau_get_VAStatus(driver_data, vdp_status);
+        }
+
+        va_status = render_surface(
+            driver_data,
             obj_surface,
-            obj_glx_surface->pixo->pixmap
+            obj_glx_surface->gl_output,
+            &src_rect,
+            &dst_rect,
+            flags | VA_CLEAR_DRAWABLE
         );
-        ASSERT(obj_output);
-        if (obj_output && obj_output->fields) {
-            va_status = queue_surface(driver_data, obj_surface, obj_output);
-            if (va_status != VA_STATUS_SUCCESS)
-                return va_status;
+        if (va_status != VA_STATUS_SUCCESS)
+            return va_status;
+    }
+
+    /* Render to Pixmap */
+    else {
+        va_status = put_surface(
+            driver_data,
+            obj_surface->base.id,
+            obj_glx_surface->pixo->pixmap,
+            obj_glx_surface->width,
+            obj_glx_surface->height,
+            &src_rect,
+            &dst_rect,
+            flags | VA_CLEAR_DRAWABLE
+        );
+        if (va_status != VA_STATUS_SUCCESS)
+            return va_status;
+
+        /* Force rendering of fields now */
+        if ((flags ^ (VA_TOP_FIELD|VA_BOTTOM_FIELD)) != 0) {
+            object_output_p obj_output;
+            obj_output = output_surface_lookup(
+                obj_surface,
+                obj_glx_surface->pixo->pixmap
+            );
+            ASSERT(obj_output);
+            if (obj_output && obj_output->fields) {
+                va_status = queue_surface(driver_data, obj_surface, obj_output);
+                if (va_status != VA_STATUS_SUCCESS)
+                    return va_status;
+            }
         }
     }
 
@@ -354,8 +469,10 @@ deassociate_glx_surface(
     object_glx_surface_p obj_glx_surface
 )
 {
-    if (!gl_unbind_pixmap_object(obj_glx_surface->pixo))
-        return VA_STATUS_ERROR_OPERATION_FAILED;
+    if (!vdpau_gl_interop()) {
+        if (!gl_unbind_pixmap_object(obj_glx_surface->pixo))
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
 
     obj_glx_surface->va_surface = VA_INVALID_SURFACE;
     return VA_STATUS_SUCCESS;
@@ -444,9 +561,14 @@ begin_render_glx_surface(
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
-    if (!gl_bind_pixmap_object(obj_glx_surface->pixo))
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-
+    if (vdpau_gl_interop()) {
+        if (!gl_vdpau_bind_surface(obj_glx_surface->gl_surface))
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
+    else {
+        if (!gl_bind_pixmap_object(obj_glx_surface->pixo))
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
     return VA_STATUS_SUCCESS;
 }
 
@@ -486,9 +608,14 @@ end_render_glx_surface(
     object_glx_surface_p obj_glx_surface
 )
 {
-    if (!gl_unbind_pixmap_object(obj_glx_surface->pixo))
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-
+    if (vdpau_gl_interop()) {
+        if (!gl_vdpau_unbind_surface(obj_glx_surface->gl_surface))
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
+    else {
+        if (!gl_unbind_pixmap_object(obj_glx_surface->pixo))
+            return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
     return VA_STATUS_SUCCESS;
 }
 
@@ -554,11 +681,6 @@ copy_glx_surface(
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 
-    /* Make sure binding succeeds, if texture was not already bound */
-    GLTextureState ts;
-    if (!gl_bind_texture(&ts, obj_glx_surface->target, obj_glx_surface->texture))
-        return VA_STATUS_ERROR_OPERATION_FAILED;
-
     /* Render to FBO */
     gl_bind_framebuffer_object(obj_glx_surface->fbo);
     va_status = begin_render_glx_surface(driver_data, obj_glx_surface);
@@ -567,7 +689,6 @@ copy_glx_surface(
         va_status = end_render_glx_surface(driver_data, obj_glx_surface);
     }
     gl_unbind_framebuffer_object(obj_glx_surface->fbo);
-    gl_unbind_texture(&ts);
     if (va_status != VA_STATUS_SUCCESS)
         return va_status;
 

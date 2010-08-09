@@ -113,6 +113,10 @@ gl_destroy_context(GLContextState *cs)
     attribute_hidden;
 
 void
+gl_init_context(GLContextState *cs)
+    attribute_hidden;
+
+void
 gl_get_current_context(GLContextState *cs)
     attribute_hidden;
 

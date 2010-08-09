@@ -22,6 +22,7 @@
 #define VDPAU_VIDEO_GLX_H
 
 #include "vdpau_driver.h"
+#include "vdpau_video_x11.h"
 #include "utils_glx.h"
 
 typedef struct object_glx_surface  object_glx_surface_t;
@@ -30,6 +31,8 @@ typedef struct object_glx_surface *object_glx_surface_p;
 struct object_glx_surface {
     struct object_base   base;
     GLContextState      *gl_context;
+    GLVdpSurface        *gl_surface;
+    object_output_p      gl_output;
     GLenum               target;
     GLuint               texture;
     VASurfaceID          va_surface;

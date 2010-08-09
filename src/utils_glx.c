@@ -394,6 +394,32 @@ gl_destroy_context(GLContextState *cs)
 }
 
 /**
+ * gl_init_context:
+ * @cs: a #GLContextState
+ *
+ * Initializes the GLX context @cs with a base environment.
+ */
+void
+gl_init_context(GLContextState *cs)
+{
+    GLContextState old_cs, tmp_cs;
+
+    if (!gl_set_current_context(cs, &old_cs))
+        return;
+
+    glEnable(GL_TEXTURE_2D);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glDisable(GL_CULL_FACE);
+    glDrawBuffer(GL_BACK);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    gl_set_current_context(&old_cs, &tmp_cs);
+}
+
+/**
  * gl_get_current_context:
  * @cs: return location to the current #GLContextState
  *
