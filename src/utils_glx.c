@@ -31,13 +31,6 @@
 #define DEBUG 1
 #include "debug.h"
 
-/*
- * VDPAU/GLX output surfaces have 0x00 for all alpha components, thus if
- * blending is enabled with glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA),
- * nothing will be rendered on-screen.
- */
-#define VDPAU_GLX_OUTPUT_SURFACE_WORKAROUND 0
-
 /**
  * gl_get_error_string:
  * @error: an OpenGL error enumeration
@@ -1487,13 +1480,6 @@ gl_vdpau_bind_surface(GLVdpSurface *s)
     if (s->is_bound)
         return 1;
 
-    if (VDPAU_GLX_OUTPUT_SURFACE_WORKAROUND && s->num_textures == 1) {
-        if (!gl_push_blend_state(&s->bs))
-            return 0;
-        if (s->bs.was_enabled)
-            glBlendFunc(GL_ONE, GL_ZERO);
-    }
-
     gl_vtable->gl_vdpau_map_surfaces(1, &s->surface);
     s->is_bound = 1;
     return 1;
@@ -1517,10 +1503,5 @@ gl_vdpau_unbind_surface(GLVdpSurface *s)
 
     gl_vtable->gl_vdpau_unmap_surfaces(1, &s->surface);
     s->is_bound = 0;
-
-    if (VDPAU_GLX_OUTPUT_SURFACE_WORKAROUND && s->num_textures == 1) {
-        if (!gl_pop_blend_state(&s->bs))
-            return 0;
-    }
     return 1;
 }

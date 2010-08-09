@@ -275,7 +275,6 @@ struct _GLVdpSurface {
     GLenum              target;
     unsigned int        num_textures;
     GLuint              textures[4];
-    GLBlendState        bs;
     unsigned int        is_bound        : 1;
 };
 
