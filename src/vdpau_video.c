@@ -396,19 +396,21 @@ vdpau_CreateSurfaces(
         return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
 
     for (i = 0; i < num_surfaces; i++) {
-        vdp_status = vdpau_video_surface_create(driver_data,
-                                                driver_data->vdp_device,
-                                                vdp_chroma_type,
-                                                width, height,
-                                                &vdp_surface);
+        vdp_status = vdpau_video_surface_create(
+            driver_data,
+            driver_data->vdp_device,
+            vdp_chroma_type,
+            width, height,
+            &vdp_surface
+        );
         if (vdp_status != VDP_STATUS_OK) {
             va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
             break;
         }
 
         int va_surface = object_heap_allocate(&driver_data->surface_heap);
-        object_surface_p obj_surface;
-        if ((obj_surface = VDPAU_SURFACE(va_surface)) == NULL) {
+        object_surface_p obj_surface = VDPAU_SURFACE(va_surface);
+        if (!obj_surface) {
             va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
             break;
         }
@@ -427,6 +429,14 @@ vdpau_CreateSurfaces(
         obj_surface->video_mixer                = NULL;
         surfaces[i]                             = va_surface;
         vdp_surface                             = VDP_INVALID_HANDLE;
+
+        object_mixer_p obj_mixer;
+        obj_mixer = video_mixer_create_cached(driver_data, obj_surface);
+        if (!obj_mixer) {
+            va_status = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            break;
+        }
+        obj_surface->video_mixer = obj_mixer;
     }
 
     /* Error recovery */
@@ -435,7 +445,6 @@ vdpau_CreateSurfaces(
             vdpau_video_surface_destroy(driver_data, vdp_surface);
         vdpau_DestroySurfaces(ctx, surfaces, i);
     }
-
     return va_status;
 }
 

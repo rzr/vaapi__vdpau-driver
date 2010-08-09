@@ -83,6 +83,7 @@ video_mixer_set_background_color(
 VdpStatus
 video_mixer_render(
     vdpau_driver_data_t *driver_data,
+    object_mixer_p       obj_mixer,
     object_surface_p     obj_surface,
     VdpOutputSurface     vdp_background,
     VdpOutputSurface     vdp_output_surface,

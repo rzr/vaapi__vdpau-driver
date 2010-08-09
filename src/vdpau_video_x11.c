@@ -497,8 +497,10 @@ render_surface(
             vdp_background = obj_output->vdp_output_surfaces[obj_output->displayed_output_surface];
     }
 
-    VdpStatus vdp_status = video_mixer_render(
+    VdpStatus vdp_status;
+    vdp_status = video_mixer_render(
         driver_data,
+        obj_surface->video_mixer,
         obj_surface,
         vdp_background,
         obj_output->vdp_output_surfaces[obj_output->current_output_surface],

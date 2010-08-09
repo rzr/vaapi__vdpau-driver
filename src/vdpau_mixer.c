@@ -310,6 +310,7 @@ video_mixer_push_deint_surface(
 VdpStatus
 video_mixer_render(
     vdpau_driver_data_t *driver_data,
+    object_mixer_p       obj_mixer,
     object_surface_p     obj_surface,
     VdpOutputSurface     vdp_background,
     VdpOutputSurface     vdp_output_surface,
@@ -318,22 +319,18 @@ video_mixer_render(
     unsigned int         flags
 )
 {
-    /* Make sure there is a suitable video mixer for this surface */
-    object_mixer_p obj_mixer = obj_surface->video_mixer;
-    if (!obj_mixer) {
-        obj_mixer = video_mixer_create_cached(driver_data, obj_surface);
-        if (!obj_mixer)
-            return VDP_STATUS_ERROR;
-        obj_surface->video_mixer = obj_mixer;
-    }
-
     VdpColorStandard colorspace;
     if (flags & VA_SRC_BT709)
         colorspace = VDP_COLOR_STANDARD_ITUR_BT_709;
     else
         colorspace = VDP_COLOR_STANDARD_ITUR_BT_601;
 
-    VdpStatus vdp_status = video_mixer_update_csc_matrix(driver_data, obj_mixer, colorspace);
+    VdpStatus vdp_status;
+    vdp_status = video_mixer_update_csc_matrix(
+        driver_data,
+        obj_mixer,
+        colorspace
+    );
     if (vdp_status != VDP_STATUS_OK)
         return vdp_status;
 

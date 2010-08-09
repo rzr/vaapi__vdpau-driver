@@ -461,6 +461,7 @@ get_image(
         vdp_rect.y1 = rect->y + rect->height;
         vdp_status = video_mixer_render(
             driver_data,
+            obj_surface->video_mixer,
             obj_surface,
             VDP_INVALID_HANDLE,
             obj_image->vdp_rgba_output_surface,
