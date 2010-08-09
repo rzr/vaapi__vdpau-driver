@@ -493,8 +493,8 @@ VAStatus vdpau_DestroyContext(VADriverContextP ctx, VAContextID context)
         obj_context->render_targets = NULL;
     }
 
-    obj_context->context_id             = -1;
-    obj_context->config_id              = -1;
+    obj_context->context_id             = VA_INVALID_ID;
+    obj_context->config_id              = VA_INVALID_ID;
     obj_context->current_render_target  = VA_INVALID_SURFACE;
     obj_context->picture_width          = 0;
     obj_context->picture_height         = 0;
@@ -671,10 +671,13 @@ sync_surface(
     /* XXX: polling is bad but there currently is no alternative */
     for (;;) {
         VASurfaceStatus va_surface_status;
-        VAStatus va_status = query_surface_status(driver_data,
-                                                  obj_surface,
-                                                  &va_surface_status);
+        VAStatus va_status;
 
+        va_status = query_surface_status(
+            driver_data,
+            obj_surface,
+            &va_surface_status
+        );
         if (va_status != VA_STATUS_SUCCESS)
             return va_status;
 
@@ -729,7 +732,6 @@ vdpau_SyncSurface3(
         if (obj_context->current_render_target == obj_surface->base.id)
             return VA_STATUS_ERROR_INVALID_CONTEXT;
     }
-
     return sync_surface(driver_data, obj_surface);
 }
 
