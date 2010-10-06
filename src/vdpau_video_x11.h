@@ -86,6 +86,15 @@ object_output_p
 output_surface_lookup(object_surface_p obj_surface, Drawable drawable)
     attribute_hidden;
 
+// Ensure output surface size matches drawable size
+int
+output_surface_ensure_size(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output,
+    unsigned int         width,
+    unsigned int         height
+) attribute_hidden;
+
 // Render surface to the VDPAU output surface
 VAStatus
 render_surface(

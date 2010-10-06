@@ -81,20 +81,30 @@ render_pixmap(
     object_glx_surface_p obj_glx_surface
 )
 {
+    float tw, th;
     const unsigned int w = obj_glx_surface->width;
     const unsigned int h = obj_glx_surface->height;
 
-    if (vdpau_gl_interop())
-        glBindTexture(obj_glx_surface->gl_surface->target,
-                      obj_glx_surface->gl_surface->textures[0]);
+    if (vdpau_gl_interop()) {
+        GLVdpSurface *  const gl_surface = obj_glx_surface->gl_surface;
+        glBindTexture(gl_surface->target, gl_surface->textures[0]);
+
+        object_output_p const obj_output = obj_glx_surface->gl_output;
+        tw = (float)obj_output->width / obj_output->max_width;
+        th = (float)obj_output->height / obj_output->max_height;
+    }
+    else {
+        tw = 1.0f;
+        th = 1.0f;
+    }
 
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     glBegin(GL_QUADS);
     {
         glTexCoord2f(0.0f, 0.0f); glVertex2i(0, 0);
-        glTexCoord2f(0.0f, 1.0f); glVertex2i(0, h);
-        glTexCoord2f(1.0f, 1.0f); glVertex2i(w, h);
-        glTexCoord2f(1.0f, 0.0f); glVertex2i(w, 0);
+        glTexCoord2f(0.0f, th  ); glVertex2i(0, h);
+        glTexCoord2f(tw  , th  ); glVertex2i(w, h);
+        glTexCoord2f(tw  , 0.0f); glVertex2i(w, 0);
     }
     glEnd();
 }
@@ -343,17 +353,15 @@ associate_glx_surface(
                 return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
             /* XXX: use multiple output surfaces? */
-            VdpStatus vdp_status;
-            vdp_status = vdpau_output_surface_create(
+            int status;
+            status = output_surface_ensure_size(
                 driver_data,
-                driver_data->vdp_device,
-                VDP_RGBA_FORMAT_B8G8R8A8,
+                obj_glx_surface->gl_output,
                 obj_surface->width,
-                obj_surface->height,
-                &obj_glx_surface->gl_output->vdp_output_surfaces[0]
+                obj_surface->height
             );
-            if (!VDPAU_CHECK_STATUS(vdp_status, "VdpOutputSurfaceCreate()"))
-                return vdpau_get_VAStatus(vdp_status);
+            if (status < 0)
+                return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
             obj_glx_surface->gl_surface = gl_vdpau_create_output_surface(
                 obj_glx_surface->gl_output->vdp_output_surfaces[0]
@@ -362,6 +370,7 @@ associate_glx_surface(
                 return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
             /* Make sure background color is black with alpha set to 0xff */
+            VdpStatus vdp_status;
             static const VdpColor bgcolor = { 0.0f, 0.0f, 0.0f, 1.0f };
             vdp_status = video_mixer_set_background_color(
                 driver_data,

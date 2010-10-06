@@ -190,7 +190,7 @@ output_surface_unlock(object_output_p obj_output)
 }
 
 // Ensure output surface size matches drawable size
-static int
+int
 output_surface_ensure_size(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output,
