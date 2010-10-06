@@ -1,7 +1,7 @@
-vdpau-video NEWS -- summary of changes.  2010-10-DD
+vdpau-video NEWS -- summary of changes.  2010-10-05
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
-Version 0.7.1 - DD.Oct.2010
+Version 0.7.1 - 05.Oct.2010
 * Fix X11 display locking issues
 * Add support for GL_TEXTURE_RECTANGLE_ARB textures
 * Allow SMPTE-240M colorspace conversion (VA_SRC_SMPTE_240)
