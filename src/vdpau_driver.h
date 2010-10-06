@@ -22,33 +22,10 @@
 #define VDPAU_DRIVER_H
 
 #include <va/va_backend.h>
+#include "vaapi_compat.h"
 #include "vdpau_gate.h"
 #include "object_heap.h"
 
-#ifndef VA_INVALID_ID
-#define VA_INVALID_ID                   0xffffffff
-#endif
-#ifndef VA_INVALID_BUFFER
-#define VA_INVALID_BUFFER               VA_INVALID_ID
-#endif
-#ifndef VA_INVALID_SURFACE
-#define VA_INVALID_SURFACE              VA_INVALID_ID
-#endif
-#ifndef VA_STATUS_ERROR_UNIMPLEMENTED
-#define VA_STATUS_ERROR_UNIMPLEMENTED   0x00000014
-#endif
-#ifndef VA_DISPLAY_X11
-#define VA_DISPLAY_X11                  1
-#endif
-#ifndef VA_DISPLAY_GLX
-#define VA_DISPLAY_GLX                  2
-#endif
-
-#if VA_CHECK_VERSION(0,31,1)
-typedef void *VADrawable;
-#else
-typedef Drawable VADrawable;
-#endif
 
 #define VDPAU_DRIVER_DATA_INIT                           \
         struct vdpau_driver_data *driver_data =          \

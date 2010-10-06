@@ -24,6 +24,7 @@ source_h = \
 	uasyncqueue.h	\
 	ulist.h		\
 	uqueue.h	\
+	vaapi_compat.h	\
 	vdpau_buffer.h	\
 	vdpau_decode.h	\
 	vdpau_driver.h	\
