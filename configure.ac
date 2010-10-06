@@ -270,6 +270,7 @@ AC_SUBST(VDPAU_VIDEO_LIBS)
 
 AC_OUTPUT([
 	Makefile
+	debian.upstream/Makefile
 	src/Makefile
 ])
 
