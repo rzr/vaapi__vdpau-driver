@@ -11,7 +11,7 @@ MAINTAINERCLEANFILES = \
 DEB_BUILDDIR = debian.build
 
 deb:
-	@[ -d debian ] || $(LN_S) debian.upstream debian
+	@[ -d debian ] || ln -s debian.upstream debian
 	dpkg-buildpackage -rfakeroot -uc -us
 
 deb.upstream: dist
