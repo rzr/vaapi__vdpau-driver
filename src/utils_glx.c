@@ -835,6 +835,7 @@ gl_get_vtable(void)
 /**
  * gl_create_pixmap_object:
  * @dpy: an X11 #Display
+ * @target: the target to which the texture is bound
  * @width: the request width, in pixels
  * @height: the request height, in pixels
  *
@@ -844,7 +845,12 @@ gl_get_vtable(void)
  * Return value: the newly created #GLPixmapObject object
  */
 GLPixmapObject *
-gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
+gl_create_pixmap_object(
+    Display     *dpy,
+    GLenum       target,
+    unsigned int width,
+    unsigned int height
+)
 {
     GLVTable * const    gl_vtable = gl_get_vtable();
     GLPixmapObject     *pixo;
@@ -868,7 +874,6 @@ gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
     };
 
     int pixmap_attrs[10] = {
-        GLX_TEXTURE_TARGET_EXT, GLX_TEXTURE_2D_EXT,
         GLX_MIPMAP_TEXTURE_EXT, GL_FALSE,
         GL_NONE,
     };
@@ -900,6 +905,7 @@ gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
         return NULL;
 
     pixo->dpy           = dpy;
+    pixo->target        = target;
     pixo->width         = width;
     pixo->height        = height;
     pixo->pixmap        = None;
@@ -935,6 +941,17 @@ gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
     /* Initialize GLX Pixmap attributes */
     for (attr = pixmap_attrs; *attr != GL_NONE; attr += 2)
         ;
+    *attr++ = GLX_TEXTURE_TARGET_EXT;
+    switch (target) {
+    case GL_TEXTURE_2D:
+        *attr++ = GLX_TEXTURE_2D_EXT;
+        break;
+    case GL_TEXTURE_RECTANGLE_ARB:
+        *attr++ = GLX_TEXTURE_RECTANGLE_EXT;
+        break;
+    default:
+        goto error;
+    }
     *attr++ = GLX_TEXTURE_FORMAT_EXT;
     if (wattr.depth == 32)
     *attr++ = GLX_TEXTURE_FORMAT_RGBA_EXT;
@@ -948,7 +965,6 @@ gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
     if (x11_untrap_errors() != 0)
         goto error;
 
-    pixo->target = GL_TEXTURE_2D;
     glEnable(pixo->target);
     glGenTextures(1, &pixo->texture);
     glBindTexture(pixo->target, pixo->texture);
@@ -1267,6 +1283,7 @@ gl_vdpau_exit(void)
 
 /**
  * gl_vdpau_create_video_surface:
+ * @target: the texture target
  * @surface: the VDPAU video surface to wrap
  *
  * Creates a VDPAU/GL surface from the specified @surface, which is a
@@ -1276,7 +1293,7 @@ gl_vdpau_exit(void)
  *   occurred
  */
 GLVdpSurface *
-gl_vdpau_create_video_surface(VdpVideoSurface surface)
+gl_vdpau_create_video_surface(GLenum target, VdpVideoSurface surface)
 {
     GLVTable * const gl_vtable = gl_get_vtable();
     GLVdpSurface *s;
@@ -1289,7 +1306,7 @@ gl_vdpau_create_video_surface(VdpVideoSurface surface)
     if (!s)
         return NULL;
 
-    s->target           = GL_TEXTURE_2D;
+    s->target           = target;
     s->num_textures     = 4;
     s->is_bound         = 0;
 
@@ -1323,6 +1340,7 @@ error:
 
 /**
  * gl_vdpau_create_output_surface:
+ * @target: the texture target
  * @surface: the VDPAU output surface to wrap
  *
  * Creates a VDPAU/GL surface from the specified @surface, which is a
@@ -1332,7 +1350,7 @@ error:
  *   occurred
  */
 GLVdpSurface *
-gl_vdpau_create_output_surface(VdpOutputSurface surface)
+gl_vdpau_create_output_surface(GLenum target, VdpOutputSurface surface)
 {
     GLVTable * const gl_vtable = gl_get_vtable();
     GLVdpSurface *s;
@@ -1344,7 +1362,7 @@ gl_vdpau_create_output_surface(VdpOutputSurface surface)
     if (!s)
         return NULL;
 
-    s->target           = GL_TEXTURE_2D;
+    s->target           = target;
     s->num_textures     = 1;
     s->is_bound         = 0;
 

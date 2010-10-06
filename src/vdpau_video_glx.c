@@ -82,6 +82,7 @@ render_pixmap(
 )
 {
     float tw, th;
+    const GLenum target  = obj_glx_surface->target;
     const unsigned int w = obj_glx_surface->width;
     const unsigned int h = obj_glx_surface->height;
 
@@ -90,12 +91,40 @@ render_pixmap(
         glBindTexture(gl_surface->target, gl_surface->textures[0]);
 
         object_output_p const obj_output = obj_glx_surface->gl_output;
-        tw = (float)obj_output->width / obj_output->max_width;
-        th = (float)obj_output->height / obj_output->max_height;
+        switch (target) {
+        case GL_TEXTURE_2D:
+            tw = (float)obj_output->width / obj_output->max_width;
+            th = (float)obj_output->height / obj_output->max_height;
+            break;
+        case GL_TEXTURE_RECTANGLE_ARB:
+            tw = (float)obj_output->width;
+            th = (float)obj_output->height;
+            break;
+        default:
+            tw = 0.0f;
+            th = 0.0f;
+            ASSERT(target == GL_TEXTURE_2D ||
+                   target == GL_TEXTURE_RECTANGLE_ARB);
+            break;
+        }
     }
     else {
-        tw = 1.0f;
-        th = 1.0f;
+        switch (target) {
+        case GL_TEXTURE_2D:
+            tw = 1.0f;
+            th = 1.0f;
+            break;
+        case GL_TEXTURE_RECTANGLE_ARB:
+            tw = (float)w;
+            th = (float)h;
+            break;
+        default:
+            tw = 0.0f;
+            th = 0.0f;
+            ASSERT(target == GL_TEXTURE_2D ||
+                   target == GL_TEXTURE_RECTANGLE_ARB);
+            break;
+        }
     }
 
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -216,6 +245,7 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
     else {
         obj_glx_surface->pixo = gl_create_pixmap_object(
             driver_data->x11_dpy,
+            target,
             width, height
         );
         if (!obj_glx_surface->pixo)
@@ -359,6 +389,7 @@ associate_glx_surface(
                 return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
             obj_glx_surface->gl_surface = gl_vdpau_create_output_surface(
+                obj_glx_surface->target,
                 obj_glx_surface->gl_output->vdp_output_surfaces[0]
             );
             if (!obj_glx_surface->gl_surface)

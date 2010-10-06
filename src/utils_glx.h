@@ -194,8 +194,12 @@ struct _GLPixmapObject {
 };
 
 GLPixmapObject *
-gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
-    attribute_hidden;
+gl_create_pixmap_object(
+    Display     *dpy,
+    GLenum       target,
+    unsigned int width,
+    unsigned int height
+) attribute_hidden;
 
 void
 gl_destroy_pixmap_object(GLPixmapObject *pixo)
@@ -256,11 +260,11 @@ struct _GLVdpSurface {
 };
 
 GLVdpSurface *
-gl_vdpau_create_video_surface(VdpVideoSurface surface)
+gl_vdpau_create_video_surface(GLenum target, VdpVideoSurface surface)
     attribute_hidden;
 
 GLVdpSurface *
-gl_vdpau_create_output_surface(VdpOutputSurface surface)
+gl_vdpau_create_output_surface(GLenum target, VdpOutputSurface surface)
     attribute_hidden;
 
 void
