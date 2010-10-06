@@ -319,19 +319,19 @@ video_mixer_render(
     unsigned int         flags
 )
 {
-    VdpColorStandard colorspace;
+    VdpColorStandard vdp_colorspace;
     if (flags & VA_SRC_SMPTE_240)
-        colorspace = VDP_COLOR_STANDARD_SMPTE_240M;
+        vdp_colorspace = VDP_COLOR_STANDARD_SMPTE_240M;
     else if (flags & VA_SRC_BT709)
-        colorspace = VDP_COLOR_STANDARD_ITUR_BT_709;
+        vdp_colorspace = VDP_COLOR_STANDARD_ITUR_BT_709;
     else
-        colorspace = VDP_COLOR_STANDARD_ITUR_BT_601;
+        vdp_colorspace = VDP_COLOR_STANDARD_ITUR_BT_601;
 
     VdpStatus vdp_status;
     vdp_status = video_mixer_update_csc_matrix(
         driver_data,
         obj_mixer,
-        colorspace
+        vdp_colorspace
     );
     if (vdp_status != VDP_STATUS_OK)
         return vdp_status;
