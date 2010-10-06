@@ -250,9 +250,6 @@ vdpau_CreateSurfaceGLX(
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
     /* Make sure it is a valid GL texture object */
-    /* XXX: we only support 2D textures */
-    if (target != GL_TEXTURE_2D)
-        return VA_STATUS_ERROR_INVALID_PARAMETER;
     if (!glIsTexture(texture))
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 

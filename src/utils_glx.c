@@ -566,10 +566,29 @@ gl_unbind_texture(GLTextureState *ts)
 GLuint
 gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int height)
 {
+    GLVTable * const gl_vtable = gl_get_vtable();
     GLenum internal_format;
     GLuint texture;
     GLTextureState ts;
     unsigned int bytes_per_component;
+
+    switch (target) {
+    case GL_TEXTURE_2D:
+        if (!gl_vtable->has_texture_non_power_of_two) {
+            D(bug("Unsupported GL_ARB_texture_non_power_of_two extension\n"));
+            return 0;
+        }
+        break;
+    case GL_TEXTURE_RECTANGLE_ARB:
+        if (!gl_vtable->has_texture_rectangle) {
+            D(bug("Unsupported GL_ARB_texture_rectangle extension\n"));
+            return 0;
+        }
+        break;
+    default:
+        D(bug("Unsupported texture target 0x%04x\n", target));
+        return 0;
+    }
 
     internal_format = format;
     switch (format) {
@@ -681,6 +700,13 @@ gl_init_vtable(void)
     );
     if (has_extension)
         gl_vtable->has_texture_non_power_of_two = 1;
+
+    /* GL_ARB_texture_rectangle */
+    has_extension = (
+        find_string("GL_ARB_texture_rectangle", gl_extensions, " ")
+    );
+    if (has_extension)
+        gl_vtable->has_texture_rectangle = 1;
 
     /* GLX_EXT_texture_from_pixmap */
     gl_vtable->glx_bind_tex_image = (PFNGLXBINDTEXIMAGEEXTPROC)
@@ -979,6 +1005,7 @@ gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
         goto error;
 
     pixo->target = GL_TEXTURE_2D;
+    glEnable(pixo->target);
     glGenTextures(1, &pixo->texture);
     if (!gl_bind_texture(&pixo->old_texture, pixo->target, pixo->texture))
         goto error;
@@ -1120,10 +1147,6 @@ gl_create_framebuffer_object(
     GLenum status;
 
     if (!gl_vtable || !gl_vtable->has_framebuffer_object)
-        return NULL;
-
-    /* XXX: we only support GL_TEXTURE_2D at this time */
-    if (target != GL_TEXTURE_2D)
         return NULL;
 
     fbo = calloc(1, sizeof(*fbo));
@@ -1329,6 +1352,7 @@ gl_vdpau_create_video_surface(VdpVideoSurface surface)
     s->num_textures     = 4;
     s->is_bound         = 0;
 
+    glEnable(s->target);
     glGenTextures(s->num_textures, &s->textures[0]);
 
     s->surface = gl_vtable->gl_vdpau_register_video_surface(
@@ -1387,6 +1411,7 @@ gl_vdpau_create_output_surface(VdpOutputSurface surface)
     s->num_textures     = 1;
     s->is_bound         = 0;
 
+    glEnable(s->target);
     glGenTextures(1, &s->textures[0]);
 
     s->surface = gl_vtable->gl_vdpau_register_output_surface(

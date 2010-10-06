@@ -3,6 +3,7 @@ Copyright (C) 2009-2010 Splitted-Desktop Systems
 
 Version 0.7.1 - DD.Oct.2010
 * Fix X11 display locking issues
+* Add support for GL_TEXTURE_RECTANGLE_ARB textures
 
 Version 0.7.0 - 09.Aug.2010
 * Add support for VA-API 0.31.1-sds1
