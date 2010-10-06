@@ -20,10 +20,10 @@ source_h = \
 	debug.h			\
 	object_heap.h		\
 	sysdeps.h		\
-	utils.h			\
 	uasyncqueue.h		\
 	ulist.h			\
 	uqueue.h		\
+	utils.h			\
 	vaapi_compat.h		\
 	vdpau_buffer.h		\
 	vdpau_decode.h		\
@@ -42,10 +42,10 @@ source_c = \
 	debug.c			\
 	object_heap.c		\
 	put_bits.h		\
-	utils.c			\
 	uasyncqueue.c		\
 	ulist.c			\
 	uqueue.c		\
+	utils.c			\
 	vdpau_buffer.c		\
 	vdpau_decode.c		\
 	vdpau_driver.c		\
