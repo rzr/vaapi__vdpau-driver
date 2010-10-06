@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2010-10-05
+vdpau-video NEWS -- summary of changes.  2010-10-DD
 Copyright (C) 2009-2010 Splitted-Desktop Systems
+
+Version 0.7.2 - DD.Oct.2010
+* Drop explicit link against libva
 
 Version 0.7.1 - 05.Oct.2010
 * Fix X11 display locking issues
