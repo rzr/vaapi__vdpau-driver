@@ -1,7 +1,7 @@
-vdpau-video NEWS -- summary of changes.  2010-08-DD
+vdpau-video NEWS -- summary of changes.  2010-08-09
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
-Version 0.7.0 - DD.Aug.2010
+Version 0.7.0 - 09.Aug.2010
 * Add support for VA-API 0.31.1-sds1
 * Use GL_NV_vdpau_interop extension for VA/GLX
 * Optimize rendering of multiple surfaces per window
