@@ -17,45 +17,45 @@ source_x11_h = vdpau_video_x11.h utils_x11.h
 source_x11_c = vdpau_video_x11.c utils_x11.c
 
 source_h = \
-	debug.h		\
-	object_heap.h	\
-	sysdeps.h	\
-	utils.h		\
-	uasyncqueue.h	\
-	ulist.h		\
-	uqueue.h	\
-	vaapi_compat.h	\
-	vdpau_buffer.h	\
-	vdpau_decode.h	\
-	vdpau_driver.h	\
+	debug.h			\
+	object_heap.h		\
+	sysdeps.h		\
+	utils.h			\
+	uasyncqueue.h		\
+	ulist.h			\
+	uqueue.h		\
+	vaapi_compat.h		\
+	vdpau_buffer.h		\
+	vdpau_decode.h		\
+	vdpau_driver.h		\
 	vdpau_driver_template.h	\
-	vdpau_dump.h	\
-	vdpau_gate.h	\
-	vdpau_image.h	\
-	vdpau_mixer.h	\
-	vdpau_subpic.h	\
-	vdpau_video.h	\
-	$(source_glx_h)	\
+	vdpau_dump.h		\
+	vdpau_gate.h		\
+	vdpau_image.h		\
+	vdpau_mixer.h		\
+	vdpau_subpic.h		\
+	vdpau_video.h		\
+	$(source_glx_h)		\
 	$(source_x11_h)
 
 source_c = \
-	debug.c		\
-	object_heap.c	\
-	put_bits.h	\
-	utils.c		\
-	uasyncqueue.c	\
-	ulist.c		\
-	uqueue.c	\
-	vdpau_buffer.c	\
-	vdpau_decode.c	\
-	vdpau_driver.c	\
-	vdpau_dump.c	\
-	vdpau_gate.c	\
-	vdpau_image.c	\
-	vdpau_mixer.c	\
-	vdpau_subpic.c	\
-	vdpau_video.c	\
-	$(source_glx_c)	\
+	debug.c			\
+	object_heap.c		\
+	put_bits.h		\
+	utils.c			\
+	uasyncqueue.c		\
+	ulist.c			\
+	uqueue.c		\
+	vdpau_buffer.c		\
+	vdpau_decode.c		\
+	vdpau_driver.c		\
+	vdpau_dump.c		\
+	vdpau_gate.c		\
+	vdpau_image.c		\
+	vdpau_mixer.c		\
+	vdpau_subpic.c		\
+	vdpau_video.c		\
+	$(source_glx_c)		\
 	$(source_x11_c)
 
 vdpau_drv_video_la_LTLIBRARIES	= vdpau_drv_video.la

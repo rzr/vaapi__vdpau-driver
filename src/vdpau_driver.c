@@ -222,16 +222,16 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
             VDPAU_VIDEO_MINOR_VERSION,
             VDPAU_VIDEO_MICRO_VERSION);
 
-    CREATE_HEAP(config, CONFIG);
-    CREATE_HEAP(context, CONTEXT);
-    CREATE_HEAP(surface, SURFACE);
-    CREATE_HEAP(buffer, BUFFER);
-    CREATE_HEAP(output, OUTPUT);
-    CREATE_HEAP(image, IMAGE);
-    CREATE_HEAP(subpicture, SUBPICTURE);
-    CREATE_HEAP(mixer, MIXER);
+    CREATE_HEAP(config,         CONFIG);
+    CREATE_HEAP(context,        CONTEXT);
+    CREATE_HEAP(surface,        SURFACE);
+    CREATE_HEAP(buffer,         BUFFER);
+    CREATE_HEAP(output,         OUTPUT);
+    CREATE_HEAP(image,          IMAGE);
+    CREATE_HEAP(subpicture,     SUBPICTURE);
+    CREATE_HEAP(mixer,          MIXER);
 #if USE_GLX
-    CREATE_HEAP(glx_surface, GLX_SURFACE);
+    CREATE_HEAP(glx_surface,    GLX_SURFACE);
 #endif
     return VA_STATUS_SUCCESS;
 }
