@@ -173,6 +173,22 @@ configure_notify_event_pending(
     return args.match;
 }
 
+// Locks output surfaces
+static inline void
+output_surface_lock(object_output_p obj_output)
+{
+    if (obj_output->render_thread_ok)
+        pthread_mutex_lock(&obj_output->vdp_output_surfaces_lock);
+}
+
+// Unlocks output surfaces
+static inline void
+output_surface_unlock(object_output_p obj_output)
+{
+    if (obj_output->render_thread_ok)
+        pthread_mutex_unlock(&obj_output->vdp_output_surfaces_lock);
+}
+
 // Ensure output surface size matches drawable size
 static int
 output_surface_ensure_size(
@@ -289,6 +305,7 @@ output_surface_create(
         obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
         obj_output->vdp_output_surfaces_dirty[i] = 0;
     }
+    pthread_mutex_init(&obj_output->vdp_output_surfaces_lock, NULL);
 
     if (drawable != None) {
         VdpStatus vdp_status;
@@ -364,6 +381,9 @@ output_surface_destroy(
         async_queue_free(obj_output->render_comm);
         obj_output->render_comm = NULL;
     }
+
+    pthread_mutex_unlock(&obj_output->vdp_output_surfaces_lock);
+    pthread_mutex_destroy(&obj_output->vdp_output_surfaces_lock);
     object_heap_free(&driver_data->output_heap, (object_base_p)obj_output);
 }
 
@@ -374,8 +394,12 @@ output_surface_ref(
     object_output_p      obj_output
 )
 {
-    if (obj_output)
-        ++obj_output->refcount;
+    if (!obj_output)
+        return NULL;
+
+    output_surface_lock(obj_output);
+    ++obj_output->refcount;
+    output_surface_unlock(obj_output);
     return obj_output;
 }
 
@@ -386,7 +410,13 @@ output_surface_unref(
     object_output_p      obj_output
 )
 {
-    if (obj_output && --obj_output->refcount == 0)
+    if (!obj_output)
+        return;
+
+    output_surface_lock(obj_output);
+    --obj_output->refcount;
+    output_surface_unlock(obj_output);
+    if (obj_output->refcount == 0)
         output_surface_destroy(driver_data, obj_output);
 }
 
@@ -660,8 +690,8 @@ render_subpictures(
 }
 
 // Queue surface for display
-VAStatus
-flip_surface(
+static VAStatus
+flip_surface_unlocked(
     vdpau_driver_data_t *driver_data,
     object_output_p      obj_output
 )
@@ -685,7 +715,21 @@ flip_surface(
 }
 
 VAStatus
-queue_surface(
+flip_surface(
+    vdpau_driver_data_t *driver_data,
+    object_output_p      obj_output
+)
+{
+    VAStatus va_status;
+
+    output_surface_lock(obj_output);
+    va_status = flip_surface_unlocked(driver_data, obj_output);
+    output_surface_unlock(obj_output);
+    return va_status;
+}
+
+static VAStatus
+queue_surface_unlocked(
     vdpau_driver_data_t *driver_data,
     object_surface_p     obj_surface,
     object_output_p      obj_output
@@ -699,17 +743,30 @@ queue_surface(
             return VA_STATUS_ERROR_OPERATION_FAILED;
         return VA_STATUS_SUCCESS;
     }
-    return flip_surface(driver_data, obj_output);
+    return flip_surface_unlocked(driver_data, obj_output);
+}
+
+VAStatus
+queue_surface(
+    vdpau_driver_data_t *driver_data,
+    object_surface_p     obj_surface,
+    object_output_p      obj_output
+)
+{
+    VAStatus va_status;
+
+    output_surface_lock(obj_output);
+    va_status = queue_surface_unlocked(driver_data, obj_surface, obj_output);
+    output_surface_unlock(obj_output);
+    return va_status;
 }
 
 // Render surface to a Drawable
-VAStatus
-put_surface(
+static VAStatus
+put_surface_unlocked(
     vdpau_driver_data_t *driver_data,
-    VASurfaceID          surface,
-    Drawable             drawable,
-    unsigned int         drawable_width,
-    unsigned int         drawable_height,
+    object_surface_p     obj_surface,
+    object_output_p      obj_output,
     const VARectangle   *source_rect,
     const VARectangle   *target_rect,
     unsigned int         flags
@@ -718,42 +775,12 @@ put_surface(
     VdpStatus vdp_status;
     VAStatus va_status;
 
-    object_surface_p obj_surface = VDPAU_SURFACE(surface);
-    if (!obj_surface)
-        return VA_STATUS_ERROR_INVALID_SURFACE;
-
-    object_output_p obj_output;
-    obj_output = output_surface_ensure(
-        driver_data,
-        obj_surface,
-        drawable,
-        drawable_width,
-        drawable_height
-    );
-    if (!obj_output)
-        return VA_STATUS_ERROR_INVALID_SURFACE;
-
-    ASSERT(obj_output->drawable == drawable);
-    ASSERT(obj_output->vdp_flip_queue != VDP_INVALID_HANDLE);
-    ASSERT(obj_output->vdp_flip_target != VDP_INVALID_HANDLE);
-
     obj_surface->va_surface_status = VASurfaceReady;
-
-    int fields = flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD);
-    if (!fields)
-        fields = VA_TOP_FIELD|VA_BOTTOM_FIELD;
-
-    /* If we are trying to put the same field, this means we have
-       started a new picture, so flush the current one */
-    if (obj_output->fields & fields) {
-        va_status = queue_surface(driver_data, obj_surface, obj_output);
-        if (va_status != VA_STATUS_SUCCESS)
-            return va_status;
-    }
 
     /* Wait for the output surface to be ready.
        i.e. it completed the previous rendering */
-    if (obj_output->vdp_output_surfaces[obj_output->current_output_surface] != VDP_INVALID_HANDLE) {
+    if (obj_output->vdp_output_surfaces[obj_output->current_output_surface] != VDP_INVALID_HANDLE &&
+        obj_output->vdp_output_surfaces_dirty[obj_output->current_output_surface]) {
         VdpTime dummy_time;
         vdp_status = vdpau_presentation_queue_block_until_surface_idle(
             driver_data,
@@ -764,10 +791,6 @@ put_surface(
         if (!VDPAU_CHECK_STATUS(vdp_status, "VdpPresentationQueueBlockUntilSurfaceIdle()"))
             return vdpau_get_VAStatus(vdp_status);
     }
-
-    if (output_surface_ensure_size(driver_data, obj_output,
-                                   drawable_width, drawable_height) < 0)
-        return VA_STATUS_ERROR_OPERATION_FAILED;
 
     /* Render the video surface to the output surface */
     va_status = render_surface(
@@ -793,13 +816,88 @@ put_surface(
         return va_status;
 
     /* Queue surface for display, if the picture is complete (all fields mixed in) */
+    int fields = flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD);
+    if (!fields)
+        fields = VA_TOP_FIELD|VA_BOTTOM_FIELD;
+
     obj_output->fields |= fields;
     if (obj_output->fields == (VA_TOP_FIELD|VA_BOTTOM_FIELD)) {
-        va_status = queue_surface(driver_data, obj_surface, obj_output);
+        va_status = queue_surface_unlocked(driver_data, obj_surface, obj_output);
         if (va_status != VA_STATUS_SUCCESS)
             return va_status;
     }
     return VA_STATUS_SUCCESS;
+}
+
+VAStatus
+put_surface(
+    vdpau_driver_data_t *driver_data,
+    VASurfaceID          surface,
+    Drawable             drawable,
+    unsigned int         drawable_width,
+    unsigned int         drawable_height,
+    const VARectangle   *source_rect,
+    const VARectangle   *target_rect,
+    unsigned int         flags
+)
+{
+    VAStatus va_status;
+    int status;
+
+    object_surface_p obj_surface = VDPAU_SURFACE(surface);
+    if (!obj_surface)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    object_output_p obj_output;
+    obj_output = output_surface_ensure(
+        driver_data,
+        obj_surface,
+        drawable,
+        drawable_width,
+        drawable_height
+    );
+    if (!obj_output)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
+    ASSERT(obj_output->drawable == drawable);
+    ASSERT(obj_output->vdp_flip_queue != VDP_INVALID_HANDLE);
+    ASSERT(obj_output->vdp_flip_target != VDP_INVALID_HANDLE);
+
+    int fields = flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD);
+    if (!fields)
+        fields = VA_TOP_FIELD|VA_BOTTOM_FIELD;
+
+    /* If we are trying to put the same field, this means we have
+       started a new picture, so flush the current one */
+    if (obj_output->fields & fields) {
+        va_status = queue_surface(driver_data, obj_surface, obj_output);
+        if (va_status != VA_STATUS_SUCCESS)
+            return va_status;
+    }
+
+    /* Resize output surface */
+    output_surface_lock(obj_output);
+    status = output_surface_ensure_size(
+        driver_data,
+        obj_output,
+        drawable_width,
+        drawable_height
+    );
+    output_surface_unlock(obj_output);
+    if (status < 0)
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+
+    output_surface_lock(obj_output);
+    va_status = put_surface_unlocked(
+        driver_data,
+        obj_surface,
+        obj_output,
+        source_rect,
+        target_rect,
+        flags
+    );
+    output_surface_unlock(obj_output);
+    return va_status;
 }
 
 // vaPutSurface
