@@ -93,6 +93,10 @@ gl_set_bgcolor(uint32_t color)
     attribute_hidden;
 
 void
+gl_set_texture_scaling(GLenum target, GLenum scale)
+    attribute_hidden;
+
+void
 gl_resize(unsigned int width, unsigned int height)
     attribute_hidden;
 

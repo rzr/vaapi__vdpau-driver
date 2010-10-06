@@ -187,6 +187,20 @@ gl_set_bgcolor(uint32_t color)
 }
 
 /**
+ * gl_set_texture_scaling:
+ * @target: the target to which the texture is currently bound
+ * @scale: scaling algorithm
+ *
+ * Sets scaling algorithm used for the texture currently bound.
+ */
+void
+gl_set_texture_scaling(GLenum target, GLenum scale)
+{
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, scale);
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, scale);
+}
+
+/**
  * gl_perspective:
  * @fovy: the field of view angle, in degrees, in the y direction
  * @aspect: the aspect ratio that determines the field of view in the
@@ -612,8 +626,7 @@ gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int
     glGenTextures(1, &texture);
     if (!gl_bind_texture(&ts, target, texture))
         return 0;
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    gl_set_texture_scaling(target, GL_LINEAR);
     glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, bytes_per_component);
@@ -1009,8 +1022,7 @@ gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
     glGenTextures(1, &pixo->texture);
     if (!gl_bind_texture(&pixo->old_texture, pixo->target, pixo->texture))
         goto error;
-    glTexParameteri(pixo->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(pixo->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    gl_set_texture_scaling(pixo->target, GL_LINEAR);
     gl_unbind_texture(&pixo->old_texture);
     return pixo;
 
@@ -1367,8 +1379,7 @@ gl_vdpau_create_video_surface(VdpVideoSurface surface)
         GLTextureState ts;
         if (!gl_bind_texture(&ts, s->target, s->textures[i]))
             goto error;
-        glTexParameteri(s->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(s->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        gl_set_texture_scaling(s->target, GL_LINEAR);
         glTexParameteri(s->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(s->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         gl_unbind_texture(&ts);
@@ -1423,8 +1434,7 @@ gl_vdpau_create_output_surface(VdpOutputSurface surface)
         goto error;
 
     gl_bind_texture(&ts, s->target, s->textures[0]);
-    glTexParameteri(s->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(s->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    gl_set_texture_scaling(s->target, GL_LINEAR);
     gl_unbind_texture(&ts);
 
     /* XXX: optimize for reading only */
