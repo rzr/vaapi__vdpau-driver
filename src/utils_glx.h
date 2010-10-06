@@ -128,21 +128,6 @@ void
 gl_swap_buffers(GLContextState *cs)
     attribute_hidden;
 
-typedef struct _GLBlendState GLBlendState;
-struct _GLBlendState {
-    unsigned int    src_func;
-    unsigned int    dst_func;
-    unsigned int    was_enabled : 1;
-};
-
-int
-gl_push_blend_state(GLBlendState *bs)
-    attribute_hidden;
-
-int
-gl_pop_blend_state(GLBlendState *bs)
-    attribute_hidden;
-
 typedef struct _GLTextureState GLTextureState;
 struct _GLTextureState {
     GLenum          target;

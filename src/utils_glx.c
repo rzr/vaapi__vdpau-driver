@@ -484,54 +484,6 @@ gl_swap_buffers(GLContextState *cs)
 }
 
 /**
- * gl_push_blend_state:
- * @bs: a #GLBlendState
- *
- * Saves current blend function, if GL_BLEND is enabled.
- *
- * Return value: 1 on success
- */
-int
-gl_push_blend_state(GLBlendState *bs)
-{
-    if (!bs)
-        return 0;
-
-    bs->was_enabled = glIsEnabled(GL_BLEND);
-    if (bs->was_enabled) {
-        if (!gl_get_param(GL_BLEND_SRC, &bs->src_func))
-            return 0;
-        if (!gl_get_param(GL_BLEND_DST, &bs->dst_func))
-            return 0;
-    }
-    return 1;
-}
-
-/**
- * gl_push_blend_state:
- * @bs: a #GLBlendState
- *
- * Restores blend function, if GL_BLEND was enabled when @bs was
- * previously initialized through gl_push_blend_state().
- *
- * Return value: 1 on success
- */
-int
-gl_pop_blend_state(GLBlendState *bs)
-{
-    if (!bs)
-        return 0;
-
-    if (!bs->was_enabled)
-        glDisable(GL_BLEND);
-    else {
-        glEnable(GL_BLEND);
-        glBlendFunc(bs->src_func, bs->dst_func);
-    }
-    return 1;
-}
-
-/**
  * gl_bind_texture:
  * @ts: a #GLTextureState
  * @target: the target to which the texture is bound
