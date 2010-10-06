@@ -169,7 +169,6 @@ vdpau_common_Terminate(vdpau_driver_data_t *driver_data)
         vdpau_device_destroy(driver_data, driver_data->vdp_device);
         driver_data->vdp_device = VDP_INVALID_HANDLE;
     }
-
     vdpau_gate_exit(driver_data);
 }
 
