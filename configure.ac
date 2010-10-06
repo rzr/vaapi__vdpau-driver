@@ -269,9 +269,9 @@ AC_SUBST(VDPAU_VIDEO_CFLAGS)
 AC_SUBST(VDPAU_VIDEO_LIBS)
 
 AC_OUTPUT([
-	Makefile
-	debian.upstream/Makefile
-	src/Makefile
+    Makefile
+    debian.upstream/Makefile
+    src/Makefile
 ])
 
 dnl Print summary
