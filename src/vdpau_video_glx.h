@@ -1,5 +1,5 @@
 /*
- *  vdpau_video_glx.h - VDPAU backend for VA API (GLX rendering)
+ *  vdpau_video_glx.h - VDPAU backend for VA-API (GLX rendering)
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

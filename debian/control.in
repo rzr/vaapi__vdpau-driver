@@ -12,14 +12,14 @@ Section: libs
 Architecture: any
 Depends: libva1 (>= @LIBVA_SDS_PACKAGE_VERSION@),
 	 ${shlibs:Depends}, ${misc:Depends}
-Description: VDPAU-based backend for VA API
+Description: VDPAU-based backend for VA-API
  Video decode driver for NVIDIA chipsets (VDPAU implementation).
 
 Package: vdpau-video-dbg
 Section: libdevel
 Architecture: any
 Depends: vdpau-video (= ${Source-Version})
-Description: VDPAU-based backend for VA API
+Description: VDPAU-based backend for VA-API
  Video decode driver for NVIDIA chipsets (VDPAU implementation).
  .
  This package contains the debug files.

@@ -1,5 +1,5 @@
 /*
- *  vdpau_subpic.c - VDPAU backend for VA API (VA subpictures)
+ *  vdpau_subpic.c - VDPAU backend for VA-API (VA subpictures)
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

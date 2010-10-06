@@ -1,5 +1,5 @@
 /*
- *  vdpau_video.h - VDPAU backend for VA API (shareed data)
+ *  vdpau_video.h - VDPAU backend for VA-API (shareed data)
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

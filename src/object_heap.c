@@ -1,5 +1,5 @@
 /*
- *  object_heap.c - Management of VA API resources
+ *  object_heap.c - Management of VA-API resources
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

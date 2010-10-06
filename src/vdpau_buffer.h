@@ -1,5 +1,5 @@
 /*
- *  vdpau_buffer.h - VDPAU backend for VA API (VA buffers)
+ *  vdpau_buffer.h - VDPAU backend for VA-API (VA buffers)
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

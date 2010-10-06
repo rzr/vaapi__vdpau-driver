@@ -1,5 +1,5 @@
 /*
- *  vdpau_video.c - VDPAU backend for VA API
+ *  vdpau_video.c - VDPAU backend for VA-API
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *
@@ -34,7 +34,7 @@
    with polling. */
 #define VDPAU_SYNC_DELAY 5000
 
-// Translates VA API chroma format to VdpChromaType
+// Translates VA-API chroma format to VdpChromaType
 static VdpChromaType get_VdpChromaType(int format)
 {
     switch (format) {
@@ -47,7 +47,7 @@ static VdpChromaType get_VdpChromaType(int format)
 
 
 /* ====================================================================== */
-/* === VA API Implementation with VDPAU                               === */
+/* === VA-API Implementation with VDPAU                               === */
 /* ====================================================================== */
 
 // Returns the maximum dimensions supported by the VDPAU implementation for that profile

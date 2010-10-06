@@ -1,5 +1,5 @@
 /*
- *  vdpau_mixer.h - VDPAU backend for VA API (video mixer abstraction)
+ *  vdpau_mixer.h - VDPAU backend for VA-API (video mixer abstraction)
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

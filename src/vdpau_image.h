@@ -1,5 +1,5 @@
 /*
- *  vdpau_image.h - VDPAU backend for VA API (VA images)
+ *  vdpau_image.h - VDPAU backend for VA-API (VA images)
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

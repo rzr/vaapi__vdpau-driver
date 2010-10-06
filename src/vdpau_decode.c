@@ -1,5 +1,5 @@
 /*
- *  vdpau_decode.c - VDPAU backend for VA API (decoder)
+ *  vdpau_decode.c - VDPAU backend for VA-API (decoder)
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

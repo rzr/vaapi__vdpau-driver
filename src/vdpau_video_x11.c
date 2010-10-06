@@ -1,5 +1,5 @@
 /*
- *  vdpau_video.h - VDPAU backend for VA API (X11 rendering)
+ *  vdpau_video.h - VDPAU backend for VA-API (X11 rendering)
  *
  *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
  *

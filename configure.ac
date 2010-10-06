@@ -136,13 +136,13 @@ AC_CHECK_LIB(GL, glXCreateContext, [GL_DEPS_LIBS="-lGL -ldl"], [USE_GLX=0])
 AC_SUBST(GL_DEPS_CFLAGS)
 AC_SUBST(GL_DEPS_LIBS)
 
-dnl Check for VA API
+dnl Check for VA-API
 PKG_CHECK_MODULES(LIBVA_DEPS,	  [libva])
 PKG_CHECK_MODULES(LIBVA_X11_DEPS, [libva-x11])
 PKG_CHECK_MODULES(LIBVA_GLX_DEPS, [libva-glx], [], [USE_GLX=0])
 
-dnl Check for SDS extensions to VA API
-AC_CACHE_CHECK([for VA API],
+dnl Check for SDS extensions to VA-API
+AC_CACHE_CHECK([for VA-API],
   ac_cv_libva_sds_extensions, [
   saved_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS $LIBVA_DEPS_CFLAGS"
@@ -150,14 +150,14 @@ AC_CACHE_CHECK([for VA API],
     #include <va/va_version.h>
     #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 29
     # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION_0_29)
-    #  error "VA API version >= 0.29.0-sds$LIBVA_SDS_VERSION_0_29 is required"
+    #  error "VA-API version >= 0.29.0-sds$LIBVA_SDS_VERSION_0_29 is required"
     # endif
     #elif VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 30
     # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION_0_30)
-    #  error "VA API version >= 0.30.0-sds$LIBVA_SDS_VERSION_0_30 is required"
+    #  error "VA-API version >= 0.30.0-sds$LIBVA_SDS_VERSION_0_30 is required"
     # endif
     #elif !VA_CHECK_VERSION(0,31,0)
-    # error "VA API version >= 0.31 is required"
+    # error "VA-API version >= 0.31 is required"
     #endif
   ], [],
   [ac_cv_libva_sds_extensions="yes"],
@@ -188,11 +188,11 @@ fi
 if test "$ac_cv_libva_sds_extensions" = "yes"; then
     AC_DEFINE_UNQUOTED([VA_DRIVER_INIT_FUNC], [$VA_DRIVER_INIT_FUNC], [Define driver entry-point])
 else
-    AC_MSG_ERROR([Your VA API SDK does not include SDS extensions])
+    AC_MSG_ERROR([Your VA-API SDK does not include SDS extensions])
 fi
 
-dnl Check for OpenGL rendering extensions to VA API
-AC_CACHE_CHECK([for VA API (GLX extensions)],
+dnl Check for OpenGL rendering extensions to VA-API
+AC_CACHE_CHECK([for VA-API (GLX extensions)],
   ac_cv_libva_glx_extensions, [
   saved_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS $LIBVA_DEPS_CFLAGS"
@@ -200,14 +200,14 @@ AC_CACHE_CHECK([for VA API (GLX extensions)],
     #include <va/va_version.h>
     #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 30
     # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_GLX_SDS_VERSION_0_30)
-    #  error "VA API version >= 0.30.0-sds$LIBVA_GLX_SDS_VERSION_0_30 is required"
+    #  error "VA-API version >= 0.30.0-sds$LIBVA_GLX_SDS_VERSION_0_30 is required"
     # endif
     #elif VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 31
     # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_GLX_SDS_VERSION_0_31)
-    #  error "VA API version >= 0.31.0-sds$LIBVA_GLX_SDS_VERSION_0_31 is required"
+    #  error "VA-API version >= 0.31.0-sds$LIBVA_GLX_SDS_VERSION_0_31 is required"
     # endif
     #else
-    # error "This version of VA API is not supported for OpenGL rendering"
+    # error "This version of VA-API is not supported for OpenGL rendering"
     #endif
   ], [],
   [ac_cv_libva_glx_extensions="yes"],
@@ -215,7 +215,7 @@ AC_CACHE_CHECK([for VA API (GLX extensions)],
   CFLAGS="$saved_CFLAGS"
 ])
 
-dnl Check for VA API drivers path
+dnl Check for VA-API drivers path
 AC_MSG_CHECKING([for VA drivers path])
 LIBVA_DRIVERS_PATH=`$PKG_CONFIG libva --variable driverdir`
 if test -z "$LIBVA_DRIVERS_PATH"; then
