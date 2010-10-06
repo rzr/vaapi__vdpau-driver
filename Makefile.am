@@ -21,7 +21,7 @@ EXTRA_DIST = \
 MAINTAINERCLEANFILES = \
 	aclocal.m4 compile config.guess config.sub \
 	configure depcomp install-sh ltmain.sh     \
-	Makefile.in missing debian/control
+	Makefile.in missing $(DEBIANGENFILES)
 
 deb: dist
 	-mkdir debian-build
