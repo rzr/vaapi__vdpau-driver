@@ -162,12 +162,10 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
 {
     VASurfaceID surface = VA_INVALID_SURFACE;
     object_glx_surface_p obj_glx_surface;
-    GLTextureState ts;
     unsigned int internal_format, border_width, width, height;
     int is_error = 1;
 
-    if (!gl_bind_texture(&ts, target, texture))
-        goto end;
+    glBindTexture(target, texture);
 
     surface = object_heap_allocate(&driver_data->glx_surface_heap);
     if (surface == VA_INVALID_SURFACE)
@@ -225,7 +223,7 @@ create_surface(vdpau_driver_data_t *driver_data, GLenum target, GLuint texture)
     }
     is_error = 0;
 end:
-    gl_unbind_texture(&ts);
+    glBindTexture(target, 0);
     if (is_error && surface != VA_INVALID_SURFACE) {
         destroy_surface(driver_data, surface);
         surface = VA_INVALID_SURFACE;

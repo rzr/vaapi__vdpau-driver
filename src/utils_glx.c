@@ -498,74 +498,6 @@ gl_swap_buffers(GLContextState *cs)
 }
 
 /**
- * gl_bind_texture:
- * @ts: a #GLTextureState
- * @target: the target to which the texture is bound
- * @texture: the name of a texture
- *
- * Binds @texture to the specified @target, while recording the
- * previous state in @ts.
- *
- * Return value: 1 on success
- */
-int
-gl_bind_texture(GLTextureState *ts, GLenum target, GLuint texture)
-{
-    ts->target      = target;
-    ts->old_texture = 0;
-    ts->was_bound   = 0;
-    ts->was_enabled = glIsEnabled(target);
-    if (!ts->was_enabled)
-        glEnable(target);
-
-    GLenum texture_binding;
-    switch (target) {
-    case GL_TEXTURE_1D:
-        texture_binding = GL_TEXTURE_BINDING_1D;
-        break;
-    case GL_TEXTURE_2D:
-        texture_binding = GL_TEXTURE_BINDING_2D;
-        break;
-    case GL_TEXTURE_3D:
-        texture_binding = GL_TEXTURE_BINDING_3D;
-        break;
-    case GL_TEXTURE_RECTANGLE_ARB:
-        texture_binding = GL_TEXTURE_BINDING_RECTANGLE_ARB;
-        break;
-    default:
-        ASSERT(!texture);
-        return 0;
-    }
-
-    if (!gl_get_param(texture_binding, &ts->old_texture))
-        return 0;
-
-    ts->was_bound = texture == ts->old_texture;
-    if (!ts->was_bound) {
-        gl_purge_errors();
-        glBindTexture(target, texture);
-        if (gl_check_error())
-            return 0;
-    }
-    return 1;
-}
-
-/**
- * gl_unbind_texture:
- * @ts: a #GLTextureState
- *
- * Rebinds the texture that was previously bound and recorded in @ts.
- */
-void
-gl_unbind_texture(GLTextureState *ts)
-{
-    if (!ts->was_bound && ts->old_texture)
-        glBindTexture(ts->target, ts->old_texture);
-    if (!ts->was_enabled)
-        glDisable(ts->target);
-}
-
-/**
  * gl_create_texture:
  * @target: the target to which the texture is bound
  * @format: the format of the pixel data
@@ -583,7 +515,6 @@ gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int
     GLVTable * const gl_vtable = gl_get_vtable();
     GLenum internal_format;
     GLuint texture;
-    GLTextureState ts;
     unsigned int bytes_per_component;
 
     switch (target) {
@@ -623,9 +554,9 @@ gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int
     }
     ASSERT(bytes_per_component > 0);
 
+    glEnable(target);
     glGenTextures(1, &texture);
-    if (!gl_bind_texture(&ts, target, texture))
-        return 0;
+    glBindTexture(target, texture);
     gl_set_texture_scaling(target, GL_LINEAR);
     glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -640,7 +571,7 @@ gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int
         GL_UNSIGNED_BYTE,
         NULL
     );
-    gl_unbind_texture(&ts);
+    glBindTexture(target, 0);
     return texture;
 }
 
@@ -1020,10 +951,9 @@ gl_create_pixmap_object(Display *dpy, unsigned int width, unsigned int height)
     pixo->target = GL_TEXTURE_2D;
     glEnable(pixo->target);
     glGenTextures(1, &pixo->texture);
-    if (!gl_bind_texture(&pixo->old_texture, pixo->target, pixo->texture))
-        goto error;
+    glBindTexture(pixo->target, pixo->texture);
     gl_set_texture_scaling(pixo->target, GL_LINEAR);
-    gl_unbind_texture(&pixo->old_texture);
+    glBindTexture(pixo->target, 0);
     return pixo;
 
 error:
@@ -1080,8 +1010,7 @@ gl_bind_pixmap_object(GLPixmapObject *pixo)
     if (pixo->is_bound)
         return 1;
 
-    if (!gl_bind_texture(&pixo->old_texture, pixo->target, pixo->texture))
-        return 0;
+    glBindTexture(pixo->target, pixo->texture);
 
     x11_trap_errors();
     gl_vtable->glx_bind_tex_image(
@@ -1128,7 +1057,7 @@ gl_unbind_pixmap_object(GLPixmapObject *pixo)
         return 0;
     }
 
-    gl_unbind_texture(&pixo->old_texture);
+    glBindTexture(pixo->target, 0);
 
     pixo->is_bound = 0;
     return 1;
@@ -1376,13 +1305,11 @@ gl_vdpau_create_video_surface(VdpVideoSurface surface)
         goto error;
 
     for (i = 0; i < s->num_textures; i++) {
-        GLTextureState ts;
-        if (!gl_bind_texture(&ts, s->target, s->textures[i]))
-            goto error;
+        glBindTexture(s->target, s->textures[i]);
         gl_set_texture_scaling(s->target, GL_LINEAR);
         glTexParameteri(s->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(s->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        gl_unbind_texture(&ts);
+        glBindTexture(s->target, 0);
     }
 
     /* XXX: optimize for reading only */
@@ -1409,7 +1336,6 @@ gl_vdpau_create_output_surface(VdpOutputSurface surface)
 {
     GLVTable * const gl_vtable = gl_get_vtable();
     GLVdpSurface *s;
-    GLTextureState ts;
 
     if (!gl_vtable || !gl_vtable->has_vdpau_interop)
         return NULL;
@@ -1433,9 +1359,9 @@ gl_vdpau_create_output_surface(VdpOutputSurface surface)
     if (!s->surface)
         goto error;
 
-    gl_bind_texture(&ts, s->target, s->textures[0]);
+    glBindTexture(s->target, s->textures[0]);
     gl_set_texture_scaling(s->target, GL_LINEAR);
-    gl_unbind_texture(&ts);
+    glBindTexture(s->target, 0);
 
     /* XXX: optimize for reading only */
     gl_vtable->gl_vdpau_surface_access(s->surface, GL_READ_ONLY);

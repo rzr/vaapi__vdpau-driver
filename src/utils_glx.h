@@ -132,22 +132,6 @@ void
 gl_swap_buffers(GLContextState *cs)
     attribute_hidden;
 
-typedef struct _GLTextureState GLTextureState;
-struct _GLTextureState {
-    GLenum          target;
-    GLuint          old_texture;
-    unsigned int    was_enabled : 1;
-    unsigned int    was_bound   : 1;
-};
-
-int
-gl_bind_texture(GLTextureState *ts, GLenum target, GLuint texture)
-    attribute_hidden;
-
-void
-gl_unbind_texture(GLTextureState *ts)
-    attribute_hidden;
-
 GLuint
 gl_create_texture(GLenum target, GLenum format, unsigned int width, unsigned int height)
     attribute_hidden;
@@ -202,7 +186,6 @@ struct _GLPixmapObject {
     Display        *dpy;
     GLenum          target;
     GLuint          texture;
-    GLTextureState  old_texture;
     unsigned int    width;
     unsigned int    height;
     Pixmap          pixmap;
