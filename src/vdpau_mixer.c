@@ -320,7 +320,9 @@ video_mixer_render(
 )
 {
     VdpColorStandard colorspace;
-    if (flags & VA_SRC_BT709)
+    if (flags & VA_SRC_SMPTE_240)
+        colorspace = VDP_COLOR_STANDARD_SMPTE_240M;
+    else if (flags & VA_SRC_BT709)
         colorspace = VDP_COLOR_STANDARD_ITUR_BT_709;
     else
         colorspace = VDP_COLOR_STANDARD_ITUR_BT_601;

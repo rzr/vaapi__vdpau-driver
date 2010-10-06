@@ -54,6 +54,9 @@
 #ifndef VA_FILTER_SCALING_MASK
 #define VA_FILTER_SCALING_MASK          0x00000f00
 #endif
+#ifndef VA_SRC_SMPTE_240
+#define VA_SRC_SMPTE_240                0x00000040
+#endif
 
 #if VA_CHECK_VERSION(0,31,1)
 typedef void *VADrawable;
