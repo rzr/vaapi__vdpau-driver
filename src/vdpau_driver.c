@@ -221,16 +221,23 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
 {
     VDPAU_DRIVER_DATA_INIT;
 
-    VdpStatus vdp_status;
 #if VA_CHECK_VERSION(0,31,1)
     driver_data->x11_dpy    = ctx->native_dpy;
 #else
     driver_data->x11_dpy    = ctx->x11_dpy;
 #endif
     driver_data->x11_screen = ctx->x11_screen;
+
+    /* Create a dedicated X11 display for VDPAU purposes */
+    const char * const x11_dpy_name = XDisplayString(driver_data->x11_dpy);
+    driver_data->vdp_dpy = XOpenDisplay(x11_dpy_name);
+    if (!driver_data->vdp_dpy)
+        return VA_STATUS_ERROR_UNKNOWN;
+
+    VdpStatus vdp_status;
     driver_data->vdp_device = VDP_INVALID_HANDLE;
     vdp_status = vdp_device_create_x11(
-        driver_data->x11_dpy,
+        driver_data->vdp_dpy,
         driver_data->x11_screen,
         &driver_data->vdp_device,
         &driver_data->vdp_get_proc_address

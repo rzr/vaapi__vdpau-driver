@@ -114,6 +114,7 @@ struct vdpau_driver_data {
     struct object_heap          mixer_heap;
     Display                    *x11_dpy;
     int                         x11_screen;
+    Display                    *vdp_dpy;
     VdpDevice                   vdp_device;
     VdpGetProcAddress          *vdp_get_proc_address;
     vdpau_vtable_t              vdp_vtable;
