@@ -36,38 +36,6 @@
 #include "debug.h"
 
 
-// Check for VA/SDS version
-#define VA_CHECK_VERSION_SDS(major, minor, micro, sds)                  \
-    (VA_CHECK_VERSION(major, minor, (micro)+1) ||                       \
-     (VA_CHECK_VERSION(major, minor, micro) && VA_SDS_VERSION >= (sds)))
-
-// Check for VA/GLX changes from libVA API >= 0.31.0-sds2
-#if USE_GLX
-#if VA_CHECK_VERSION_SDS(0,31,0,6)
-#define VA_DRIVER_VTABLE_GLX(ctx) get_vtable_glx(ctx)
-typedef struct VADriverVTableGLX *VADriverVTableGLXP;
-
-static VADriverVTableGLXP get_vtable_glx(VADriverContextP ctx)
-{
-    VADriverVTableGLXP vtable_glx = ctx->vtable.glx;
-
-    if (!vtable_glx) {
-        vtable_glx = calloc(1, sizeof(*vtable_glx));
-        if (!vtable_glx)
-            return NULL;
-        ctx->vtable.glx = vtable_glx;
-    }
-    return vtable_glx;
-}
-#elif VA_CHECK_VERSION_SDS(0,31,0,2)
-#define VA_DRIVER_VTABLE_GLX(ctx) (&(ctx)->vtable.glx)
-typedef struct VADriverVTableGLX *VADriverVTableGLXP;
-#else
-#define VA_DRIVER_VTABLE_GLX(ctx) (&(ctx)->vtable)
-typedef struct VADriverVTable    *VADriverVTableGLXP;
-#endif
-#endif
-
 // Set display type
 int vdpau_set_display_type(vdpau_driver_data_t *driver_data, unsigned int type)
 {
@@ -182,10 +150,9 @@ destroy_heap(
     } while (0)
 
 // vaTerminate
-static VAStatus vdpau_Terminate(VADriverContextP ctx)
+static void
+vdpau_common_Terminate(vdpau_driver_data_t *driver_data)
 {
-    VDPAU_DRIVER_DATA_INIT;
-
     DESTROY_HEAP(buffer,      destroy_buffer_cb);
     DESTROY_HEAP(image,       NULL);
     DESTROY_HEAP(subpicture,  NULL);
@@ -196,11 +163,6 @@ static VAStatus vdpau_Terminate(VADriverContextP ctx)
     DESTROY_HEAP(mixer,       destroy_mixer_cb);
 #if USE_GLX
     DESTROY_HEAP(glx_surface, NULL);
-
-#if VA_CHECK_VERSION_SDS(0,31,0,6)
-    free(ctx->vtable.glx);
-    ctx->vtable.glx = NULL;
-#endif
 #endif
 
     if (driver_data->vdp_device != VDP_INVALID_HANDLE) {
@@ -209,25 +171,12 @@ static VAStatus vdpau_Terminate(VADriverContextP ctx)
     }
 
     vdpau_gate_exit(driver_data);
-
-    free(ctx->pDriverData);
-    ctx->pDriverData = NULL;
-
-    return VA_STATUS_SUCCESS;
 }
 
 // vaInitialize
-static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
+static VAStatus
+vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
 {
-    VDPAU_DRIVER_DATA_INIT;
-
-#if VA_CHECK_VERSION(0,31,1)
-    driver_data->x11_dpy    = ctx->native_dpy;
-#else
-    driver_data->x11_dpy    = ctx->x11_dpy;
-#endif
-    driver_data->x11_screen = ctx->x11_screen;
-
     /* Create a dedicated X11 display for VDPAU purposes */
     const char * const x11_dpy_name = XDisplayString(driver_data->x11_dpy);
     driver_data->vdp_dpy = XOpenDisplay(x11_dpy_name);
@@ -266,6 +215,13 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
         /* XXX: set impl_type and impl_version if there is any useful info */
     }
 
+    sprintf(driver_data->va_vendor, "%s %s - %d.%d.%d",
+            VDPAU_STR_DRIVER_VENDOR,
+            VDPAU_STR_DRIVER_NAME,
+            VDPAU_VIDEO_MAJOR_VERSION,
+            VDPAU_VIDEO_MINOR_VERSION,
+            VDPAU_VIDEO_MICRO_VERSION);
+
     CREATE_HEAP(config, CONFIG);
     CREATE_HEAP(context, CONTEXT);
     CREATE_HEAP(surface, SURFACE);
@@ -277,132 +233,45 @@ static VAStatus vdpau_do_Initialize(VADriverContextP ctx)
 #if USE_GLX
     CREATE_HEAP(glx_surface, GLX_SURFACE);
 #endif
-
-    static char vendor[256] = {0, };
-    if (vendor[0] == '\0')
-        sprintf(vendor, "%s %s - %d.%d.%d",
-                VDPAU_STR_DRIVER_VENDOR,
-                VDPAU_STR_DRIVER_NAME,
-                VDPAU_VIDEO_MAJOR_VERSION,
-                VDPAU_VIDEO_MINOR_VERSION,
-                VDPAU_VIDEO_MICRO_VERSION);
-
-    ctx->version_major          = VA_MAJOR_VERSION;
-    ctx->version_minor          = VA_MINOR_VERSION;
-    ctx->max_profiles           = VDPAU_MAX_PROFILES;
-    ctx->max_entrypoints        = VDPAU_MAX_ENTRYPOINTS;
-    ctx->max_attributes         = VDPAU_MAX_CONFIG_ATTRIBUTES;
-    ctx->max_image_formats      = VDPAU_MAX_IMAGE_FORMATS;
-    ctx->max_subpic_formats     = VDPAU_MAX_SUBPICTURE_FORMATS;
-    ctx->max_display_attributes = VDPAU_MAX_DISPLAY_ATTRIBUTES;
-    ctx->str_vendor             = vendor;
-
-    ctx->vtable.vaTerminate                 = vdpau_Terminate;
-    ctx->vtable.vaQueryConfigEntrypoints    = vdpau_QueryConfigEntrypoints;
-    ctx->vtable.vaQueryConfigProfiles       = vdpau_QueryConfigProfiles;
-    ctx->vtable.vaQueryConfigEntrypoints    = vdpau_QueryConfigEntrypoints;
-    ctx->vtable.vaQueryConfigAttributes     = vdpau_QueryConfigAttributes;
-    ctx->vtable.vaCreateConfig              = vdpau_CreateConfig;
-    ctx->vtable.vaDestroyConfig             = vdpau_DestroyConfig;
-    ctx->vtable.vaGetConfigAttributes       = vdpau_GetConfigAttributes;
-    ctx->vtable.vaCreateSurfaces            = vdpau_CreateSurfaces;
-    ctx->vtable.vaDestroySurfaces           = vdpau_DestroySurfaces;
-    ctx->vtable.vaCreateContext             = vdpau_CreateContext;
-    ctx->vtable.vaDestroyContext            = vdpau_DestroyContext;
-    ctx->vtable.vaCreateBuffer              = vdpau_CreateBuffer;
-    ctx->vtable.vaBufferSetNumElements      = vdpau_BufferSetNumElements;
-    ctx->vtable.vaMapBuffer                 = vdpau_MapBuffer;
-    ctx->vtable.vaUnmapBuffer               = vdpau_UnmapBuffer;
-    ctx->vtable.vaDestroyBuffer             = vdpau_DestroyBuffer;
-    ctx->vtable.vaBeginPicture              = vdpau_BeginPicture;
-    ctx->vtable.vaRenderPicture             = vdpau_RenderPicture;
-    ctx->vtable.vaEndPicture                = vdpau_EndPicture;
-#if VA_CHECK_VERSION(0,31,0)
-    ctx->vtable.vaSyncSurface               = vdpau_SyncSurface2;
-#else
-    ctx->vtable.vaSyncSurface               = vdpau_SyncSurface3;
-#endif
-    ctx->vtable.vaQuerySurfaceStatus        = vdpau_QuerySurfaceStatus;
-    ctx->vtable.vaPutSurface                = vdpau_PutSurface;
-    ctx->vtable.vaQueryImageFormats         = vdpau_QueryImageFormats;
-    ctx->vtable.vaCreateImage               = vdpau_CreateImage;
-    ctx->vtable.vaDeriveImage               = vdpau_DeriveImage;
-    ctx->vtable.vaDestroyImage              = vdpau_DestroyImage;
-    ctx->vtable.vaSetImagePalette           = vdpau_SetImagePalette;
-    ctx->vtable.vaGetImage                  = vdpau_GetImage;
-#if VA_CHECK_VERSION(0,31,0)
-    ctx->vtable.vaPutImage                  = vdpau_PutImage_full;
-#else
-    ctx->vtable.vaPutImage                  = vdpau_PutImage;
-    ctx->vtable.vaPutImage2                 = vdpau_PutImage_full;
-#endif
-    ctx->vtable.vaQuerySubpictureFormats    = vdpau_QuerySubpictureFormats;
-    ctx->vtable.vaCreateSubpicture          = vdpau_CreateSubpicture;
-    ctx->vtable.vaDestroySubpicture         = vdpau_DestroySubpicture;
-    ctx->vtable.vaSetSubpictureImage        = vdpau_SetSubpictureImage;
-    ctx->vtable.vaSetSubpictureChromakey    = vdpau_SetSubpictureChromakey;
-    ctx->vtable.vaSetSubpictureGlobalAlpha  = vdpau_SetSubpictureGlobalAlpha;
-#if VA_CHECK_VERSION(0,31,0)
-    ctx->vtable.vaAssociateSubpicture       = vdpau_AssociateSubpicture_full;
-#else
-    ctx->vtable.vaAssociateSubpicture       = vdpau_AssociateSubpicture;
-    ctx->vtable.vaAssociateSubpicture2      = vdpau_AssociateSubpicture_full;
-#endif
-    ctx->vtable.vaDeassociateSubpicture     = vdpau_DeassociateSubpicture;
-    ctx->vtable.vaQueryDisplayAttributes    = vdpau_QueryDisplayAttributes;
-    ctx->vtable.vaGetDisplayAttributes      = vdpau_GetDisplayAttributes;
-    ctx->vtable.vaSetDisplayAttributes      = vdpau_SetDisplayAttributes;
-#if VA_CHECK_VERSION(0,31,1)
-    ctx->vtable.vaBufferInfo                = vdpau_BufferInfo;
-    ctx->vtable.vaLockSurface               = vdpau_LockSurface;
-    ctx->vtable.vaUnlockSurface             = vdpau_UnlockSurface;
-#else
-#if VA_CHECK_VERSION(0,30,0)
-    ctx->vtable.vaCreateSurfaceFromCIFrame  = vdpau_CreateSurfaceFromCIFrame;
-    ctx->vtable.vaCreateSurfaceFromV4L2Buf  = vdpau_CreateSurfaceFromV4L2Buf;
-    ctx->vtable.vaCopySurfaceToBuffer       = vdpau_CopySurfaceToBuffer;
-#else
-    ctx->vtable.vaSetSubpicturePalette      = vdpau_SetSubpicturePalette;
-    ctx->vtable.vaDbgCopySurfaceToBuffer    = vdpau_DbgCopySurfaceToBuffer;
-#endif
-#endif
-
-#if USE_GLX
-    VADriverVTableGLXP const glx_vtable     = VA_DRIVER_VTABLE_GLX(ctx);
-    if (!glx_vtable)
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    glx_vtable->vaCreateSurfaceGLX          = vdpau_CreateSurfaceGLX;
-    glx_vtable->vaDestroySurfaceGLX         = vdpau_DestroySurfaceGLX;
-#if !VA_CHECK_VERSION_SDS(0,31,0,5) /* 0.31.0-sds5 dropped 'bind' API */
-    glx_vtable->vaAssociateSurfaceGLX       = vdpau_AssociateSurfaceGLX;
-    glx_vtable->vaDeassociateSurfaceGLX     = vdpau_DeassociateSurfaceGLX;
-    glx_vtable->vaSyncSurfaceGLX            = vdpau_SyncSurfaceGLX;
-    glx_vtable->vaBeginRenderSurfaceGLX     = vdpau_BeginRenderSurfaceGLX;
-    glx_vtable->vaEndRenderSurfaceGLX       = vdpau_EndRenderSurfaceGLX;
-#endif
-    glx_vtable->vaCopySurfaceGLX            = vdpau_CopySurfaceGLX;
-#endif
-
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus vdpau_Initialize(VADriverContextP ctx)
+#define VA_INIT_VERSION_MAJOR   VA_MAJOR_VERSION
+#define VA_INIT_VERSION_MINOR   VA_MINOR_VERSION
+#define VA_INIT_VERSION_MICRO   VA_MICRO_VERSION
+#define VA_INIT_VERSION_SDS     VA_SDS_VERSION
+#define VA_INIT_GLX             USE_GLX
+#include "vdpau_driver_template.h"
+
+VAStatus VA_DRIVER_INIT_FUNC(void *ctx)
 {
-    struct vdpau_driver_data *driver_data;
-
-    driver_data = (struct vdpau_driver_data *)calloc(1, sizeof(*driver_data));
-    if (!driver_data)
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    ctx->pDriverData = (void *)driver_data;
-    driver_data->va_context = ctx;
-
-    VAStatus va_status = vdpau_do_Initialize(ctx);
-    if (va_status != VA_STATUS_SUCCESS)
-        vdpau_Terminate(ctx);
-    return va_status;
+    return vdpau_Initialize_Current(ctx);
 }
 
-VAStatus VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
+#if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 31
+#define VA_INIT_VERSION_MAJOR   0
+#define VA_INIT_VERSION_MINOR   31
+#define VA_INIT_VERSION_MICRO   0
+#define VA_INIT_SUFFIX          0_31_0
+#include "vdpau_driver_template.h"
+
+#define VA_INIT_VERSION_MAJOR   0
+#define VA_INIT_VERSION_MINOR   31
+#define VA_INIT_VERSION_MICRO   1
+#define VA_INIT_SUFFIX          0_31_1
+#define VA_INIT_GLX             1
+#include "vdpau_driver_template.h"
+
+VAStatus __vaDriverInit_0_31(void *ctx)
 {
-    return vdpau_Initialize(ctx);
+    VADriverContextP_0_31_0 const ctx0 = ctx;
+
+    /* Assume a NULL display implies VA-API 0.31.1 struct with the
+       vtable_tpi field placed just after the vtable, thus replacing
+       original native_dpy field */
+    if (!ctx0->native_dpy)
+        return vdpau_Initialize_0_31_1(ctx);
+
+    return vdpau_Initialize_0_31_0(ctx);
 }
+#endif

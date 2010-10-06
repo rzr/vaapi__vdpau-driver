@@ -28,6 +28,7 @@ source_h = \
 	vdpau_buffer.h	\
 	vdpau_decode.h	\
 	vdpau_driver.h	\
+	vdpau_driver_template.h	\
 	vdpau_dump.h	\
 	vdpau_gate.h	\
 	vdpau_image.h	\
