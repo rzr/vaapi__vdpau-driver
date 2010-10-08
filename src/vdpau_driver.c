@@ -19,6 +19,7 @@
  */
 
 #include "sysdeps.h"
+#include <ctype.h>
 #include "vdpau_driver.h"
 #include "vdpau_buffer.h"
 #include "vdpau_decode.h"
@@ -211,7 +212,25 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(vdp_status);
     if (impl_string) {
-        /* XXX: set impl_type and impl_version if there is any useful info */
+        const char *str, *version_string = NULL;
+        D(bug("%s\n", impl_string));
+
+        if (strncmp(impl_string, "NVIDIA", 6) == 0) {
+            /* NVIDIA VDPAU Driver Shared Library  <version>  <date> */
+            driver_data->vdp_impl_type = VDP_IMPLEMENTATION_NVIDIA;
+            for (str = impl_string; *str; str++) {
+                if (isdigit(*str)) {
+                    version_string = str;
+                    break;
+                }
+            }
+        }
+
+        if (version_string) {
+            int major, minor;
+            if (sscanf(version_string, "%d.%d", &major, &minor) == 2)
+                driver_data->vdp_impl_version = (major << 16) | minor;
+        }
     }
 
     sprintf(driver_data->va_vendor, "%s %s - %d.%d.%d",
