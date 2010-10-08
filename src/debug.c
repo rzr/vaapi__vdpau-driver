@@ -23,8 +23,10 @@
 #include "utils.h"
 #include <stdarg.h>
 
-static inline void do_vfprintf(FILE *fp, const char *msg, va_list args)
+static void do_vfprintf(FILE *fp, const char *msg, va_list args)
 {
+    /* XXX: use another printf() function, e.g. a valgrind one to
+       maintain correct control flow */
     vfprintf(fp, msg, args);
 }
 
@@ -41,9 +43,9 @@ void vdpau_error_message(const char *msg, ...)
 {
     va_list args;
 
-    fprintf(stderr, "%s: error: ", PACKAGE_NAME);
+    do_fprintf(stderr, "%s: error: ", PACKAGE_NAME);
     va_start(args, msg);
-    vfprintf(stderr, msg, args);
+    do_vfprintf(stderr, msg, args);
     va_end(args);
 }
 
@@ -51,9 +53,9 @@ void vdpau_information_message(const char *msg, ...)
 {
     va_list args;
 
-    fprintf(stderr, "%s: ", PACKAGE_NAME);
+    do_fprintf(stdout, "%s: ", PACKAGE_NAME);
     va_start(args, msg);
-    vfprintf(stderr, msg, args);
+    do_vfprintf(stdout, msg, args);
     va_end(args);
 }
 
