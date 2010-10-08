@@ -53,8 +53,6 @@ struct object_context {
     int                          num_render_targets;
     int                          flags;
     int                          max_ref_frames;
-    VASurfaceID                  ref_frames[16];
-    unsigned int                 ref_frames_count;
     VASurfaceID                 *render_targets;
     VABufferID                  *dead_buffers;
     uint32_t                     dead_buffers_count;
@@ -94,9 +92,6 @@ struct object_surface {
     unsigned int                 width;
     unsigned int                 height;
     VdpChromaType                vdp_chroma_type;
-    union {
-        VdpReferenceFrameH264    h264;
-    }                            vdp_ref_frame;
     SubpictureAssociationP      *assocs;
     unsigned int                 assocs_count;
     unsigned int                 assocs_count_max;

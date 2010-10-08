@@ -31,22 +31,6 @@
 #include "debug.h"
 
 
-/* Define to 1 if we want this VDPAU backend to handle H.264 DPB itself and not
-   strictly replicate VAPictureParameterBufferH264.ReferenceFrames[]. */
-#define VDPAU_VIDEO_DPB 0
-
-// Returns 1 if we want to handle H.264 DPB ourselves
-static inline int vdpau_video_dpb(void)
-{
-    static int g_vdpau_video_dpb = -1;
-
-    if (g_vdpau_video_dpb < 0) {
-        if (getenv_yesno("VDPAU_VIDEO_DPB", &g_vdpau_video_dpb) < 0)
-            g_vdpau_video_dpb = VDPAU_VIDEO_DPB;
-    }
-    return g_vdpau_video_dpb;
-}
-
 // Translates VdpDecoderProfile to VdpCodec
 VdpCodec get_VdpCodec(VdpDecoderProfile profile)
 {
@@ -291,16 +275,6 @@ static void init_VdpReferenceFrameH264(VdpReferenceFrameH264 *rf)
     rf->frame_idx           = 0;
 }
 
-static void
-clear_reference_frames(object_context_p obj_context);
-
-static int
-sync_reference_frames(
-    vdpau_driver_data_t          *driver_data,
-    object_context_p              obj_context,
-    VAPictureParameterBufferH264 *pic_param
-);
-
 static const uint8_t ff_identity[64] = {
     0,   1,  2,  3,  4,  5,  6,  7,
     8,   9, 10, 11, 12, 13, 14, 15,
@@ -468,8 +442,6 @@ translate_VASliceDataBuffer(
                                               sizeof(start_code_prefix)) < 0)
                     return 0;
             }
-            if ((buf[0] & 0x1f) == 5) /* IDR */
-                clear_reference_frames(obj_context);
             if (append_VdpBitstreamBuffer(obj_context,
                                           buf,
                                           slice_param->slice_data_size) < 0)
@@ -801,6 +773,7 @@ translate_VAPictureParameterBufferH264(
     VdpPictureInfoH264 * const pic_info = &obj_context->vdp_picture_info.h264;
     VAPictureParameterBufferH264 * const pic_param = obj_buffer->buffer_data;
     VAPictureH264 * const CurrPic = &pic_param->CurrPic;
+    unsigned int i;
 
     pic_info->field_order_cnt[0]                = CurrPic->TopFieldOrderCnt;
     pic_info->field_order_cnt[1]                = CurrPic->BottomFieldOrderCnt;
@@ -829,7 +802,13 @@ translate_VAPictureParameterBufferH264(
     pic_info->deblocking_filter_control_present_flag = pic_param->pic_fields.bits.deblocking_filter_control_present_flag;
     pic_info->redundant_pic_cnt_present_flag    = pic_param->pic_fields.bits.redundant_pic_cnt_present_flag;
 
-    return sync_reference_frames(driver_data, obj_context, pic_param);
+    for (i = 0; i < 16; i++) {
+        if (!translate_VAPictureH264(driver_data,
+                                     &pic_param->ReferenceFrames[i],
+                                     &pic_info->referenceFrames[i]))
+                return 0;
+    }
+    return 1;
 }
 
 // Translate VAIQMatrixBufferH264
@@ -1021,141 +1000,6 @@ translate_buffer(
           string_of_VABufferType(obj_buffer->type),
           obj_context->vdp_codec ? string_of_VdpCodec(obj_context->vdp_codec) : NULL));
     return 0;
-}
-
-// Reset VDPAU reference frame with VA picture
-static int
-sync_VAPictureH264(
-    vdpau_driver_data_t *driver_data,
-    const VAPictureH264 *va_pic
-)
-{
-    if (va_pic->picture_id == VA_INVALID_SURFACE)
-        return 1;
-
-    object_surface_p obj_surface = VDPAU_SURFACE(va_pic->picture_id);
-    if (!obj_surface)
-        return 0;
-    return translate_VAPictureH264(driver_data, va_pic, &obj_surface->vdp_ref_frame.h264);
-}
-
-// Clear Decoded Picture Buffer (DPB)
-static void
-clear_reference_frames(object_context_p obj_context)
-{
-    unsigned int i;
-
-    if (!vdpau_video_dpb())
-        return;
-
-    obj_context->ref_frames_count = 0;
-    for (i = 0; i < ARRAY_ELEMS(obj_context->ref_frames); i++)
-        obj_context->ref_frames[i] = VA_INVALID_SURFACE;
-}
-
-// Reset DPB with VA reference frames
-static int
-sync_reference_frames(
-    vdpau_driver_data_t          *driver_data,
-    object_context_p              obj_context,
-    VAPictureParameterBufferH264 *pic_param
-)
-{
-    VdpPictureInfoH264 * const pinfo = &obj_context->vdp_picture_info.h264;
-    VAPictureH264 * const CurrPic = &pic_param->CurrPic;
-    unsigned int i;
-
-    /* Synchronize plain VAPictureParameterBufferH264.ReferenceFrames */
-    if (!vdpau_video_dpb()) {
-        for (i = 0; i < 16; i++) {
-            if (!translate_VAPictureH264(driver_data,
-                                         &pic_param->ReferenceFrames[i],
-                                         &pinfo->referenceFrames[i]))
-                return 0;
-        }
-        return 1;
-    }
-
-    /* Synchronize past reference frames */
-    for (i = 0; i < ARRAY_ELEMS(pic_param->ReferenceFrames); i++) {
-        VAPictureH264 * const va_pic = &pic_param->ReferenceFrames[i];
-        if (!sync_VAPictureH264(driver_data, va_pic))
-            return 0;
-    }
-
-    /* Remove current picture if it is not the second field of a
-       reference field picture */
-    for (i = 0; i < obj_context->ref_frames_count; i++) {
-        if (obj_context->ref_frames[i] == CurrPic->picture_id) {
-            if (!pinfo->field_pic_flag) {
-                for (i = i + 1; i < obj_context->ref_frames_count; i++)
-                    obj_context->ref_frames[i - 1] = obj_context->ref_frames[i];
-                obj_context->ref_frames[--obj_context->ref_frames_count] = VA_INVALID_SURFACE;
-            }
-            break;
-        }
-    }
-
-    /* Fill in VDPAU referenceFrames[] array */
-    for (i = 0; i < obj_context->ref_frames_count; i++) {
-        object_surface_p obj_surface = VDPAU_SURFACE(obj_context->ref_frames[i]);
-        if (!obj_surface)
-            return 0;
-        pinfo->referenceFrames[i] = obj_surface->vdp_ref_frame.h264;
-    }
-    for (; i < ARRAY_ELEMS(pinfo->referenceFrames); i++)
-        init_VdpReferenceFrameH264(&pinfo->referenceFrames[i]);
-
-    /* Synchronize current picture, no matter it is reference or not */
-    return sync_VAPictureH264(driver_data, CurrPic);
-}
-
-// Update DPB with new (or removed) reference frames from VA context
-static void
-update_reference_frames(
-    vdpau_driver_data_t *driver_data,
-    object_context_p     obj_context
-)
-{
-    VdpPictureInfoH264 * const pic_info = &obj_context->vdp_picture_info.h264;
-    VASurfaceID picture_id = obj_context->current_render_target;
-    unsigned int i;
-
-    if (!vdpau_video_dpb())
-        return;
-
-    /* Remove non-reference picture that was previously a reference (in DPB) */
-    if (!pic_info->is_reference) {
-        for (i = 0; i < obj_context->ref_frames_count; i++) {
-            if (obj_context->ref_frames[i] == picture_id) {
-                for (i = i + 1; i < obj_context->ref_frames_count; i++)
-                    obj_context->ref_frames[i - 1] = obj_context->ref_frames[i];
-                obj_context->ref_frames[--obj_context->ref_frames_count] = VA_INVALID_SURFACE;
-                break;
-            }
-        }
-        return;
-    }
-
-    if (obj_context->max_ref_frames == 0)
-        return;
-
-    /* Update (return) if we already had this reference picture in DPB */
-    for (i = 0; i < obj_context->ref_frames_count; i++) {
-        if (obj_context->ref_frames[i] == picture_id)
-            return;
-    }
-
-    /* Shift one frame buffer out of the DPB, and add the new reference picture */
-    if (obj_context->ref_frames_count >= obj_context->max_ref_frames) {
-        for (i = 1; i < obj_context->ref_frames_count; i++)
-            obj_context->ref_frames[i - 1] = obj_context->ref_frames[i];
-        obj_context->ref_frames[--obj_context->ref_frames_count] = VA_INVALID_SURFACE;
-    }
-    ASSERT(obj_context->ref_frames_count < obj_context->max_ref_frames);
-
-    obj_context->ref_frames[obj_context->ref_frames_count] = picture_id;
-    obj_context->ref_frames_count++;
 }
 
 // vaQueryConfigProfiles
@@ -1361,8 +1205,6 @@ vdpau_EndPicture(
     object_context_p obj_context = VDPAU_CONTEXT(context);
     if (!obj_context)
         return VA_STATUS_ERROR_INVALID_CONTEXT;
-
-    update_reference_frames(driver_data, obj_context);
 
     object_surface_p obj_surface = VDPAU_SURFACE(obj_context->current_render_target);
     if (!obj_surface)

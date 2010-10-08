@@ -576,9 +576,6 @@ vdpau_CreateContext(
     obj_context->vdp_bitstream_buffers = NULL;
     obj_context->vdp_bitstream_buffers_count = 0;
     obj_context->vdp_bitstream_buffers_count_max = 0;
-    obj_context->ref_frames_count       = 0;
-    for (i = 0; i < ARRAY_ELEMS(obj_context->ref_frames); i++)
-        obj_context->ref_frames[i]      = VA_INVALID_SURFACE;
 
     if (!obj_context->render_targets) {
         vdpau_DestroyContext(ctx, context_id);
