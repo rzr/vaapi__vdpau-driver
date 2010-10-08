@@ -36,6 +36,10 @@ struct object_mixer {
     VdpVideoMixerParameter      params[VDPAU_MAX_VIDEO_MIXER_PARAMS];
     void                       *param_values[VDPAU_MAX_VIDEO_MIXER_PARAMS];
     unsigned int                n_params;
+    VdpVideoMixerFeature        features[VDPAU_MAX_VIDEO_MIXER_FEATURES];
+    VdpBool                     feature_enables[VDPAU_MAX_VIDEO_MIXER_FEATURES];
+    unsigned int                n_features;
+    unsigned int                hqscaling_level;
     VdpColorStandard            vdp_colorspace;
     VdpProcamp                  vdp_procamp;
     uint64_t                    vdp_procamp_mtime;

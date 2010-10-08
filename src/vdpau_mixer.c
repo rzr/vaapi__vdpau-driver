@@ -43,6 +43,26 @@ video_mixer_init_deint_surfaces(object_mixer_p obj_mixer)
         obj_mixer->deint_surfaces[i] = VDP_INVALID_HANDLE;
 }
 
+/** Checks wether video mixer supports a specific feature */
+static inline VdpBool
+video_mixer_has_feature(
+    vdpau_driver_data_t *driver_data,
+    VdpVideoMixerFeature feature
+)
+{
+    VdpBool is_supported = VDP_FALSE;
+    VdpStatus status;
+
+    status = vdpau_video_mixer_query_feature_support(
+        driver_data,
+        driver_data->vdp_device,
+        feature,
+        &is_supported
+    );
+    return (VDPAU_CHECK_STATUS(status, "VdpVideoMixerQueryFeatureSupport()") &&
+            is_supported);
+}
+
 object_mixer_p
 video_mixer_create(
     vdpau_driver_data_t *driver_data,
@@ -65,6 +85,7 @@ video_mixer_create(
     obj_mixer->vdp_colorspace    = VDP_COLOR_STANDARD_ITUR_BT_601;
     obj_mixer->vdp_procamp_mtime = 0;
     obj_mixer->vdp_bgcolor_mtime = 0;
+    obj_mixer->hqscaling_level   = 0;
 
     VdpProcamp * const procamp   = &obj_mixer->vdp_procamp;
     procamp->struct_version      = VDP_PROCAMP_VERSION;
@@ -82,14 +103,26 @@ video_mixer_create(
     obj_mixer->param_values[n++] = &obj_mixer->vdp_chroma_type;
     obj_mixer->n_params          = n;
 
+    VdpVideoMixerFeature feature;
+    unsigned int i;
+    n = 0;
+    for (i = 1; i <= 9; i++) {
+        feature = VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 + i - 1;
+        if (video_mixer_has_feature(driver_data, feature)) {
+            obj_mixer->features[n++]   = feature;
+            obj_mixer->hqscaling_level = i;
+        }
+    }
+    obj_mixer->n_features = n;
+
     video_mixer_init_deint_surfaces(obj_mixer);
 
     VdpStatus vdp_status;
     vdp_status = vdpau_video_mixer_create(
         driver_data,
         driver_data->vdp_device,
-        0,
-        NULL,
+        obj_mixer->n_features,
+        obj_mixer->features,
         obj_mixer->n_params,
         obj_mixer->params,
         obj_mixer->param_values,
