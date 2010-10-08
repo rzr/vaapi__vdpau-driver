@@ -342,7 +342,7 @@ vdpau_video_mixer_query_feature_support(
     VdpDevice                   device,
     VdpVideoMixerFeature        feature,
     VdpBool                    *is_supported
-);
+) attribute_hidden;
 
 // VdpVideoMixerGetFeatureEnables
 VdpStatus
@@ -371,7 +371,7 @@ vdpau_video_mixer_query_attribute_support(
     VdpDevice                   device,
     VdpVideoMixerAttribute      attribute,
     VdpBool                    *is_supported
-);
+) attribute_hidden;
 
 // VdpVideoMixerGetAttributeValues
 VdpStatus
