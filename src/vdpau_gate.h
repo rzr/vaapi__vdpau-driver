@@ -52,6 +52,8 @@ struct vdpau_vtable {
     VdpVideoMixerDestroy                *vdp_video_mixer_destroy;
     VdpVideoMixerRender                 *vdp_video_mixer_render;
     VdpVideoMixerQueryFeatureSupport    *vdp_video_mixer_query_feature_support;
+    VdpVideoMixerGetFeatureEnables      *vdp_video_mixer_get_feature_enables;
+    VdpVideoMixerSetFeatureEnables      *vdp_video_mixer_set_feature_enables;
     VdpVideoMixerQueryAttributeSupport  *vdp_video_mixer_query_attribute_support;
     VdpVideoMixerGetAttributeValues     *vdp_video_mixer_get_attribute_values;
     VdpVideoMixerSetAttributeValues     *vdp_video_mixer_set_attribute_values;
@@ -341,6 +343,26 @@ vdpau_video_mixer_query_feature_support(
     VdpVideoMixerFeature        feature,
     VdpBool                    *is_supported
 );
+
+// VdpVideoMixerGetFeatureEnables
+VdpStatus
+vdpau_video_mixer_get_feature_enables(
+    vdpau_driver_data_p         driver_data,
+    VdpVideoMixer               mixer,
+    uint32_t                    feature_count,
+    const VdpVideoMixerFeature *features,
+    VdpBool                    *feature_enables
+) attribute_hidden;
+
+// VdpVideoMixerSetFeatureEnables
+VdpStatus
+vdpau_video_mixer_set_feature_enables(
+    vdpau_driver_data_p         driver_data,
+    VdpVideoMixer               mixer,
+    uint32_t                    feature_count,
+    const VdpVideoMixerFeature *features,
+    const VdpBool              *feature_enables
+) attribute_hidden;
 
 // VdpVideoMixerQueryAttributeSupport
 VdpStatus
