@@ -27,9 +27,12 @@ void vdpau_error_message(const char *msg, ...)
 void vdpau_information_message(const char *msg, ...)
      attribute_hidden;
 
+void debug_message(const char *msg, ...)
+    attribute_hidden;
+
 #if DEBUG && USE_DEBUG
 # define D(x) x
-# define bug vdpau_information_message
+# define bug debug_message
 #else
 # define D(x)
 #endif

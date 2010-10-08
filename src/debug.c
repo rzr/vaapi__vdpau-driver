@@ -23,6 +23,20 @@
 #include "utils.h"
 #include <stdarg.h>
 
+static inline void do_vfprintf(FILE *fp, const char *msg, va_list args)
+{
+    vfprintf(fp, msg, args);
+}
+
+static void do_fprintf(FILE *fp, const char *msg, ...)
+{
+    va_list args;
+
+    va_start(args, msg);
+    do_vfprintf(fp, msg, args);
+    va_end(args);
+}
+
 void vdpau_error_message(const char *msg, ...)
 {
     va_list args;
@@ -40,6 +54,29 @@ void vdpau_information_message(const char *msg, ...)
     fprintf(stderr, "%s: ", PACKAGE_NAME);
     va_start(args, msg);
     vfprintf(stderr, msg, args);
+    va_end(args);
+}
+
+static int debug_enabled(void)
+{
+    static int g_debug_enabled = -1;
+    if (g_debug_enabled < 0) {
+        if (getenv_yesno("VDPAU_VIDEO_DEBUG", &g_debug_enabled) < 0)
+            g_debug_enabled = 0;
+    }
+    return g_debug_enabled;
+}
+
+void debug_message(const char *msg, ...)
+{
+    va_list args;
+
+    if (!debug_enabled())
+        return;
+
+    do_fprintf(stdout, "%s: ", PACKAGE_NAME);
+    va_start(args, msg);
+    do_vfprintf(stdout, msg, args);
     va_end(args);
 }
 
