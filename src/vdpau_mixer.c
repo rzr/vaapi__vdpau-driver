@@ -23,6 +23,8 @@
 #include "vdpau_video.h"
 #include <math.h>
 
+#define VDPAU_MAX_VIDEO_MIXER_PARAMS    4
+#define VDPAU_MAX_VIDEO_MIXER_FEATURES  20
 
 static inline int
 video_mixer_check_params(
@@ -95,26 +97,25 @@ video_mixer_create(
     procamp->saturation          = 1.0;
     procamp->hue                 = 0.0;
 
-    unsigned int n = 0;
-    obj_mixer->params[n]         = VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH;
-    obj_mixer->param_values[n++] = &obj_mixer->width;
-    obj_mixer->params[n]         = VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_HEIGHT;
-    obj_mixer->param_values[n++] = &obj_mixer->height;
-    obj_mixer->params[n]         = VDP_VIDEO_MIXER_PARAMETER_CHROMA_TYPE;
-    obj_mixer->param_values[n++] = &obj_mixer->vdp_chroma_type;
-    obj_mixer->n_params          = n;
+    VdpVideoMixerParameter params[VDPAU_MAX_VIDEO_MIXER_PARAMS];
+    void *param_values[VDPAU_MAX_VIDEO_MIXER_PARAMS];
+    unsigned int n_params = 0;
+    params[n_params]         = VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH;
+    param_values[n_params++] = &obj_mixer->width;
+    params[n_params]         = VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_HEIGHT;
+    param_values[n_params++] = &obj_mixer->height;
+    params[n_params]         = VDP_VIDEO_MIXER_PARAMETER_CHROMA_TYPE;
+    param_values[n_params++] = &obj_mixer->vdp_chroma_type;
 
-    VdpVideoMixerFeature feature;
-    unsigned int i;
-    n = 0;
+    VdpVideoMixerFeature feature, features[VDPAU_MAX_VIDEO_MIXER_FEATURES];
+    unsigned int i, n_features = 0;
     for (i = 1; i <= 9; i++) {
         feature = VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 + i - 1;
         if (video_mixer_has_feature(driver_data, feature)) {
-            obj_mixer->features[n++]   = feature;
+            features[n_features++] = feature;
             obj_mixer->hqscaling_level = i;
         }
     }
-    obj_mixer->n_features = n;
 
     video_mixer_init_deint_surfaces(obj_mixer);
 
@@ -122,11 +123,8 @@ video_mixer_create(
     vdp_status = vdpau_video_mixer_create(
         driver_data,
         driver_data->vdp_device,
-        obj_mixer->n_features,
-        obj_mixer->features,
-        obj_mixer->n_params,
-        obj_mixer->params,
-        obj_mixer->param_values,
+        n_features, features,
+        n_params, params, param_values,
         &obj_mixer->vdp_video_mixer
     );
     if (!VDPAU_CHECK_STATUS(vdp_status, "VdpVideoMixerCreate()")) {
