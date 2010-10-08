@@ -86,6 +86,7 @@ video_mixer_create(
     obj_mixer->vdp_procamp_mtime = 0;
     obj_mixer->vdp_bgcolor_mtime = 0;
     obj_mixer->hqscaling_level   = 0;
+    obj_mixer->va_scale          = 0;
 
     VdpProcamp * const procamp   = &obj_mixer->vdp_procamp;
     procamp->struct_version      = VDP_PROCAMP_VERSION;
@@ -328,6 +329,39 @@ video_mixer_update_background_color(
     return VDP_STATUS_OK;
 }
 
+static VdpStatus
+video_mixer_update_scaling(
+    vdpau_driver_data_t *driver_data,
+    object_mixer_p       obj_mixer,
+    unsigned int         va_scale
+)
+{
+    if (obj_mixer->va_scale == va_scale)
+        return VDP_STATUS_OK;
+
+    /* Only HQ scaling is supported, other flags disable HQ scaling */
+    if (obj_mixer->hqscaling_level >= 1) {
+        VdpVideoMixerFeature features[1];
+        VdpBool feature_enables[1];
+        features[0] = VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1;
+        feature_enables[0] = (va_scale == VA_FILTER_SCALING_HQ ?
+                              VDP_TRUE : VDP_FALSE);
+
+        VdpStatus vdp_status;
+        vdp_status = vdpau_video_mixer_set_feature_enables(
+            driver_data,
+            obj_mixer->vdp_video_mixer,
+            1,
+            features,
+            feature_enables
+        );
+        if (!VDPAU_CHECK_STATUS(vdp_status, "VdpVideoMixerSetFeatureEnables()"))
+            return vdp_status;
+    }
+    obj_mixer->va_scale = va_scale;
+    return VDP_STATUS_OK;
+}
+
 static inline void
 video_mixer_push_deint_surface(
     object_mixer_p   obj_mixer,
@@ -370,6 +404,11 @@ video_mixer_render(
         return vdp_status;
 
     vdp_status = video_mixer_update_background_color(driver_data, obj_mixer);
+    if (vdp_status != VDP_STATUS_OK)
+        return vdp_status;
+
+    const unsigned int va_scale = flags & VA_FILTER_SCALING_MASK;
+    vdp_status = video_mixer_update_scaling(driver_data, obj_mixer, va_scale);
     if (vdp_status != VDP_STATUS_OK)
         return vdp_status;
 

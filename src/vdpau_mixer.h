@@ -40,6 +40,7 @@ struct object_mixer {
     VdpBool                     feature_enables[VDPAU_MAX_VIDEO_MIXER_FEATURES];
     unsigned int                n_features;
     unsigned int                hqscaling_level;
+    unsigned int                va_scale;
     VdpColorStandard            vdp_colorspace;
     VdpProcamp                  vdp_procamp;
     uint64_t                    vdp_procamp_mtime;
