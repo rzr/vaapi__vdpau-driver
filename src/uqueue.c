@@ -52,7 +52,7 @@ UQueue *queue_push(UQueue *queue, void *data)
     if (!queue)
         return NULL;
 
-    queue->tail = list_append(queue->tail, data);
+    queue->tail = list_last(list_append(queue->tail, data));
 
     if (!queue->head)
         queue->head = queue->tail;
