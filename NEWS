@@ -1,6 +1,9 @@
 vdpau-video NEWS -- summary of changes.  2010-10-08
 Copyright (C) 2009-2010 Splitted-Desktop Systems
 
+Version 0.7.3 - DD.Nov.2010
+* Fix VA/GLX build with upstream libva
+
 Version 0.7.2 - 08.Oct.2010
 * Drop explicit link against libva
 * Fix detection of the NVIDIA driver version
