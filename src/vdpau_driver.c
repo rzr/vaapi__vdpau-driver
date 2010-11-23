@@ -141,13 +141,15 @@ destroy_heap(
 #define DESTROY_HEAP(heap, func) \
         destroy_heap(#heap, &driver_data->heap##_heap, func, driver_data)
 
-#define CREATE_HEAP(type, id) do {                                  \
-        int result = object_heap_init(&driver_data->type##_heap,    \
-                                      sizeof(struct object_##type), \
-                                      VDPAU_##id##_ID_OFFSET);      \
-        ASSERT(result == 0);                                        \
-        if (result != 0)                                            \
-            return VA_STATUS_ERROR_UNKNOWN;                         \
+#define CREATE_HEAP(type, id) do {              \
+        int result;                             \
+        result = object_heap_init(              \
+            &driver_data->type##_heap,          \
+            sizeof(struct object_##type),       \
+            VDPAU_##id##_ID_OFFSET              \
+        );                                      \
+        if (result != 0)                        \
+            return VA_STATUS_ERROR_UNKNOWN;     \
     } while (0)
 
 // vaTerminate
@@ -191,7 +193,6 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
         &driver_data->vdp_device,
         &driver_data->vdp_get_proc_address
     );
-    ASSERT(vdp_status == VDP_STATUS_OK);
     if (vdp_status != VDP_STATUS_OK)
         return VA_STATUS_ERROR_UNKNOWN;
 
@@ -200,7 +201,6 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
 
     uint32_t api_version;
     vdp_status = vdpau_get_api_version(driver_data, &api_version);
-    ASSERT(vdp_status == VDP_STATUS_OK);
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(vdp_status);
     if (api_version != VDPAU_VERSION)
@@ -208,7 +208,6 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
 
     const char *impl_string = NULL;
     vdp_status = vdpau_get_information_string(driver_data, &impl_string);
-    ASSERT(vdp_status == VDP_STATUS_OK);
     if (vdp_status != VDP_STATUS_OK)
         return vdpau_get_VAStatus(vdp_status);
     if (impl_string) {

@@ -36,7 +36,6 @@ int vdpau_gate_init(vdpau_driver_data_t *driver_data)
             (driver_data->vdp_device,                           \
              VDP_FUNC_ID_##FUNC_ID,                             \
              (void *)&driver_data->vdp_vtable.vdp_##FUNC);      \
-        ASSERT(vdp_status == VDP_STATUS_OK);                    \
         if (vdp_status != VDP_STATUS_OK)                        \
             return -1;                                          \
     } while (0)
