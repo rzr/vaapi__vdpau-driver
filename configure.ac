@@ -2,8 +2,12 @@
 m4_define([vdpau_video_major_version], [0])
 m4_define([vdpau_video_minor_version], [7])
 m4_define([vdpau_video_micro_version], [3])
+m4_define([vdpau_video_pre_version],   [1])
 m4_define([vdpau_video_version],
           [vdpau_video_major_version.vdpau_video_minor_version.vdpau_video_micro_version])
+m4_if(vdpau_video_pre_version, [0], [], [
+m4_append([vdpau_video_version], vdpau_video_pre_version, [.pre])
+])
 
 # libva package version number
 m4_define([libva_sds_version_0_29], [8])
@@ -38,6 +42,7 @@ VDPAU_VIDEO_MICRO_VERSION=vdpau_video_micro_version
 AC_DEFINE([VDPAU_VIDEO_MAJOR_VERSION], [vdpau_video_major_version], [Major version of the driver])
 AC_DEFINE([VDPAU_VIDEO_MINOR_VERSION], [vdpau_video_minor_version], [Minor version of the driver])
 AC_DEFINE([VDPAU_VIDEO_MICRO_VERSION], [vdpau_video_micro_version], [Micro version of the driver])
+AC_DEFINE([VDPAU_VIDEO_PRE_VERSION], [vdpau_video_pre_version], [Preversion of the driver])
 
 VDPAU_VIDEO_LT_LDFLAGS="-avoid-version"
 AC_SUBST(VDPAU_VIDEO_LT_LDFLAGS)

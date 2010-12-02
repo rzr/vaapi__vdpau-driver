@@ -239,6 +239,11 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
             VDPAU_VIDEO_MINOR_VERSION,
             VDPAU_VIDEO_MICRO_VERSION);
 
+    if (VDPAU_VIDEO_PRE_VERSION > 0) {
+        const int len = strlen(driver_data->va_vendor);
+        sprintf(&driver_data->va_vendor[len], ".pre%d", VDPAU_VIDEO_PRE_VERSION);
+    }
+
     CREATE_HEAP(config,         CONFIG);
     CREATE_HEAP(context,        CONTEXT);
     CREATE_HEAP(surface,        SURFACE);
