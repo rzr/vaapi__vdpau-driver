@@ -28,6 +28,7 @@
 #include <vdpau/vdpau.h>
 
 /* GL_NV_vdpau_interop */
+#if GL_GLEXT_VERSION < 64
 typedef GLintptr GLvdpauSurfaceNV;
 typedef void (*PFNGLVDPAUINITNVPROC)(const GLvoid *vdpDevice, const GLvoid *getProcAddress);
 typedef void (*PFNGLVDPAUFININVPROC)(void);
@@ -39,7 +40,9 @@ typedef void (*PFNGLVDPAUGETSURFACEIVPROC)(GLvdpauSurfaceNV surface, GLenum pnam
 typedef void (*PFNGLVDPAUSURFACEACCESSNVPROC)(GLvdpauSurfaceNV surface, GLenum access);
 typedef void (*PFNGLVDPAUMAPSURFACESNVPROC)(GLsizei numSurfaces, const GLvdpauSurfaceNV *surfaces);
 typedef void (*PFNGLVDPAUUNMAPSURFACESNVPROC)(GLsizei numSurface, const GLvdpauSurfaceNV *surfaces);
+#endif
 
+/* GLX_EXT_texture_from_pixmap */
 #if GLX_GLXEXT_VERSION < 18
 typedef void (*PFNGLXBINDTEXIMAGEEXTPROC)(Display *, GLXDrawable, int, const int *);
 typedef void (*PFNGLXRELEASETEXIMAGEEXTPROC)(Display *, GLXDrawable, int);
