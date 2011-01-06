@@ -34,9 +34,9 @@ typedef void (*PFNGLVDPAUINITNVPROC)(const GLvoid *vdpDevice, const GLvoid *getP
 typedef void (*PFNGLVDPAUFININVPROC)(void);
 typedef GLvdpauSurfaceNV (*PFNGLVDPAUREGISTERVIDEOSURFACENVPROC)(const GLvoid *vdpSurface, GLenum target, GLsizei numTextureNames, const GLuint *textureNames);
 typedef GLvdpauSurfaceNV (*PFNGLVDPAUREGISTEROUTPUTSURFACENVPROC)(const GLvoid *vdpSurface, GLenum target, GLsizei numTextureNames, const GLuint *textureNames);
-typedef GLboolean (*PFNGLVDPAUISSURFACEPROC)(GLvdpauSurfaceNV surface);
+typedef GLboolean (*PFNGLVDPAUISSURFACENVPROC)(GLvdpauSurfaceNV surface);
 typedef void (*PFNGLVDPAUUNREGISTERSURFACENVPROC)(GLvdpauSurfaceNV surface);
-typedef void (*PFNGLVDPAUGETSURFACEIVPROC)(GLvdpauSurfaceNV surface, GLenum pname, GLsizei bufSize, GLsizei *length, GLint *values);
+typedef void (*PFNGLVDPAUGETSURFACEIVNVPROC)(GLvdpauSurfaceNV surface, GLenum pname, GLsizei bufSize, GLsizei *length, GLint *values);
 typedef void (*PFNGLVDPAUSURFACEACCESSNVPROC)(GLvdpauSurfaceNV surface, GLenum access);
 typedef void (*PFNGLVDPAUMAPSURFACESNVPROC)(GLsizei numSurfaces, const GLvdpauSurfaceNV *surfaces);
 typedef void (*PFNGLVDPAUUNMAPSURFACESNVPROC)(GLsizei numSurface, const GLvdpauSurfaceNV *surfaces);
@@ -165,9 +165,9 @@ struct _GLVTable {
     PFNGLVDPAUFININVPROC                  gl_vdpau_fini;
     PFNGLVDPAUREGISTERVIDEOSURFACENVPROC  gl_vdpau_register_video_surface;
     PFNGLVDPAUREGISTEROUTPUTSURFACENVPROC gl_vdpau_register_output_surface;
-    PFNGLVDPAUISSURFACEPROC               gl_vdpau_is_surface;
+    PFNGLVDPAUISSURFACENVPROC             gl_vdpau_is_surface;
     PFNGLVDPAUUNREGISTERSURFACENVPROC     gl_vdpau_unregister_surface;
-    PFNGLVDPAUGETSURFACEIVPROC            gl_vdpau_get_surface_iv;
+    PFNGLVDPAUGETSURFACEIVNVPROC          gl_vdpau_get_surface_iv;
     PFNGLVDPAUSURFACEACCESSNVPROC         gl_vdpau_surface_access;
     PFNGLVDPAUMAPSURFACESNVPROC           gl_vdpau_map_surfaces;
     PFNGLVDPAUUNMAPSURFACESNVPROC         gl_vdpau_unmap_surfaces;

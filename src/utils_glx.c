@@ -780,7 +780,7 @@ gl_init_vtable(void)
             get_proc_address("glVDPAURegisterOutputSurfaceNV");
         if (!gl_vtable->gl_vdpau_register_output_surface)
             return NULL;
-        gl_vtable->gl_vdpau_is_surface = (PFNGLVDPAUISSURFACEPROC)
+        gl_vtable->gl_vdpau_is_surface = (PFNGLVDPAUISSURFACENVPROC)
             get_proc_address("glVDPAUIsSurfaceNV");
         if (!gl_vtable->gl_vdpau_is_surface)
             return NULL;
@@ -788,7 +788,7 @@ gl_init_vtable(void)
             get_proc_address("glVDPAUUnregisterSurfaceNV");
         if (!gl_vtable->gl_vdpau_unregister_surface)
             return NULL;
-        gl_vtable->gl_vdpau_get_surface_iv = (PFNGLVDPAUGETSURFACEIVPROC)
+        gl_vtable->gl_vdpau_get_surface_iv = (PFNGLVDPAUGETSURFACEIVNVPROC)
             get_proc_address("glVDPAUGetSurfaceivNV");
         if (!gl_vtable->gl_vdpau_get_surface_iv)
             return NULL;
