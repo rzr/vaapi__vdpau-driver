@@ -258,18 +258,6 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
     return VA_STATUS_SUCCESS;
 }
 
-#define VA_INIT_VERSION_MAJOR   VA_MAJOR_VERSION
-#define VA_INIT_VERSION_MINOR   VA_MINOR_VERSION
-#define VA_INIT_VERSION_MICRO   VA_MICRO_VERSION
-#define VA_INIT_VERSION_SDS     VA_SDS_VERSION
-#define VA_INIT_GLX             USE_GLX
-#include "vdpau_driver_template.h"
-
-VAStatus VA_DRIVER_INIT_FUNC(void *ctx)
-{
-    return vdpau_Initialize_Current(ctx);
-}
-
 #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 31
 #define VA_INIT_VERSION_MAJOR   0
 #define VA_INIT_VERSION_MINOR   31
@@ -284,6 +272,13 @@ VAStatus VA_DRIVER_INIT_FUNC(void *ctx)
 #define VA_INIT_GLX             USE_GLX
 #include "vdpau_driver_template.h"
 
+#define VA_INIT_VERSION_MAJOR   0
+#define VA_INIT_VERSION_MINOR   31
+#define VA_INIT_VERSION_MICRO   2
+#define VA_INIT_SUFFIX          0_31_2
+#define VA_INIT_GLX             USE_GLX
+#include "vdpau_driver_template.h"
+
 VAStatus __vaDriverInit_0_31(void *ctx)
 {
     VADriverContextP_0_31_0 const ctx0 = ctx;
@@ -291,9 +286,28 @@ VAStatus __vaDriverInit_0_31(void *ctx)
     /* Assume a NULL display implies VA-API 0.31.1 struct with the
        vtable_tpi field placed just after the vtable, thus replacing
        original native_dpy field */
-    if (!ctx0->native_dpy)
+    if (!ctx0->native_dpy) {
+        VADriverContextP_0_31_1 const ctx1 = ctx;
+        if (!ctx1->native_dpy) {
+            VADriverContextP_0_31_2 const ctx2 = ctx;
+            if (!ctx2->native_dpy)
+                return VA_STATUS_ERROR_INVALID_DISPLAY;
+            return vdpau_Initialize_0_31_2(ctx);
+        }
         return vdpau_Initialize_0_31_1(ctx);
-
+    }
     return vdpau_Initialize_0_31_0(ctx);
+}
+#else
+#define VA_INIT_VERSION_MAJOR   VA_MAJOR_VERSION
+#define VA_INIT_VERSION_MINOR   VA_MINOR_VERSION
+#define VA_INIT_VERSION_MICRO   VA_MICRO_VERSION
+#define VA_INIT_VERSION_SDS     VA_SDS_VERSION
+#define VA_INIT_GLX             USE_GLX
+#include "vdpau_driver_template.h"
+
+VAStatus VA_DRIVER_INIT_FUNC(void *ctx)
+{
+    return vdpau_Initialize_Current(ctx);
 }
 #endif

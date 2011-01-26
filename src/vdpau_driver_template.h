@@ -206,6 +206,15 @@ struct VA_DRIVER_VTABLE {
 		VASurfaceStatus *status	/* out */
 	);
 
+#if VA_INIT_CHECK_VERSION(0,31,2)
+        VAStatus (*vaQuerySurfaceError) (
+                VADriverContextP ctx,
+                VASurfaceID render_target,
+                VAStatus error_status,
+                void **error_info /*out*/
+        );
+#endif
+
 	VAStatus (*vaPutSurface) (
     		VA_DRIVER_CONTEXT_P ctx,
 		VASurfaceID surface,
