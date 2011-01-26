@@ -282,21 +282,19 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
 VAStatus __vaDriverInit_0_31(void *ctx)
 {
     VADriverContextP_0_31_0 const ctx0 = ctx;
+    VADriverContextP_0_31_1 const ctx1 = ctx;
+    VADriverContextP_0_31_2 const ctx2 = ctx;
 
     /* Assume a NULL display implies VA-API 0.31.1 struct with the
        vtable_tpi field placed just after the vtable, thus replacing
        original native_dpy field */
-    if (!ctx0->native_dpy) {
-        VADriverContextP_0_31_1 const ctx1 = ctx;
-        if (!ctx1->native_dpy) {
-            VADriverContextP_0_31_2 const ctx2 = ctx;
-            if (!ctx2->native_dpy)
-                return VA_STATUS_ERROR_INVALID_DISPLAY;
-            return vdpau_Initialize_0_31_2(ctx);
-        }
+    if (ctx0->native_dpy)
+        return vdpau_Initialize_0_31_0(ctx);
+    if (ctx1->native_dpy)
         return vdpau_Initialize_0_31_1(ctx);
-    }
-    return vdpau_Initialize_0_31_0(ctx);
+    if (ctx2->native_dpy)
+        return vdpau_Initialize_0_31_2(ctx);
+    return VA_STATUS_ERROR_INVALID_DISPLAY;
 }
 #else
 #define VA_INIT_VERSION_MAJOR   VA_MAJOR_VERSION
