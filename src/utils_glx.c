@@ -1,7 +1,7 @@
 /*
  *  utils_glx.c - GLX utilities
  *
- *  vdpau-video (C) 2009-2010 Splitted-Desktop Systems
+ *  vdpau-video (C) 2009-2011 Splitted-Desktop Systems
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

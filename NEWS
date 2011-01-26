@@ -1,7 +1,7 @@
-vdpau-video NEWS -- summary of changes.  2010-12-DD
-Copyright (C) 2009-2010 Splitted-Desktop Systems
+vdpau-video NEWS -- summary of changes.  2011-01-DD
+Copyright (C) 2009-2011 Splitted-Desktop Systems
 
-Version 0.7.3 - DD.Dec.2010
+Version 0.7.3 - DD.Jan.2011
 * Add compatibility glue with libva >= 1.0.8
 * Fix possible crash when rendering multiple surfaces at once
 * Fix build if no OpenGL header is available (libva >= 0.31.1)
