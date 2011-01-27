@@ -258,6 +258,20 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
     return VA_STATUS_SUCCESS;
 }
 
+#if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION >= 32
+#define VA_INIT_VERSION_MAJOR   0
+#define VA_INIT_VERSION_MINOR   32
+#define VA_INIT_VERSION_MICRO   0
+#define VA_INIT_SUFFIX          0_32_0
+#define VA_INIT_GLX             USE_GLX
+#include "vdpau_driver_template.h"
+
+VAStatus __vaDriverInit_0_32(void *ctx)
+{
+    return vdpau_Initialize_0_32_0(ctx);
+}
+#endif
+
 #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 31
 #define VA_INIT_VERSION_MAJOR   0
 #define VA_INIT_VERSION_MINOR   31

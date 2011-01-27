@@ -213,6 +213,7 @@ AC_CACHE_CHECK([for VA-API (GLX extensions)],
     #   error "VA-API version >= 0.31.0-sds$LIBVA_GLX_SDS_VERSION_0_31 is required"
     #  endif
     # endif
+    #elif VA_MAJOR_VERSION ==0 && VA_MINOR_VERSION >= 32
     #else
     # error "This version of VA-API is not supported for OpenGL rendering"
     #endif
