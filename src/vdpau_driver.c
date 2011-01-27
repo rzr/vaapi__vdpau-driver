@@ -258,21 +258,7 @@ vdpau_common_Initialize(vdpau_driver_data_t *driver_data)
     return VA_STATUS_SUCCESS;
 }
 
-#if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION >= 32
-#define VA_INIT_VERSION_MAJOR   0
-#define VA_INIT_VERSION_MINOR   32
-#define VA_INIT_VERSION_MICRO   0
-#define VA_INIT_SUFFIX          0_32_0
-#define VA_INIT_GLX             USE_GLX
-#include "vdpau_driver_template.h"
-
-VAStatus __vaDriverInit_0_32(void *ctx)
-{
-    return vdpau_Initialize_0_32_0(ctx);
-}
-#endif
-
-#if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 31
+#if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION >= 31
 #define VA_INIT_VERSION_MAJOR   0
 #define VA_INIT_VERSION_MINOR   31
 #define VA_INIT_VERSION_MICRO   0
@@ -310,7 +296,22 @@ VAStatus __vaDriverInit_0_31(void *ctx)
         return vdpau_Initialize_0_31_2(ctx);
     return VA_STATUS_ERROR_INVALID_DISPLAY;
 }
-#else
+#endif
+
+#if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION >= 32
+#define VA_INIT_VERSION_MAJOR   0
+#define VA_INIT_VERSION_MINOR   32
+#define VA_INIT_VERSION_MICRO   0
+#define VA_INIT_SUFFIX          0_32_0
+#define VA_INIT_GLX             USE_GLX
+#include "vdpau_driver_template.h"
+
+VAStatus __vaDriverInit_0_32(void *ctx)
+{
+    return vdpau_Initialize_0_32_0(ctx);
+}
+#endif
+
 #define VA_INIT_VERSION_MAJOR   VA_MAJOR_VERSION
 #define VA_INIT_VERSION_MINOR   VA_MINOR_VERSION
 #define VA_INIT_VERSION_MICRO   VA_MICRO_VERSION
@@ -320,6 +321,8 @@ VAStatus __vaDriverInit_0_31(void *ctx)
 
 VAStatus VA_DRIVER_INIT_FUNC(void *ctx)
 {
+#if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 31
+    return __vaDriverInit_0_31(ctx);
+#endif
     return vdpau_Initialize_Current(ctx);
 }
-#endif
