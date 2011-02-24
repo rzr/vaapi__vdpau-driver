@@ -411,7 +411,7 @@ struct VA_DRIVER_VTABLE {
                 VASurfaceID surface
         );
 
-#if !VA_INIT_CHECK_VERSION_SDS(0,32,0,1)
+#if !VA_INIT_CHECK_VERSION(0,32,0)
         /* Optional: GLX support hooks */
         struct VADriverVTableGLX *glx;
 #endif
@@ -450,9 +450,10 @@ struct VA_DRIVER_VTABLE {
 /* Driver context */
 struct VA_DRIVER_CONTEXT {
     void *pDriverData;
-#if VA_INIT_CHECK_VERSION_SDS(0,32,0,1)
+#if VA_INIT_CHECK_VERSION(0,32,0)
     struct VA_DRIVER_VTABLE *vtable;
     struct VADriverVTableGLX *vtable_glx;
+    struct VADriverVTableEGL *vtable_egl;
 #else
     struct VA_DRIVER_VTABLE vtable;
 #endif
@@ -492,8 +493,8 @@ typedef struct VA_DRIVER_VTABLE  *VA_DRIVER_VTABLE_GLX_P;
 static inline VA_DRIVER_VTABLE_GLX_P FUNC(GetVTableGLX)(VA_DRIVER_CONTEXT_P ctx)
 {
 #if VA_INIT_CHECK_VERSION_SDS(0,31,0,6)
-#if VA_INIT_CHECK_VERSION_SDS(0,32,0,1)
-    /* SDS >= 0.32.0-sds1 */
+#if VA_INIT_CHECK_VERSION(0,32,0)
+    /* Upstream VA-API 0.32 */
     VA_DRIVER_VTABLE_GLX_P *p_vtable_glx = &ctx->vtable_glx;
 #else
     /* Upstream VA-API 0.31.1 or SDS >= 0.31.0-sds6 */
@@ -519,7 +520,7 @@ static inline VA_DRIVER_VTABLE_GLX_P FUNC(GetVTableGLX)(VA_DRIVER_CONTEXT_P ctx)
 
 static inline void FUNC(ReleaseVTableGLX)(VA_DRIVER_CONTEXT_P ctx)
 {
-#if VA_INIT_CHECK_VERSION_SDS(0,32,0,1)
+#if VA_INIT_CHECK_VERSION(0,32,0)
     free(ctx->vtable_glx);
     ctx->vtable_glx = NULL;
 #elif VA_INIT_CHECK_VERSION_SDS(0,31,0,6)
@@ -574,7 +575,7 @@ static VAStatus FUNC(Initialize)(VA_DRIVER_CONTEXT_P ctx)
     ctx->str_vendor             = driver_data->va_vendor;
 
     struct VA_DRIVER_VTABLE *vtable;
-#if VA_INIT_CHECK_VERSION_SDS(0,32,0,1)
+#if VA_INIT_CHECK_VERSION(0,32,0)
     vtable = ctx->vtable;
 #else
     vtable = &ctx->vtable;
