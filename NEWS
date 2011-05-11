@@ -1,5 +1,8 @@
-vdpau-video NEWS -- summary of changes.  2011-02-26
+vdpau-video NEWS -- summary of changes.  2011-MM-DD
 Copyright (C) 2009-2011 Splitted-Desktop Systems
+
+Version 0.7.4 - DD.MM.2011
+* Avoid X11 socket leak (Marco De Michele)
 
 Version 0.7.3 - 26.Feb.2011
 * Add compatibility glue with libva >= 1.0.8

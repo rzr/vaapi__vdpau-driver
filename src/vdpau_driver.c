@@ -173,6 +173,11 @@ vdpau_common_Terminate(vdpau_driver_data_t *driver_data)
         driver_data->vdp_device = VDP_INVALID_HANDLE;
     }
     vdpau_gate_exit(driver_data);
+
+    if (driver_data->vdp_dpy) {
+        XCloseDisplay(driver_data->vdp_dpy);
+        driver_data->vdp_dpy = NULL;
+    }
 }
 
 // vaInitialize
