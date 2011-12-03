@@ -1,7 +1,7 @@
 /*
  *  utils_x11.h - X11 utilities
  *
- *  vdpau-video (C) 2009-2011 Splitted-Desktop Systems
+ *  libva-driver-vdpau (C) 2009-2011 Splitted-Desktop Systems
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

@@ -22,7 +22,8 @@ m4_define([libva_sds_version], [libva_glx_sds_version_0_31])
 m4_define([libva_sds_package_version], [libva_glx_sds_package_version_0_31])
 
 AC_PREREQ([2.57])
-AC_INIT([vdpau_video], [vdpau_video_version], [gbeauchesne@splitted-desktop.com], [vdpau-video])
+AC_INIT([vdpau_video], [vdpau_video_version], [gwenole.beauchesne@intel.com],
+        [libva-driver-vdpau])
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE
 

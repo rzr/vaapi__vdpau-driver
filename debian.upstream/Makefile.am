@@ -1,15 +1,15 @@
 DEBIANFILES = \
-	changelog.in		\
-	compat			\
-	control.in		\
-	copyright		\
-	rules			\
-	vdpau-video.install	\
+	changelog.in			\
+	compat				\
+	control.in			\
+	copyright			\
+	rules				\
+	libva-driver-vdpau.install	\
 	$(NULL)
 
 DEBIANGENFILES = \
-	changelog		\
-	control			\
+	changelog			\
+	control				\
 	$(NULL)
 
 EXTRA_DIST = $(DEBIANFILES)
