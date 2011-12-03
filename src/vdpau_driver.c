@@ -303,24 +303,9 @@ VAStatus __vaDriverInit_0_31(void *ctx)
 }
 #endif
 
-#if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION >= 32
-#define VA_INIT_VERSION_MAJOR   0
-#define VA_INIT_VERSION_MINOR   32
-#define VA_INIT_VERSION_MICRO   0
-#define VA_INIT_SUFFIX          0_32_0
-#define VA_INIT_GLX             USE_GLX
-#include "vdpau_driver_template.h"
-
-VAStatus __vaDriverInit_0_32(void *ctx)
-{
-    return vdpau_Initialize_0_32_0(ctx);
-}
-#endif
-
 #define VA_INIT_VERSION_MAJOR   VA_MAJOR_VERSION
 #define VA_INIT_VERSION_MINOR   VA_MINOR_VERSION
 #define VA_INIT_VERSION_MICRO   VA_MICRO_VERSION
-#define VA_INIT_VERSION_SDS     VA_SDS_VERSION
 #define VA_INIT_GLX             USE_GLX
 #include "vdpau_driver_template.h"
 

@@ -9,17 +9,13 @@ m4_if(vdpau_video_pre_version, [0], [], [
 m4_append([vdpau_video_version], vdpau_video_pre_version, [.pre])
 ])
 
+# VA-API minimum version number
+m4_define([va_api_x11_version], [0.31.0])
+m4_define([va_api_glx_version], [0.32.0])
+
 # libva package version number
-m4_define([libva_sds_version_0_29], [8])
-m4_define([libva_sds_package_version_0_29], [0.29-2+sds11])
-m4_define([libva_sds_version_0_30], [1])
-m4_define([libva_sds_package_version_0_30], [0.30-1+sds1])
-m4_define([libva_glx_sds_version_0_30], [5])
-m4_define([libva_glx_sds_package_version_0_30], [0.30.4-1+sds6])
-m4_define([libva_glx_sds_version_0_31], [1])
-m4_define([libva_glx_sds_package_version_0_31], [0.31.0-1+sds1])
-m4_define([libva_sds_version], [libva_glx_sds_version_0_31])
-m4_define([libva_sds_package_version], [libva_glx_sds_package_version_0_31])
+m4_define([libva_package_x11_version], [1.0.3])
+m4_define([libva_package_glx_version], [1.0.9])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gwenole.beauchesne@intel.com],
@@ -28,14 +24,6 @@ AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE
 
 AM_CONFIG_HEADER([src/config.h])
-
-LIBVA_SDS_VERSION_0_29=libva_sds_version_0_29
-LIBVA_SDS_VERSION_0_30=libva_sds_version_0_30
-LIBVA_GLX_SDS_VERSION_0_30=libva_glx_sds_version_0_30
-LIBVA_GLX_SDS_VERSION_0_31=libva_glx_sds_version_0_31
-LIBVA_SDS_VERSION=libva_sds_version
-LIBVA_SDS_PACKAGE_VERSION=libva_sds_package_version
-AC_SUBST(LIBVA_SDS_PACKAGE_VERSION)
 
 VDPAU_VIDEO_MAJOR_VERSION=vdpau_video_major_version
 VDPAU_VIDEO_MINOR_VERSION=vdpau_video_minor_version
@@ -144,85 +132,24 @@ AC_SUBST(GL_DEPS_LIBS)
 
 dnl Check for VA-API
 PKG_CHECK_MODULES(LIBVA_DEPS,	  [libva])
-PKG_CHECK_MODULES(LIBVA_X11_DEPS, [libva-x11])
-PKG_CHECK_MODULES(LIBVA_GLX_DEPS, [libva-glx], [], [USE_GLX=0])
+PKG_CHECK_MODULES(LIBVA_X11_DEPS, [libva-x11 >= va_api_x11_version],
+    [LIBVA_PACKAGE_VERSION=libva_package_x11_version])
+PKG_CHECK_MODULES(LIBVA_GLX_DEPS, [libva-glx >= va_api_glx_version],
+    [LIBVA_PACKAGE_VERSION=libva_package_glx_version], [USE_GLX=0])
 
-dnl Check for SDS extensions to VA-API
-AC_CACHE_CHECK([for VA-API],
-  ac_cv_libva_sds_extensions, [
-  saved_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS $LIBVA_DEPS_CFLAGS"
-  AC_TRY_COMPILE([
-    #include <va/va_version.h>
-    #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 29
-    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION_0_29)
-    #  error "VA-API version >= 0.29.0-sds$LIBVA_SDS_VERSION_0_29 is required"
-    # endif
-    #elif VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 30
-    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_SDS_VERSION_0_30)
-    #  error "VA-API version >= 0.30.0-sds$LIBVA_SDS_VERSION_0_30 is required"
-    # endif
-    #elif !VA_CHECK_VERSION(0,31,0)
-    # error "VA-API version >= 0.31 is required"
-    #endif
-  ], [],
-  [ac_cv_libva_sds_extensions="yes"],
-  [ac_cv_libva_sds_extensions="no"])
-  CFLAGS="$saved_CFLAGS"
-])
 VA_VERSION=`$PKG_CONFIG --modversion libva`
 VA_MAJOR_VERSION=`echo "$VA_VERSION" | cut -d'.' -f1`
 VA_MINOR_VERSION=`echo "$VA_VERSION" | cut -d'.' -f2`
 VA_MICRO_VERSION=`echo "$VA_VERSION" | cut -d'.' -f3`
-VA_SDS_VERSION=`$PKG_CONFIG libva --variable sdsversion`
-
 VA_VERSION_STR="$VA_VERSION"
-if test -n "$VA_SDS_VERSION"; then
-    VA_VERSION_STR="$VA_VERSION_STR-sds$VA_SDS_VERSION"
-fi
 
 va_full_version_int=`expr ${VA_MAJOR_VERSION:-0} "*" 1000000 + \
                           ${VA_MINOR_VERSION:-0} "*" 10000   + \
                           ${VA_MICRO_VERSION:-0} "*" 100     + \
-                          ${VA_SDS_VERSION:-0}`
+                          0`
 VA_DRIVER_INIT_FUNC="__vaDriverInit_${VA_MAJOR_VERSION}_${VA_MINOR_VERSION}"
-if test $va_full_version_int -ge 00310005; then
-    VA_DRIVER_INIT_FUNC="${VA_DRIVER_INIT_FUNC}_${VA_MICRO_VERSION}_sds${VA_SDS_VERSION}"
-else
-    VA_DRIVER_INIT_FUNC="${VA_DRIVER_INIT_FUNC}_sds"
-fi
-if test "$ac_cv_libva_sds_extensions" = "yes"; then
-    AC_DEFINE_UNQUOTED([VA_DRIVER_INIT_FUNC], [$VA_DRIVER_INIT_FUNC], [Define driver entry-point])
-else
-    AC_MSG_ERROR([Your VA-API SDK does not include SDS extensions])
-fi
-
-dnl Check for OpenGL rendering extensions to VA-API
-AC_CACHE_CHECK([for VA-API (GLX extensions)],
-  ac_cv_libva_glx_extensions, [
-  saved_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS $LIBVA_DEPS_CFLAGS"
-  AC_TRY_COMPILE([
-    #include <va/va_version.h>
-    #if VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 30
-    # if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_GLX_SDS_VERSION_0_30)
-    #  error "VA-API version >= 0.30.0-sds$LIBVA_GLX_SDS_VERSION_0_30 is required"
-    # endif
-    #elif VA_MAJOR_VERSION == 0 && VA_MINOR_VERSION == 31
-    # if VA_MICRO_VERSION < 1
-    #  if !defined(VA_SDS_VERSION) || (VA_SDS_VERSION < $LIBVA_GLX_SDS_VERSION_0_31)
-    #   error "VA-API version >= 0.31.0-sds$LIBVA_GLX_SDS_VERSION_0_31 is required"
-    #  endif
-    # endif
-    #elif VA_MAJOR_VERSION ==0 && VA_MINOR_VERSION >= 32
-    #else
-    # error "This version of VA-API is not supported for OpenGL rendering"
-    #endif
-  ], [],
-  [ac_cv_libva_glx_extensions="yes"],
-  [ac_cv_libva_glx_extensions="no" USE_GLX=0])
-  CFLAGS="$saved_CFLAGS"
-])
+AC_DEFINE_UNQUOTED([VA_DRIVER_INIT_FUNC], [$VA_DRIVER_INIT_FUNC],
+    [Define driver entry-point])
 
 dnl Check for VA-API drivers path
 AC_MSG_CHECKING([for VA drivers path])
@@ -276,6 +203,8 @@ if test $USE_GLX -eq 1; then
 fi
 AC_SUBST(VDPAU_VIDEO_CFLAGS)
 AC_SUBST(VDPAU_VIDEO_LIBS)
+
+AC_SUBST(LIBVA_PACKAGE_VERSION)
 
 AC_OUTPUT([
     Makefile
