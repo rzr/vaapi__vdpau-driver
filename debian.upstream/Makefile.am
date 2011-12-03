@@ -3,13 +3,14 @@ DEBIANFILES = \
 	compat				\
 	control.in			\
 	copyright			\
+	libva-driver-vdpau.install.in	\
 	rules				\
-	libva-driver-vdpau.install	\
 	$(NULL)
 
 DEBIANGENFILES = \
 	changelog			\
 	control				\
+	libva-driver-vdpau.install	\
 	$(NULL)
 
 EXTRA_DIST = $(DEBIANFILES)
@@ -23,5 +24,6 @@ $(DEBIANGENFILES): %: %.in Makefile
 	-sed \
 	  -e 's|\@PACKAGE_VERSION\@|$(PACKAGE_VERSION)|' \
 	  -e 's|\@LIBVA_PACKAGE_VERSION\@|$(LIBVA_PACKAGE_VERSION)|' \
+	  -e 's|\@LIBVA_DRIVERS_PATH\@|$(LIBVA_DRIVERS_PATH)|' \
 	  -e 's|\@DATE\@|'"`LC_ALL=C date +'%a, %d %b %Y %X %z'`"'|' \
 	  $< > $@
