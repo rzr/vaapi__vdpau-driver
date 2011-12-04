@@ -166,6 +166,7 @@ subpicture_remove_association_at(object_subpicture_p obj_subpicture, int index)
     return 0;
 }
 
+#if 0
 // Remove association from the subpicture
 static int
 subpicture_remove_association(
@@ -184,6 +185,7 @@ subpicture_remove_association(
     }
     return -1;
 }
+#endif
 
 // Associate one surface to the subpicture
 VAStatus
