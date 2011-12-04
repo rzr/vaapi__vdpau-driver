@@ -398,7 +398,7 @@ vdpau_output_surface_put_bits_indexed(
     return VDPAU_INVOKE(output_surface_put_bits_indexed,
                         surface,
                         source_indexed_format,
-                        source_data,
+                        (const void **)source_data,
                         source_pitch,
                         destination_rect,
                         color_table_format,

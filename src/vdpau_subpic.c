@@ -137,10 +137,12 @@ subpicture_add_association(
 )
 {
     SubpictureAssociationP *assocs;
-    assocs = realloc_buffer(&obj_subpicture->assocs,
-                            &obj_subpicture->assocs_count_max,
-                            1 + obj_subpicture->assocs_count,
-                            sizeof(obj_subpicture->assocs[0]));
+    assocs = realloc_buffer(
+        (void **)&obj_subpicture->assocs,
+        &obj_subpicture->assocs_count_max,
+        1 + obj_subpicture->assocs_count,
+        sizeof(obj_subpicture->assocs[0])
+    );
     if (!assocs)
         return -1;
 

@@ -94,7 +94,7 @@ schedule_destroy_va_buffer(
         return;
 
     realloc_buffer(
-        &obj_context->dead_buffers,
+        (void **)&obj_context->dead_buffers,
         &obj_context->dead_buffers_count_max,
         16 + obj_context->dead_buffers_count,
         sizeof(*obj_context->dead_buffers)

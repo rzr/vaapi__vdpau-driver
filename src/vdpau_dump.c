@@ -62,6 +62,14 @@ const char *string_of_VABufferType(VABufferType type)
         _(VAEncH264VUIBufferType);
         _(VAEncH264SEIBufferType);
 #endif
+#if VA_CHECK_VERSION(0,31,1)
+        _(VAQMatrixBufferType);
+#endif
+#if VA_CHECK_VERSION(0,32,0)
+        _(VAEncMiscParameterBufferType);
+#endif
+    default:
+        break;
 #undef _
     }
     return str;
@@ -103,7 +111,7 @@ const char *string_of_VdpCodec(VdpCodec codec)
 
 // Dumps matrix[N][M] = N rows x M columns (uint8_t)
 static void
-dump_matrix_NxM(const char *label, uint8_t *matrix, int N, int M, int L)
+dump_matrix_NxM(const char *label, const uint8_t *matrix, int N, int M, int L)
 {
     int i, j, n = 0;
 

@@ -480,7 +480,7 @@ output_surface_ensure(
 
     /* Append output surface */
     if (new_obj_output) {
-        if (realloc_buffer(&obj_surface->output_surfaces,
+        if (realloc_buffer((void **)&obj_surface->output_surfaces,
                            &obj_surface->output_surfaces_count_max,
                            1 + obj_surface->output_surfaces_count,
                            sizeof(*obj_surface->output_surfaces)) == NULL)

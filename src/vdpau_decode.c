@@ -232,7 +232,7 @@ alloc_VdpBitstreamBuffer(object_context_p obj_context)
     VdpBitstreamBuffer *vdp_bitstream_buffers;
 
     vdp_bitstream_buffers = realloc_buffer(
-        &obj_context->vdp_bitstream_buffers,
+        (void **)&obj_context->vdp_bitstream_buffers,
         &obj_context->vdp_bitstream_buffers_count_max,
         1 + obj_context->vdp_bitstream_buffers_count,
         sizeof(*obj_context->vdp_bitstream_buffers)

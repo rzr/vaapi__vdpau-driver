@@ -272,7 +272,7 @@ int surface_add_association(
     /* Append this subpicture association */
     SubpictureAssociationP *assocs;
     assocs = realloc_buffer(
-        &obj_surface->assocs,
+        (void **)&obj_surface->assocs,
         &obj_surface->assocs_count_max,
         1 + obj_surface->assocs_count,
         sizeof(obj_surface->assocs[0])
