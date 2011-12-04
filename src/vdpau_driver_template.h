@@ -637,7 +637,11 @@ static VAStatus FUNC(Initialize)(VA_DRIVER_CONTEXT_P ctx)
     vtable->vaGetDisplayAttributes          = vdpau_GetDisplayAttributes;
     vtable->vaSetDisplayAttributes          = vdpau_SetDisplayAttributes;
 #if VA_INIT_CHECK_VERSION(0,31,1)
+#if VA_INIT_CHECK_VERSION(0,32,0)
     vtable->vaBufferInfo                    = vdpau_BufferInfo;
+#else
+    vtable->vaBufferInfo                    = vdpau_BufferInfo_0_31_1;
+#endif
     vtable->vaLockSurface                   = vdpau_LockSurface;
     vtable->vaUnlockSurface                 = vdpau_UnlockSurface;
 #else
