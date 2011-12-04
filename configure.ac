@@ -73,6 +73,12 @@ AC_C_BIGENDIAN
 AC_HEADER_STDC
 AC_SYS_LARGEFILE
 
+dnl Use pretty build output with automake >= 1.11
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])], [
+    AM_DEFAULT_VERBOSITY=1
+    AC_SUBST(AM_DEFAULT_VERBOSITY)
+])
+
 dnl We want pthreads. Try libpthread first, then libc_r (FreeBSD), then PTL.
 HAVE_PTHREADS=yes
 AC_CHECK_LIB(pthread, pthread_create, , [
