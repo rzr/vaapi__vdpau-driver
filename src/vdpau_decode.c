@@ -1134,6 +1134,8 @@ vdpau_BeginPicture(
     default:
         return VA_STATUS_ERROR_UNKNOWN;
     }
+
+    destroy_dead_va_buffers(driver_data, obj_context);
     return VA_STATUS_SUCCESS;
 }
 
@@ -1256,16 +1258,7 @@ vdpau_EndPicture(
     obj_context->current_render_target = VA_INVALID_SURFACE;
 
     /* Release pending buffers */
-    if (obj_context->dead_buffers_count > 0) {
-        ASSERT(obj_context->dead_buffers);
-        int i;
-        for (i = 0; i < obj_context->dead_buffers_count; i++) {
-            object_buffer_p obj_buffer = VDPAU_BUFFER(obj_context->dead_buffers[i]);
-            ASSERT(obj_buffer);
-            destroy_va_buffer(driver_data, obj_buffer);
-        }
-        obj_context->dead_buffers_count = 0;
-    }
+    destroy_dead_va_buffers(driver_data, obj_context);
 
     return va_status;
 }

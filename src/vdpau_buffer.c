@@ -28,6 +28,27 @@
 #define DEBUG 1
 #include "debug.h"
 
+// Destroy dead VA buffers
+void
+destroy_dead_va_buffers(
+    vdpau_driver_data_t *driver_data,
+    object_context_p     obj_context
+)
+{
+    object_buffer_p obj_buffer;
+    unsigned int i;
+
+    if (obj_context->dead_buffers_count < 1)
+        return;
+
+    ASSERT(obj_context->dead_buffers);
+    for (i = 0; i < obj_context->dead_buffers_count; i++) {
+        obj_buffer = VDPAU_BUFFER(obj_context->dead_buffers[i]);
+        ASSERT(obj_buffer);
+        destroy_va_buffer(driver_data, obj_buffer);
+    }
+    obj_context->dead_buffers_count = 0;
+}
 
 // Create VA buffer object
 object_buffer_p

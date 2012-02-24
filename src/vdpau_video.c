@@ -24,6 +24,7 @@
 #include "vdpau_decode.h"
 #include "vdpau_subpic.h"
 #include "vdpau_mixer.h"
+#include "vdpau_buffer.h"
 #include "utils.h"
 
 #define DEBUG 1
@@ -481,6 +482,7 @@ VAStatus vdpau_DestroyContext(VADriverContextP ctx, VAContextID context)
         obj_context->vdp_decoder = VDP_INVALID_HANDLE;
     }
 
+    destroy_dead_va_buffers(driver_data, obj_context);
     if (obj_context->dead_buffers) {
         free(obj_context->dead_buffers);
         obj_context->dead_buffers = NULL;
