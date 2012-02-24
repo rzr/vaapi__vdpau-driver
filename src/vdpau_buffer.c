@@ -57,6 +57,7 @@ create_va_buffer(
     obj_buffer->buffer_size      = size * num_elements;
     obj_buffer->buffer_data      = malloc(obj_buffer->buffer_size);
     obj_buffer->mtime            = 0;
+    obj_buffer->delayed_destroy  = 0;
 
     if (!obj_buffer->buffer_data) {
         destroy_va_buffer(driver_data, obj_buffer);
@@ -103,6 +104,7 @@ schedule_destroy_va_buffer(
     ASSERT(obj_context->dead_buffers);
     obj_context->dead_buffers[obj_context->dead_buffers_count] = obj_buffer->base.id;
     obj_context->dead_buffers_count++;
+    obj_buffer->delayed_destroy = 1;
 }
 
 // vaCreateBuffer
@@ -162,7 +164,7 @@ vdpau_DestroyBuffer(
 
     object_buffer_p obj_buffer = VDPAU_BUFFER(buffer_id);
 
-    if (obj_buffer)
+    if (obj_buffer && !obj_buffer->delayed_destroy)
         destroy_va_buffer(driver_data, obj_buffer);
 
     return VA_STATUS_SUCCESS;
