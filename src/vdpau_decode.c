@@ -418,6 +418,42 @@ translate_nothing(
     return 1;
 }
 
+static int
+translate_VASliceDataBuffer_MPEG2(
+    vdpau_driver_data_t *driver_data,
+    object_context_p    obj_context,
+    object_buffer_p     obj_buffer
+)
+{
+    static const uint8_t start_code_prefix[3] = { 0x00, 0x00, 0x01 };
+    VASliceParameterBufferMPEG2 * const slice_params = obj_context->last_slice_params;
+    uint8_t *slice_header;
+    unsigned int i;
+
+    /* Check we have the start code */
+    for (i = 0; i < obj_context->last_slice_params_count; i++) {
+        VASliceParameterBufferMPEG2 * const slice_param = &slice_params[i];
+        uint8_t * const buf = (uint8_t *)obj_buffer->buffer_data + slice_param->slice_data_offset;
+        if (memcmp(buf, start_code_prefix, sizeof(start_code_prefix)) != 0) {
+            if (append_VdpBitstreamBuffer(obj_context,
+                                          start_code_prefix,
+                                          sizeof(start_code_prefix)) < 0)
+                return 0;
+            slice_header = alloc_gen_slice_data(obj_context, 1);
+            if (!slice_header)
+                return 0;
+            slice_header[0] = slice_param->slice_vertical_position + 1;
+            if (append_VdpBitstreamBuffer(obj_context, slice_header, 1) < 0)
+                return 0;
+        }
+        if (append_VdpBitstreamBuffer(obj_context,
+                                      buf,
+                                      slice_param->slice_data_size) < 0)
+            return 0;
+    }
+    return 1;
+}
+
 // Translate VASliceDataBuffer
 static int
 translate_VASliceDataBuffer(
@@ -449,6 +485,10 @@ translate_VASliceDataBuffer(
         }
         return 1;
     }
+
+    if (obj_context->vdp_codec == VDP_CODEC_MPEG2)
+        return translate_VASliceDataBuffer_MPEG2(driver_data,
+                                                 obj_context, obj_buffer);
 
 #if USE_VDPAU_MPEG4
     if (obj_context->vdp_codec == VDP_CODEC_MPEG4 &&
