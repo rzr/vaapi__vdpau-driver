@@ -5,6 +5,7 @@ Version 0.7.4 - DD.MM.2011
 * Use upstream libva version
 * Avoid X11 socket leak (Marco De Michele)
 * Fix compatibility glue for vaBufferInfo()
+* Fix subpicture blend state (Holger Kaelberer)
 
 Version 0.7.3 - 26.Feb.2011
 * Add compatibility glue with libva >= 1.0.8
