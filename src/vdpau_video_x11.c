@@ -502,6 +502,7 @@ render_subpicture(
     blend_state.blend_equation_alpha           = VDP_OUTPUT_SURFACE_RENDER_BLEND_EQUATION_ADD;
 
     VdpStatus vdp_status;
+    VdpColor color = { 1.0, 1.0, 1.0, obj_subpicture->alpha };
     switch (obj_image->vdp_format_type) {
     case VDP_IMAGE_FORMAT_TYPE_RGBA:
         vdp_status = vdpau_output_surface_render_bitmap_surface(
@@ -510,7 +511,7 @@ render_subpicture(
             &dst_rect,
             obj_subpicture->vdp_bitmap_surface,
             &src_rect,
-            NULL,
+            &color,
             &blend_state,
             VDP_OUTPUT_SURFACE_RENDER_ROTATE_0
         );

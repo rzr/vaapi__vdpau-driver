@@ -55,20 +55,20 @@ vdpau_subpic_formats_map[VDPAU_MAX_SUBPICTURE_FORMATS + 1] = {
     { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_B8G8R8A8,
       { VA_FOURCC('A','R','G','B'), VA_MSB_FIRST, 32,
         32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000 },
-      0 },
+      VA_SUBPICTURE_GLOBAL_ALPHA },
     { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_R8G8B8A8,
       { VA_FOURCC('A','B','G','R'), VA_MSB_FIRST, 32,
         32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000 },
-      0 },
+      VA_SUBPICTURE_GLOBAL_ALPHA },
 #else
     { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_B8G8R8A8,
       { VA_FOURCC('B','G','R','A'), VA_LSB_FIRST, 32,
         32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000 },
-      0 },
+      VA_SUBPICTURE_GLOBAL_ALPHA },
     { VDP_IMAGE_FORMAT_TYPE_RGBA, VDP_RGBA_FORMAT_R8G8B8A8,
       { VA_FOURCC('R','G','B','A'), VA_LSB_FIRST, 32,
         32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000 },
-      0 },
+      VA_SUBPICTURE_GLOBAL_ALPHA },
 #endif
     { 0, VDP_INVALID_HANDLE, }
 };
@@ -197,8 +197,8 @@ subpicture_associate_1(
     unsigned int        flags
 )
 {
-    /* XXX: flags are not supported */
-    if (flags)
+    /* we only support the VA_SUBPICTURE_GLOBAL_ALPHA flag */
+    if (flags & ~VA_SUBPICTURE_GLOBAL_ALPHA)
         return VA_STATUS_ERROR_FLAG_NOT_SUPPORTED;
 
     SubpictureAssociationP assoc = malloc(sizeof(*assoc));
@@ -419,6 +419,7 @@ create_subpicture(
     obj_subpicture->last_commit        = 0;
     obj_subpicture->vdp_format_type    = m->vdp_format_type;
     obj_subpicture->vdp_format         = m->vdp_format;
+    obj_subpicture->alpha              = 1.0;
 
     VdpStatus vdp_status;
     switch (obj_subpicture->vdp_format_type) {
