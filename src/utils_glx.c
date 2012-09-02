@@ -1228,18 +1228,13 @@ gl_unbind_framebuffer_object(GLFramebufferObject *fbo)
     return 1;
 }
 
-/* VDPAU/GL data */
-static pthread_mutex_t  gl_vdpau_mutex  = PTHREAD_MUTEX_INITIALIZER;
-static VdpDevice        gl_vdpau_device = VDP_INVALID_HANDLE;
-static unsigned int     gl_vdpau_refcount;
-
 /**
  * gl_vdpau_init:
  * @device: a #VdpDevice
  * @get_proc_address: the #VdpGetProcAddress generated during
  *   #VdpDevice creation
  *
- * Informs the GL which VDPAU device to interact with.
+ * Informs the GL context which VDPAU device to interact with.
  *
  * Return value: 1 on success
  */
@@ -1251,21 +1246,15 @@ gl_vdpau_init(VdpDevice device, VdpGetProcAddress get_proc_address)
     if (!gl_vtable || !gl_vtable->has_vdpau_interop)
         return 0;
 
-    if (gl_vdpau_device != VDP_INVALID_HANDLE && gl_vdpau_device != device)
-        return 0;
+    gl_vtable->gl_vdpau_init((void *)(uintptr_t)device, get_proc_address);
 
-    pthread_mutex_lock(&gl_vdpau_mutex);
-    gl_vdpau_device = device;
-    if (gl_vdpau_refcount++ == 0)
-        gl_vtable->gl_vdpau_init((void *)(uintptr_t)device, get_proc_address);
-    pthread_mutex_unlock(&gl_vdpau_mutex);
     return 1;
 }
 
 /**
  * gl_vdpau_exit:
  *
- * Disposes the VDPAU/GL interact functionality.
+ * Disposes the VDPAU/GL interact functionality for the current context.
  */
 void
 gl_vdpau_exit(void)
@@ -1275,10 +1264,7 @@ gl_vdpau_exit(void)
     if (!gl_vtable || !gl_vtable->has_vdpau_interop)
         return;
 
-    pthread_mutex_lock(&gl_vdpau_mutex);
-    if (--gl_vdpau_refcount == 0)
-        gl_vtable->gl_vdpau_fini();
-    pthread_mutex_unlock(&gl_vdpau_mutex);
+    gl_vtable->gl_vdpau_fini();
 }
 
 /**
