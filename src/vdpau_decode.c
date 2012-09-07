@@ -1229,6 +1229,7 @@ vdpau_RenderPicture(
             destroy_va_buffer(driver_data, obj_buffer);
             break;
         }
+        buffers[i] = VA_INVALID_BUFFER;
     }
 
     return VA_STATUS_SUCCESS;
