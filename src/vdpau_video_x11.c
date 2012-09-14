@@ -30,87 +30,6 @@
 #include "debug.h"
 
 
-/* Defined to 1 to use a multi-threaded vaPutSurface() implementation */
-#define USE_PUTSURFACE_FAST 1
-
-static int get_use_putsurface_fast_env(void)
-{
-    int use_putsurface_fast;
-    if (getenv_yesno("VDPAU_VIDEO_PUTSURFACE_FAST", &use_putsurface_fast) < 0)
-        use_putsurface_fast = USE_PUTSURFACE_FAST;
-    return use_putsurface_fast;
-}
-
-static inline int use_putsurface_fast(void)
-{
-    static int g_use_putsurface_fast = -1;
-    if (g_use_putsurface_fast < 0)
-        g_use_putsurface_fast = get_use_putsurface_fast_env();
-    return g_use_putsurface_fast;
-}
-
-// Prototypes
-static VAStatus
-flip_surface(
-    vdpau_driver_data_t *driver_data,
-    object_output_p      obj_output
-);
-
-// Renderer thread messenger
-#define MSG2PTR(v) ((void *)(uintptr_t)(v))
-#define PTR2MSG(v) ((uintptr_t)(void *)(v))
-enum {
-    MSG_TYPE_QUIT = 1,
-    MSG_TYPE_QUEUE
-};
-
-// Renderer thread
-typedef struct {
-    vdpau_driver_data_t *driver_data;
-    object_output_p      obj_output;
-} RenderThreadArgs;
-
-static const unsigned int VIDEO_REFRESH = 1000000 / 60;
-
-static void *render_thread(void *arg)
-{
-    RenderThreadArgs * const    args        = arg;
-    vdpau_driver_data_t * const driver_data = args->driver_data;
-    object_output_p const       obj_output  = args->obj_output;
-    unsigned int stop = 0, num_surfaces = 0;
-    uint64_t next;
-
-    next = get_ticks_usec() + VIDEO_REFRESH;
-    while (!stop) {
-        void * const msg = async_queue_timed_pop(obj_output->render_comm, next);
-
-        // Handle message
-        if (msg) {
-            switch (PTR2MSG(msg)) {
-            case MSG_TYPE_QUIT:
-                stop = 1;
-                break;
-            case MSG_TYPE_QUEUE:
-                if (++num_surfaces == 1)
-                    next = get_ticks_usec() + VIDEO_REFRESH;
-                break;
-            }
-        }
-
-        // Timeout. Display the output surface
-        else if (num_surfaces > 0) {
-            flip_surface(driver_data, obj_output);
-            num_surfaces = 0;
-        }
-
-        // Timeout. No surface received, maybe in the next time slice?
-        else {
-            next = get_ticks_usec() + VIDEO_REFRESH;
-        }
-    }
-    return NULL;
-}
-
 // Checks whether drawable is a window
 static int is_window(Display *dpy, Drawable drawable)
 {
@@ -177,16 +96,12 @@ configure_notify_event_pending(
 static inline void
 output_surface_lock(object_output_p obj_output)
 {
-    if (obj_output->render_thread_ok)
-        pthread_mutex_lock(&obj_output->vdp_output_surfaces_lock);
 }
 
 // Unlocks output surfaces
 static inline void
 output_surface_unlock(object_output_p obj_output)
 {
-    if (obj_output->render_thread_ok)
-        pthread_mutex_unlock(&obj_output->vdp_output_surfaces_lock);
 }
 
 // Ensure output surface size matches drawable size
@@ -276,29 +191,11 @@ output_surface_create(
     obj_output->displayed_output_surface = 0;
     obj_output->queued_surfaces          = 0;
     obj_output->fields                   = 0;
-    obj_output->render_comm              = NULL;
-    obj_output->render_thread            = 0;
-    obj_output->render_thread_ok         = 0;
     obj_output->is_window                = 0;
     obj_output->size_changed             = 0;
 
     if (drawable != None)
         obj_output->is_window = is_window(driver_data->x11_dpy, drawable);
-
-    if (use_putsurface_fast() && driver_data->va_display_type == VA_DISPLAY_X11) {
-        obj_output->render_comm = async_queue_new();
-        if (obj_output->render_comm) {
-            RenderThreadArgs args;
-            args.driver_data = driver_data;
-            args.obj_output  = obj_output;
-            obj_output->render_thread_ok = !pthread_create(
-                &obj_output->render_thread,
-                NULL,
-                render_thread,
-                &args
-            );
-        }
-    }
 
     unsigned int i;
     for (i = 0; i < VDPAU_MAX_OUTPUT_SURFACES; i++) {
@@ -368,18 +265,6 @@ output_surface_destroy(
             vdpau_output_surface_destroy(driver_data, vdp_output_surface);
             obj_output->vdp_output_surfaces[i] = VDP_INVALID_HANDLE;
         }
-    }
-
-    if (obj_output->render_thread_ok) {
-        async_queue_push(obj_output->render_comm, MSG2PTR(MSG_TYPE_QUIT));
-        pthread_join(obj_output->render_thread, NULL);
-        obj_output->render_thread    = 0;
-        obj_output->render_thread_ok = 0;
-    }
-
-    if (obj_output->render_comm) {
-        async_queue_free(obj_output->render_comm);
-        obj_output->render_comm = NULL;
     }
 
     pthread_mutex_unlock(&obj_output->vdp_output_surfaces_lock);
@@ -528,10 +413,7 @@ render_surface(
     VdpOutputSurface vdp_background = VDP_INVALID_HANDLE;
     if (!obj_output->size_changed && obj_output->queued_surfaces > 0) {
         int background_surface;
-        if (obj_output->render_thread_ok)
-            background_surface = obj_output->current_output_surface;
-        else
-            background_surface = obj_output->displayed_output_surface;
+        background_surface = obj_output->displayed_output_surface;
         if (obj_output->vdp_output_surfaces_dirty[background_surface])
             vdp_background = obj_output->vdp_output_surfaces[background_surface];
     }
@@ -714,20 +596,6 @@ flip_surface_unlocked(
     return VA_STATUS_SUCCESS;
 }
 
-VAStatus
-flip_surface(
-    vdpau_driver_data_t *driver_data,
-    object_output_p      obj_output
-)
-{
-    VAStatus va_status;
-
-    output_surface_lock(obj_output);
-    va_status = flip_surface_unlocked(driver_data, obj_output);
-    output_surface_unlock(obj_output);
-    return va_status;
-}
-
 static VAStatus
 queue_surface_unlocked(
     vdpau_driver_data_t *driver_data,
@@ -738,11 +606,6 @@ queue_surface_unlocked(
     obj_surface->va_surface_status       = VASurfaceDisplaying;
     obj_output->fields                   = 0;
 
-    if (obj_output->render_thread_ok) {
-        if (!async_queue_push(obj_output->render_comm, MSG2PTR(MSG_TYPE_QUEUE)))
-            return VA_STATUS_ERROR_OPERATION_FAILED;
-        return VA_STATUS_SUCCESS;
-    }
     return flip_surface_unlocked(driver_data, obj_output);
 }
 

@@ -43,9 +43,6 @@ struct object_output {
     unsigned int                displayed_output_surface;
     unsigned int                queued_surfaces;
     unsigned int                fields;
-    UAsyncQueue                *render_comm;
-    pthread_t                   render_thread;
-    unsigned int                render_thread_ok;
     unsigned int                is_window    : 1; /* drawable is a window */
     unsigned int                size_changed : 1; /* size changed since previous vaPutSurface() and user noticed the change */
 };
