@@ -33,6 +33,7 @@ struct object_base {
 };
 
 struct object_heap {
+    pthread_mutex_t mutex;
     int	object_size;
     int id_offset;
     int next_free;
