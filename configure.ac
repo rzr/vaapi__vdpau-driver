@@ -19,7 +19,7 @@ m4_define([libva_package_glx_version], [1.0.9])
 
 AC_PREREQ([2.57])
 AC_INIT([vdpau_video], [vdpau_video_version], [gwenole.beauchesne@intel.com],
-        [libva-driver-vdpau])
+        [libva-vdpau-driver])
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE
 

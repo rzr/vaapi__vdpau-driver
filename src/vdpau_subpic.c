@@ -1,7 +1,7 @@
 /*
  *  vdpau_subpic.c - VDPAU backend for VA-API (VA subpictures)
  *
- *  libva-driver-vdpau (C) 2009-2011 Splitted-Desktop Systems
+ *  libva-vdpau-driver (C) 2009-2011 Splitted-Desktop Systems
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

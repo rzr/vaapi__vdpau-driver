@@ -3,14 +3,14 @@ DEBIANFILES = \
 	compat				\
 	control.in			\
 	copyright			\
-	libva-driver-vdpau.install.in	\
+	libva-vdpau-driver.install.in	\
 	rules				\
 	$(NULL)
 
 DEBIANGENFILES = \
 	changelog			\
 	control				\
-	libva-driver-vdpau.install	\
+	libva-vdpau-driver.install	\
 	$(NULL)
 
 EXTRA_DIST = $(DEBIANFILES)

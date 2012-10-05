@@ -1,4 +1,4 @@
-Source: libva-driver-vdpau
+Source: libva-vdpau-driver
 Section: libs
 Priority: optional
 Maintainer: Gwenole Beauchesne <gbeauchesne@splitted-desktop.com>
@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 5),
 	       libva-dev (>= @LIBVA_PACKAGE_VERSION@)
 Standards-Version: 3.7.2
 
-Package: libva-driver-vdpau
+Package: libva-vdpau-driver
 Section: libs
 Architecture: any
 Depends: libva1 (>= @LIBVA_PACKAGE_VERSION@),
@@ -15,10 +15,10 @@ Depends: libva1 (>= @LIBVA_PACKAGE_VERSION@),
 Description: VDPAU-based backend for VA-API
  Video decode driver for NVIDIA chipsets (VDPAU implementation).
 
-Package: libva-driver-vdpau-dbg
+Package: libva-vdpau-driver-dbg
 Section: libdevel
 Architecture: any
-Depends: libva-driver-vdpau (= ${Source-Version})
+Depends: libva-vdpau-driver (= ${Source-Version})
 Description: VDPAU-based backend for VA-API
  Video decode driver for NVIDIA chipsets (VDPAU implementation).
  .

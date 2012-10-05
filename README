@@ -1,5 +1,5 @@
 
-  libva-driver-vdpau
+  libva-vdpau-driver
   A VDPAU-based backend for VA-API
 
   Copyright (C) 2009-2011 Splitted-Desktop Systems
@@ -8,14 +8,14 @@
 License
 -------
 
-libva-driver-vdpau is available under the terms of the GNU General
+libva-vdpau-driver is available under the terms of the GNU General
 Public License.
 
 
 Overview
 --------
 
-libva-driver-vdpau consists in a VDPAU-based backend for VA-API.
+libva-vdpau-driver consists in a VDPAU-based backend for VA-API.
 
 
 Requirements

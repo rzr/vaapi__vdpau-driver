@@ -30,4 +30,4 @@ depcomp
 TAGS
 /debian.upstream/changelog
 /debian.upstream/control
-/debian.upstream/libva-driver-vdpau.install
+/debian.upstream/libva-vdpau-driver.install
