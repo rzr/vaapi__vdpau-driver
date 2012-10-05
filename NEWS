@@ -4,8 +4,11 @@ Copyright (C) 2009-2011 Splitted-Desktop Systems
 Version 0.7.4 - DD.MM.2011
 * Use upstream libva version
 * Avoid X11 socket leak (Marco De Michele)
+* Fix MPEG-2 decoding from gstreamer-vaapi
 * Fix compatibility glue for vaBufferInfo()
 * Fix subpicture blend state (Holger Kaelberer)
+* Fix multithreaded issues (Philip Lorenz, Krzysztof Kotlenga)
+* Add support for global-alpha subpictures (Holger Kaelberer)
 
 Version 0.7.3 - 26.Feb.2011
 * Add compatibility glue with libva >= 1.0.8
